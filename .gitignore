@@ -2,3 +2,9 @@
 Debug
 *.dir
 x64
+build
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.users
+*.sln
+*.cmake
