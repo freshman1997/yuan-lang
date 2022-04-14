@@ -1,0 +1,92 @@
+
+
+语言要素：
+	1、首先，语言是脚本语言，需要自己实现虚拟机，不是aot提前编译，然后链接成可以执行的文件；
+	2、为简单起见，不采用类的结构，类似 lua 的机制，不需要主函数也可以执行
+	3、可以直接解释执行，也可以编译成二进制文件保存，后面再执行
+	4、语法简单，容易上手，可以方便嵌入其他应用
+	5、要有一些基本库，数学，io，时间日期，字符串处理，大数计算等
+	6、是同步执行
+	7、没有类型，语言层面实现泛型
+
+
+	声明变量：
+		a = 100		// int
+		b = 1.123	// double
+		c = "aaa"	// string
+		d = `` adsasas // multi line string
+			asdasd``
+		e = [100, "", {}]		// array
+		f = {"a": {}, 10:"aa"}		// dictionary
+		h = true
+		i = fn (aasaa) {}
+
+	条件:
+		if a == b || c != d >= <= > <
+		else if 
+		else 
+	
+	循环:
+		for i : (1 ~ 100)
+		{	
+		}
+
+		for i = 0; i < 100; ++i
+		{
+		}
+		for a, b : aas {}
+
+
+		while cond
+		{
+			continue
+
+			break
+		}
+		
+		do {} while cond#
+
+		switch a 
+		{
+			case 1:
+			break
+			default:
+			//
+		}
+
+	异常：
+		try {
+			
+		}catch exception
+		{
+			
+		}
+	
+	作用域：
+		{
+
+		}
+	
+
+	函数：
+		// public 函数
+		fn func(num)
+		{
+			ret 12124
+		}
+		// 私有函数
+		local fn test()
+		{
+
+		}
+		
+	注释：
+		// 单行
+		/* */ 多行
+
+	关键字：
+		local, do, while, for, fn, try, catch, switch, case default, break, continue, require
+		
+	符号：
+		=, ==, !=, !, :, >, >=, <, <=, /, %, >>, <<, *, -, +, &, ^, |,, ;   		
+
