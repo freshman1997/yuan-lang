@@ -1,0 +1,10 @@
+^D:\CODE\TEST\CPP\YUAN-LANG\CMAKEFILES\11CC0979998DA07F8D1DCDDBD54A93C0\GENERATE.STAMP.RULE
+setlocal
+C:\cmake\cmake-3.22.0-rc3-windows-x86_64\bin\cmake.exe -SD:/code/test/cpp/yuan-lang -BD:/code/test/cpp/yuan-lang --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/code/test/cpp/yuan-lang/yuan-lang.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

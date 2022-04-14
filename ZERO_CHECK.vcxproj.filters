@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="16.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\code\test\cpp\yuan-lang\CMakeFiles\11cc0979998da07f8d1dcddbd54a93c0\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{1F53C337-5457-3B6F-92E7-8DB18974B3E4}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
