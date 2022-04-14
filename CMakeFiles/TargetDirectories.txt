@@ -1,4 +1,0 @@
-D:/code/test/cpp/yuan-lang/CMakeFiles/hello.dir
-D:/code/test/cpp/yuan-lang/CMakeFiles/ALL_BUILD.dir
-D:/code/test/cpp/yuan-lang/CMakeFiles/ZERO_CHECK.dir
-D:/code/test/cpp/yuan-lang/test/CMakeFiles/test1.dir
