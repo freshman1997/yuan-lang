@@ -1,5 +1,7 @@
-#ifndef __UITILS_H__
+﻿#ifndef __UITILS_H__
 #define __UITILS_H__
+
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #include <cstring>
 #include <cstdlib>
@@ -23,14 +25,13 @@ inline bool str_equal(const char *s1, const char *s2, int n)
     return n == 0;
 }
 
-void to_hex_str(int val, string &target)
-{
-
+static bool startswith(char* p, const char* q) {
+	return strncmp(p, q, strlen(q)) == 0;
 }
 
 inline void error(const char *msg, const char *s)
 {
-    cout << msg << s << endl;
+    cerr << msg << s << endl;
     exit(1);
 }
 

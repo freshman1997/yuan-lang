@@ -1,9 +1,15 @@
 #include <iostream>
 
+#include "lex.h"
+
 using namespace std;
 
 int main()
 {
-    cout << "Hello World!!" << endl;
+
+    TokenReader reader;
+    tokenize("D:/code/test/cpp/yuan-lang/hello.y", reader);
+    
+
     return 0;
 }
