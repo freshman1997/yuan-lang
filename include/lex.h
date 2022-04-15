@@ -43,12 +43,15 @@ public:
     void set_sz(int sz);
     void set_file_name(const char *fn);
     Token & get_last();
+    void set_content(char *c);
+    char * get_content();
 
 private:
     const char *filename;
     FILE *file;                 // 当前文件
     int sz;                     // 文件内容大小
     int idx = 0;
+    char *content;
     vector<Token> tokens;
 };
 

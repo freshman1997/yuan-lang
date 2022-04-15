@@ -9,6 +9,8 @@
 	6、是同步执行
 	7、没有类型，语言层面实现泛型
 
+	类型大小：
+		byte: 1, 整形：8，浮点：8，nil：0，布尔：1
 
 	声明变量：
 		a = 100		// int
@@ -27,14 +29,14 @@
 		else 
 	
 	循环:
-		for i : (1 ~ 100)
+		for (i : (1 to 100))
 		{	
 		}
 
-		for i = 0; i < 100; ++i
+		for (i = 0; i < 100; ++i)
 		{
 		}
-		for a, b : aas {}
+		for (a, b : aas) {}
 
 
 		while cond
@@ -46,7 +48,7 @@
 		
 		do {} while cond#
 
-		switch a 
+		switch ()
 		{
 			case 1:
 			break
@@ -80,13 +82,31 @@
 
 		}
 		
+		fn args(...) {
+			local len = #args
+			for (arg : args) {
+
+			}
+			for(int i = 0; i < #args; ++i) {
+
+			}
+		}
+		
 	注释：
 		// 单行
 		/* */ 多行
 
 	关键字：
-		local, do, while, for, fn, try, catch, switch, case default, break, continue, require
+		local, do, while, for, fn, try, catch, switch, case default, break, continue, require, goto
 		
 	符号：
-		=, ==, !=, !, :, >, >=, <, <=, /, %, >>, <<, *, -, +, &, ^, |,, ;   		
+		=, ==, !=, !, :, >, >=, <, <=, /, %, >>, <<, *, -, +, &, ^, |, #, ., (), {}, [], ", ', ``, ;, ~, ++, --, +=, -=, *=, /=
 
+
+	二元运算符		一元运算符     
+		+				! 、++、--
+	  /   \			   	|
+	node  node		   node
+
+
+	if: ()

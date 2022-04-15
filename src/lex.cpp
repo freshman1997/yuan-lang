@@ -58,6 +58,16 @@ Token & TokenReader::get_last()
     return tokens.back();
 }
 
+void TokenReader::set_content(char *content)
+{
+    this->content = content;
+}
+
+char * TokenReader::get_content()
+{
+    return this->content;
+}
+
 static char * read_all_the_file(const char *filename, TokenReader &reader)
 {
     FILE *fd = NULL;
@@ -89,8 +99,8 @@ static char * read_all_the_file(const char *filename, TokenReader &reader)
 
 static bool is_keyword(const Token& tok) {
 	static const char* kw[] = {
-	  "ret", "if", "else", "for", "while", "do", "fn", "local",
-	  "switch", "case", "default", "break", "continue", "require"
+	  "return", "if", "else", "for", "while", "do", "fn", "local",
+	  "switch", "case", "default", "break", "continue", "require", "to", "goto"
 	};
 
 	static unordered_set<string> s;
@@ -128,7 +138,7 @@ static int read_punct(char* p)
 	static const char* kw[] = {
 	  "<<=", ">>=", "...", "==", "!=", "<=", ">=", "+=",
 	  "-=", "*=", "/=", "++", "--", "%=", "&=", "|=", "^=", "&&",
-	  "||", "<<", ">>", ":",
+	  "||", "<<", ">>", ":", "``", "",
 	};
 
 	for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
