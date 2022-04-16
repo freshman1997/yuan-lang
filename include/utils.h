@@ -25,7 +25,7 @@ inline bool str_equal(const char *s1, const char *s2, int n)
     return n == 0;
 }
 
-bool startswith(char* p, const char* q) {
+static bool startswith(char* p, const char* q) {
 	return strncmp(p, q, strlen(q)) == 0;
 }
 
@@ -33,6 +33,47 @@ inline void error(const char *msg, const char *s)
 {
     cerr << msg << s << endl;
     exit(1);
+}
+
+static bool iden_not_allow_sym(char c)
+{
+    switch (c)
+    {
+    case '+':case '-':case '*':case '/':case '&':case '#':case '@':case '!':case '.':case ':': case '^':case '>':case '<':case '=':
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool check_iden_start(char *str, int len)
+{
+    int i = 0;
+    while (i < len)
+    {
+        if (iden_not_allow_sym(str[i]) || isdigit((unsigned char)str[i])) {
+            return false;
+        }
+        else break;
+    }
+    return true;
+}
+
+static bool is_identity(char *src, int len)
+{
+    // 开头不能是数字和操作符
+    if (check_iden_start(src, len)) {
+        int i = 0;
+        while (i < len)
+        {
+            if (iden_not_allow_sym(src[i])) {
+                return false;
+            }
+            else break;
+        }
+        return true;
+    }
+    return false;
 }
 
 #endif

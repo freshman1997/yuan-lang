@@ -97,7 +97,7 @@
 		/* */ 多行
 
 	关键字：
-		local, do, while, for, fn, try, catch, switch, case default, break, continue, require, goto
+		local, do, while, for, fn, try, catch, switch, case default, break, continue, require, goto, ret
 		
 	符号：
 		=, ==, !=, !, :, >, >=, <, <=, /, %, >>, <<, *, -, +, &, ^, |, #, ., (), {}, [], ", ', ``, ;, ~, ++, --, +=, -=, *=, /=
@@ -108,5 +108,33 @@
 	  /   \			   	|
 	node  node		   node
 
+	数据类型：
+		nil, boolean, number, string, function, table
 
-	if: ()
+	变量：
+		使用前需要声明，变量默认是全局变量，除非使用 local 修饰，使用 local 修饰的变量在退出作用域后销毁
+
+	赋值语句： 
+		assignment -> 非数字开头的变量，不能出现操作符 ，可以出现 $, _ 开头
+		声明类型：local 和 非 local
+		初始化类型：1、数字 2、字符串 3、数组 4、表
+	
+	流程控制：
+		if ( condition ) {
+			if ( confition ) ...
+			statement ...
+		}
+		else if ( condition ) statement ...
+		else ...
+
+	循环：
+		while ( condition ) statement \n | { statement ... }
+		do { statement ... } while (codnition )#
+		for (var a = 0, b = '0', c = "s", d = [], e = {}; condition ; operation) statement \n | { statement ... }
+		for(k, v in tb | arr)
+
+	函数：
+		optional_function_scope fn function_name( argument1, argument2, argument3..., argumentn) {
+    		function_body
+    		ret result_params_comma_separated
+		}

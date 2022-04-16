@@ -34,6 +34,7 @@ public:
     const Token & peek();
     void set_pos(int i);
     const Token & get_and_read();
+    void consume();
     void unread();
 
     const char * get_file_name() const;

@@ -23,6 +23,11 @@ void TokenReader::unread()
     --idx;
 }
 
+void TokenReader::consume()
+{
+	++idx;
+}
+
 const char * TokenReader::get_file_name() const
 {
     return filename;
@@ -116,16 +121,11 @@ static bool is_keyword(const Token& tok) {
 	return s.count(t);
 }
 
-static bool is_space(char c)
-{
-	return c == ' ' || c == '\t' || c == '\n';
-}
-
 static int read_ident(char* s)
 {
 	int len = 0;
 	string str;
-	while (!is_space((unsigned char)s[len]) && !ispunct((unsigned char)s[len])) {
+	while (!isspace((unsigned char)s[len]) && !ispunct((unsigned char)s[len])) {
 		str.push_back(s[len]);
 		len++;
 	}
@@ -138,7 +138,7 @@ static int read_punct(char* p)
 	static const char* kw[] = {
 	  "<<=", ">>=", "...", "==", "!=", "<=", ">=", "+=",
 	  "-=", "*=", "/=", "++", "--", "%=", "&=", "|=", "^=", "&&",
-	  "||", "<<", ">>", ":", "``", "",
+	  "||", "<<", ">>", ":", "``",
 	};
 
 	for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
@@ -234,15 +234,18 @@ static int read_string_literal(char* start, char* quote, int line, const char *f
 	char* end = string_literal_end(quote + 1);
 	char* buf = new char[1 + (end - quote)]; //calloc(1, end - quote);
 	int len = 0;
-	for (char* p = quote + 1; p < end;) {
-		if (*p == '\\')
-			buf[len++] = read_escaped_char(&p, p + 1);
-		else
-			buf[len++] = *p++;
+	if (int(end - quote) > 0) {
+		for (char* p = quote + 1; p < end;) {
+			if (*p == '\\')
+				buf[len++] = read_escaped_char(&p, p + 1);
+			else
+				buf[len++] = *p++;
+		}
 	}
+
 	buf[len] = '\0';
 
-	add_token(reader, start + 1, len + 1, TokenType::str, line, 0, buf);
+	add_token(reader, start + 1, len, TokenType::str, line, 0, buf);
 
 	return int(end - quote) + 1; // skip last "
 }
@@ -254,7 +257,6 @@ void tokenize(const char *filename, TokenReader &reader)
         error("can not read file: ", filename);
     }
 
-    int sz = reader._sz();
     char *p = content;
     if (!memcmp(p, "\xef\xbb\xbf", 3))
 		p += 3;

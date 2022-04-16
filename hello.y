@@ -1,16 +1,15 @@
 
-local io = require("do")
-
+a = 100
 
 fn hello()
 {
     print("hello world!!")
+    ret 100
 }
 
-a = 100
 
 str = ""
 str = str[2:]
 
-dict = { 100 : fn(name){ret "hello" + name}}
+dict = { 100 : fn(name){ret "shit" + name}}
 
