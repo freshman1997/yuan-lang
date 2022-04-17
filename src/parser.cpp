@@ -68,14 +68,152 @@ static const struct {
 
 #define UNARY_PRIORITY	8  /* priority for unary operators */
 
-static void enter_scope()
-{
-
+static OperatorType getunopr (int op) {
+  switch (op) {
+    case '!': return OperatorType::op_not;
+    case '-': return OperatorType::op_sub;
+    case '#': return OperatorType::op_len;
+    default: return OperatorType::op_none;
+  }
 }
 
-static void leave_scope()
+static int get_operator_type(const Token &token)
 {
-    
+	if (token.type != TokenType::sym) return -1;
+	return (int)OperatorType::op_add;
+}
+
+static Operation * parse_primary(TokenReader *reader);
+
+/*
+** subexpr -> (simpleexp | unop subexpr) { binop subexpr }
+** where `binop' is any binary operator with a priority higher than `limit'
+*/
+static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
+	Operation *child1 = NULL;
+	OperationExpression *node = NULL;
+	if (reader->peek().type != TokenType::eof) {
+		if (!child1 && reader->peek().type != TokenType::sym) {
+			child1 = parse_primary(reader);
+			node = new OperationExpression;
+			node->op_type = OperatorType::op_none;
+			node->left = child1;
+		}
+
+		OperatorType uop = OperatorType::op_none;
+		uop = getunopr(get_operator_type(reader->peek()));
+		if (!child1 && uop != OperatorType::op_none) {
+			reader->consume();
+			child1 = parse_primary(reader);
+			node = new OperationExpression;
+			node->op_type = uop;
+			node->left = child1;
+		}
+
+		OperatorType op = OperatorType::op_none;
+		op = getbinopr(get_operator_type(reader->peek()));
+		if (child1 && op != OperatorType::op_none && priority[(int)op].left > limit) {
+			reader->consume();
+			Operation *child2 = new Operation;
+			child2->op = new Operation::oper;
+			child2->op->op_oper = subexpr(reader, priority[(int)op].right);
+			child2->type = OpType::op;
+			node->right = child2;
+		} 
+	}
+	return node;
+}
+
+static Operation * parse_primary(TokenReader *reader)
+{
+	// prefixexp { `.' NAME | `[' exp `]' | `:' NAME funcargs | funcargs }
+	// id, number, string, array, table, function call, index, condition
+	// a = +100;
+	Operation *node = NULL;
+	if (reader->peek().type != TokenType::eof) {
+		// 数字
+		// +-
+		if (reader->peek().type == TokenType::num) {
+			node = new Operation;
+			node->op = new Operation::oper;
+			node->type = OpType::num;
+			Number *num = new Number;
+			num->raw = reader->peek().from;
+			num->raw_len = reader->peek().len;
+			num->val = reader->peek().val;
+			node->op->number_oper = num;
+			reader->consume();
+		}
+		else if (reader->peek().type == TokenType::str)
+		{
+			node = new Operation;
+			node->op = new Operation::oper;
+			node->type = OpType::str;
+			String *str = new String;
+			str->raw = reader->peek().from;
+			str->raw_len = reader->peek().len;
+			node->op->string_oper = str;
+			reader->consume();
+		}
+		else if (reader->peek().type == TokenType::iden) {
+			int curPos = reader->get_pos();
+			const Token &t = reader->get_and_read();
+			if (str_equal(t.from, "nil", 3)) {
+
+			}
+			else if (str_equal(t.from, "true", 4)) {
+
+			}
+			else if (str_equal(t.from, "false", 4)) {
+
+			}
+
+			if (reader->peek().type == TokenType::sym) {
+				// ( . [ 
+				char ch = *(reader->peek().from);
+				switch (ch)
+				{
+				case '(':	// function call
+					break;
+				case '[':	// index data
+					break;
+				case '.':	// field or .. 
+					break;
+				default:
+					// error
+					break;
+				}
+			}
+			else {
+				// error
+			}
+		}
+		else if (reader->peek().type == TokenType::sym) {
+			char ch = *(reader->peek().from);
+			if (ch == '(') {		// subexp
+
+			}
+			else if (ch == '[') {	// array construct
+
+			}
+			else if (ch == '{'){	// table construct
+				
+			}
+			else {
+				// error
+			}
+		}
+		else {} // error
+	}
+	return node;
+}
+
+static OperationExpression * parse_opertor(TokenReader *reader)
+{
+	//Operation *child1 = parse_
+	//OperationExpression *root = new OperationExpression;
+
+	return NULL;
 }
 
 // subexpr -> (simpleexp | unop subexpr) { binop subexpr }
@@ -83,7 +221,7 @@ static void parse_assignment_operations(TokenReader *reader, AssignmentExpressio
 {
 	// 单个标识符，函数声明（匿名），数组声明（匿名），表声明（匿名），表达式计算（一元，二元）
 	if (str_equal(reader->peek().from, "[", 1)) {
-		
+
 	}
 }
 
@@ -122,6 +260,16 @@ static void parse_assignment(TokenReader *reader)
 			reader->unread();
 		}
 	}
+}
+
+static void enter_scope()
+{
+
+}
+
+static void leave_scope()
+{
+    
 }
 
 static void parse_if(TokenReader *reader)

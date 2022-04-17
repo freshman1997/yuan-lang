@@ -30,6 +30,7 @@ enum class OperatorType
     op_bin_rm,      // >> 
     op_bin_lme,     // <<=
     op_bin_rme,     // >>=
+    op_len,         // #
 
     op_none,        
 };
@@ -199,7 +200,7 @@ struct AssignmentExpression
         basic,
         call,
     };
-    
+
     struct assignment {
         AssignmenType assignment_type;
         union assignment_union
@@ -244,16 +245,33 @@ struct AssignmentExpression
     int to;
 };
 
+enum class OpType
+{
+    id,
+    num,
+    str,
+    assign,
+    call,
+    arr,
+    op,
+    table,
+};
+
+struct OperationExpression;
+
 struct Operation
 {
-    ExpressionType type;
+    OpType type;
     union oper
     {
         IdExpression *id_oper;
         AssignmentExpression *assgnment_oper;
         String *string_oper;
         Number *number_oper;
+        Array *array_oper;
+        Table *table_oper;
         CallExpression *call_oper;
+        OperationExpression *op_oper;
     };
     oper *op;
 };

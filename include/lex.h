@@ -26,6 +26,7 @@ struct Token
     int row;                // 行号
     int col;                // 列
     char *str;              // 如果存在字符串
+    double val;             // 如果是数字，应该存在值
 };
 
 class TokenReader
@@ -36,6 +37,7 @@ public:
     const Token & get_and_read();
     void consume();
     void unread();
+    int get_pos();
 
     const char * get_file_name() const;
     void add_token(Token &token);

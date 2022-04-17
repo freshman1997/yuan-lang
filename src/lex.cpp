@@ -73,6 +73,11 @@ char * TokenReader::get_content()
     return this->content;
 }
 
+int TokenReader::get_pos()
+{	
+	return idx;
+}
+
 static char * read_all_the_file(const char *filename, TokenReader &reader)
 {
     FILE *fd = NULL;
@@ -225,9 +230,21 @@ static int read_escaped_char(char** new_pos, char* p) {
 	}
 }
 
+static bool check_number_string(char *from, int len)
+{
+	
+	return false;
+}
+
 static void add_token(TokenReader &reader, char *from, int len, TokenType type, int row, int col, char *str)
 {
-    Token t = {type, from, len, row, col, str};
+    Token t = {type, from, len, row, col, str, 0};
+	if (type == TokenType::num) {
+		char *num = new char[len + 1];
+		memcpy(num, from, len);
+		num[len] = '\0';
+		t.val = atof(num);
+	}
     reader.add_token(t);
 }
 
