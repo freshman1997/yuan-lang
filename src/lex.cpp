@@ -98,6 +98,7 @@ static char * read_all_the_file(const char *filename, TokenReader &reader)
     buf[length] = '\0';
     reader.set_file_handle(fd);
     reader.set_sz(length);
+	reader.set_file_name(filename);
 
 	return buf;
 }

@@ -35,6 +35,39 @@ static void error_tok(const Token &tok, const char *filename, char * content, ch
     exit(1);
 }
 
+static OperatorType getbinopr (int op) {
+  switch (op) {
+    case '+': return OperatorType::op_add;
+    case '-': return OperatorType::op_sub;
+    case '*': return OperatorType::op_mul;
+    case '/': return OperatorType::op_div;
+    case '%': return OperatorType::op_mod;
+    case (int)OperatorType::op_concat: return OperatorType::op_concat;
+    case (int)OperatorType::op_ne: return OperatorType::op_ne;
+    case (int)OperatorType::op_equal: return OperatorType::op_equal;
+    case '<': return OperatorType::op_lt;
+    /*case TK_LE: return OPR_LE;
+    case '>': return OPR_GT;
+    case TK_GE: return OPR_GE;
+    case TK_AND: return OPR_AND;
+    case TK_OR: return OPR_OR;*/
+    default: return OperatorType::op_none;
+  }
+}
+
+static const struct {
+  unsigned char left;  /* left priority for each binary operator */
+  unsigned char right; /* right priority */
+} priority[] = {  /* ORDER OPR */
+   {6, 6}, {6, 6}, {7, 7}, {7, 7}, {7, 7},  /* `+' `-' `/' `%' */
+   {5, 4},                          /* concat (right associative) */
+   {3, 3}, {3, 3},                  /* equality and inequality */
+   {3, 3}, {3, 3}, {3, 3}, {3, 3},  /* order */
+   {2, 2}, {1, 1}                   /* logical (and/or) */
+};
+
+#define UNARY_PRIORITY	8  /* priority for unary operators */
+
 static void enter_scope()
 {
 
@@ -45,15 +78,23 @@ static void leave_scope()
     
 }
 
+// subexpr -> (simpleexp | unop subexpr) { binop subexpr }
+static void parse_assignment_operations(TokenReader *reader, AssignmentExpression *as)
+{
+	// 单个标识符，函数声明（匿名），数组声明（匿名），表声明（匿名），表达式计算（一元，二元）
+	if (str_equal(reader->peek().from, "[", 1)) {
+		
+	}
+}
+
 static void parse_assignment(TokenReader *reader)
 {
-	// 三部曲
 	const Token &token = reader->peek();
-	if (is_identity(token.from, token.len)) {
-		AssignmentExpression as;
-		as.id = new IdExpression;
+	if (token.type == TokenType::iden && is_identity(token.from, token.len)) {
+		AssignmentExpression *as = new AssignmentExpression;
+		as->id = new IdExpression;
 		if (token.type == TokenType::keyword && token.len == 5 && str_equal(token.from, "local", 5)) {
-			as.id->is_local = true;
+			as->id->is_local = true;
 			reader->consume();
 			if (!is_identity(reader->peek().from, reader->peek().len)) {
 				reader->unread();
@@ -64,33 +105,20 @@ static void parse_assignment(TokenReader *reader)
 		char *name = new char[reader->peek().len + 1];
 		memcpy(name, reader->peek().from, reader->peek().len);
 		name[reader->peek().len] = '\0';
-		as.id->name = name;
+		as->id->name = name;
 		
 		reader->consume();
 		if (reader->peek().type == TokenType::sym && str_equal(reader->peek().from, "=", 1)) {
 			reader->consume();
-			const Token &val = reader->peek();
-			if (val.type == TokenType::num || val.type == TokenType::str || (val.type == TokenType::sym && (*(val.from) == '[' || *(val.from) == '{'))) {
-				if (val.type == TokenType::num) {
-					as.assignment_type = VariableType::t_number;
-					as.as = new AssignmentExpression::assignment;
-					as.as->basic_val = new BasicValue;
-					as.as->basic_val->value = new BasicValue::Value;
-					as.as->basic_val->value->number = new Number;
 
-					as.as->basic_val->type = VariableType::t_number;
-					as.as->basic_val->value->number->raw = val.from;
-					as.as->basic_val->value->number->raw_len = val.len;
-					char *num_str = new char[val.len + 1];
-					memcpy(num_str, val.from, val.len);
-					num_str[val.len] = '\0';
-					as.as->basic_val->value->number->val = atoi(num_str);
-					delete[] num_str;
-				}
+			const Token &val = reader->peek();
+			if (val.type == TokenType::iden || val.type == TokenType::num || val.type == TokenType::str || val.type == TokenType::sym) {
+				parse_assignment_operations(reader, as);
 			}
 			else error_tok(val, reader->get_file_name(), reader->get_content(), "%s", "unkown type ");
 		}
 		else {
+			delete as;
 			reader->unread();
 		}
 	}

@@ -9,18 +9,32 @@
 
 enum class OperatorType
 {
-    op_add,
-    op_sub,
-    op_mul,
-    op_div,
-    op_not,
-    op_equal,
-    op_mod,
-    op_gt,
-    op_gt_eq,
-    op_lt,
-    op_lt_eq,
+    op_add,         // + 
+    op_sub,         // -
+    op_mul,         // *
+    op_div,         // /
+    op_ne,          // !=
+    op_equal,       // ==
+    op_mod,         // %
+    op_gt,          // >
+    op_gt_eq,       // >=
+    op_lt,          // <
+    op_lt_eq,       // <=
+    op_concat,      // ..
+    op_or,          // ||
+    op_and,         // &&
+    op_not,         // !
+    op_bin_xor,     // ^
+    op_bin_and,     // &
+    op_bin_lm,      // <<
+    op_bin_rm,      // >> 
+    op_bin_lme,     // <<=
+    op_bin_rme,     // >>=
+
+    op_none,        
 };
+
+
 
 // 变量初始化类型
 enum class VariableType
@@ -161,18 +175,71 @@ struct BasicValue
     Value *value;
 };
 
+struct IndexExpression
+{
+    IdExpression *id;
+    VariableType key_type;
+    union Key
+    {
+        Number *number_key;
+        String *string_key;
+    };
+    vector<Key *> *keys;
+};
+
+struct OperationExpression;
+
 struct AssignmentExpression
 {
     IdExpression *id;
-    VariableType assignment_type;
-    union assignment
+    enum class AssignmenType
     {
-        BasicValue *basic_val;
-        CallExpression *call_val;   // 函数调用
+        operation,
+        index,
+        basic,
+        call,
+    };
+    
+    struct assignment {
+        AssignmenType assignment_type;
+        union assignment_union
+        {
+            BasicValue *basic_val;
+            CallExpression *call_val;   // 函数调用
+            OperationExpression *oper_val;
+            IndexExpression *index_val;
+        };
+
+        assignment_union *assign;
+
+        ~assignment(){
+            switch (assignment_type)
+            {
+            case AssignmenType::operation: 
+                delete assign->oper_val;
+                break;
+            case AssignmenType::basic: 
+                delete assign->basic_val;
+                break;
+            case AssignmenType::call: 
+                delete assign->call_val;
+                break;
+            case AssignmenType::index: 
+                delete assign->index_val;
+                break;
+            default:
+                break;
+            }
+            delete assign;
+        }
     };
 
-    assignment *as;
+    assignment *assign;
 
+    ~AssignmentExpression() 
+    {
+       if(assign) delete assign;
+    }
     int from;
     int to;
 };
@@ -193,7 +260,7 @@ struct Operation
 
 struct OperationExpression
 {
-    OperatorType op_type;
+    OperatorType op_type; // 这个可以确定是一元运算符或二元运算符
     Operation *left;
     Operation *right;
     int from;
@@ -281,6 +348,7 @@ struct ReturnExpression
     {
         BasicValue *baisc_statement;
         CallExpression *call_statement;
+        OperationExpression *oper_statement;
     };
 
     vector<statement *> *statements;
@@ -301,11 +369,17 @@ struct BodyStatment
         DoWhileExpression *do_while_exp;
         ForExpression *for_exp;
         ReturnExpression *return_exp;
+        SwitchCaseExpression *swtich_case_exp;
         CallExpression *call_exp;
     };
 };
 
 /*********************** do parse **********************/
+
+struct Chuck
+{
+    vector<BodyStatment *> *statements;
+};
 
 // 一次只处理一个文件，遇到依赖其他文件的符号，则暂停去编译它在返回继续
 void parse(unordered_map<string, TokenReader *> &files);
