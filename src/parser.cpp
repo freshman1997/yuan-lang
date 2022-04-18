@@ -138,7 +138,7 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 		a = 100 + 30 b = 20 arr = [1, 2, 3]
 	 */
 	OperationExpression *node = NULL;
-	OperationExpression *child1;
+	OperationExpression *child1 = NULL;
 	if (reader->peek().type != TokenType::eof) {
 		OperatorType uop = getunopr(get_operator_type(reader));
 		if (uop != OperatorType::op_none) {
@@ -163,13 +163,16 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 		*/
 
 		else if (reader->peek().type != TokenType::sym) {
-			child1 = new OperationExpression;
-			child1->left = parse_primary(reader);
-			child1->op_type = OperatorType::op_none;
+			Operation *oper = parse_primary(reader);
+			if (oper) {
+				child1 = new OperationExpression;
+				child1->left = oper;
+				child1->op_type = OperatorType::op_none;
+			}
 		}
 
 		OperatorType op = getbinopr(get_operator_type(reader));
-		if (op != OperatorType::op_none && priority[(int)op].left >= limit) {
+		if (op != OperatorType::op_none && priority[(int)op].left > limit) {
 			reader->consume();
 			OperationExpression *exp = subexpr(reader, priority[(int)op].right);
 			if (exp) {
@@ -186,10 +189,50 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 			else {
 				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
 			}
-		} 
-		else reader->unread();
+		} else {
+			if (child1) node = child1;
+		}
 	}
 	return node;
+}
+
+static OperationExpression * parse_operator(TokenReader *reader);
+
+static vector<Operation *> * parse_parameter(TokenReader *reader, char close)
+{
+	vector<Operation *> *parameters = new vector<Operation *>;
+	while (reader->peek().type != TokenType::eof) {
+		OperationExpression *oper = parse_operator(reader);
+		if (reader->peek().type != TokenType::sym || reader->peek().len != 1 || *(reader->peek().from) != ',' || *(reader->peek().from) != close) {
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+		}
+
+		// fill the parameters
+		if (oper->op_type == OperatorType::op_none) {
+			parameters->push_back(oper->left);
+			delete oper;
+		}
+		else {
+			Operation *op = new Operation;
+			op->type = OpType::op;
+			op->op = new Operation::oper;
+			op->op->op_oper = oper;
+			parameters->push_back(op);
+		}
+		if (*(reader->peek().from) == ',') reader->consume();
+		else if (*(reader->peek().from) == close) break;
+		else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+	}
+	return parameters;
+}
+
+static CallExpression * parse_function_call(TokenReader *reader)
+{
+	reader->consume(); // consume (
+	CallExpression *call = new CallExpression;
+	call->parameters = parse_parameter(reader, ')');
+	reader->consume(); // )
+	return call;
 }
 
 static Operation * parse_primary(TokenReader *reader)
@@ -232,54 +275,93 @@ static Operation * parse_primary(TokenReader *reader)
 			else if (str_equal(t.from, "true", 4)) {
 
 			}
-			else if (str_equal(t.from, "false", 4)) {
+			else if (str_equal(t.from, "false", 5)) {
 
 			}
 
+			const Token &id_token = reader->get_and_read();
 			if (reader->peek().type == TokenType::sym) {
+				
 				// ( . [ 
 				char ch = *(reader->peek().from);
 				switch (ch)
 				{
 				case '(':	// function call
+				{
+					node = new Operation;
+					node->op = new Operation::oper;
+					node->type = OpType::call;
+					CallExpression *call = parse_function_call(reader);
+					call->function_name = new IdExpression;
+					call->function_name->name = id_token.from;
+					call->function_name->name_len = id_token.len;
+					node->op->call_oper = call;
 					break;
+				}
 				case '[':	// index data
+				{
+					node = new Operation;
+					node->op = new Operation::oper;
+					node->type = OpType::arr;
+					Array *array = new Array;
+					array->name = new IdExpression;
+					array->name->name = id_token.from;
+					array->name->name_len = id_token.len;
+					array->fields = parse_parameter(reader, ']');
+					node->op->array_oper = array;
 					break;
+				}
+					
 				case '.':	// field or .. 
 					break;
 				default:
 					// error
+					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
 					break;
 				}
 			}
 			else {
 				// error
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
 			}
 		}
 		else if (reader->peek().type == TokenType::sym) {
 			char ch = *(reader->peek().from);
 			if (ch == '(') {		// subexp
-
+				node = new Operation;
+				node->op = new Operation::oper;
+				node->type = OpType::op;
+				node->op->op_oper = parse_operator(reader);
 			}
 			else if (ch == '[') {	// array construct
-
+				node = new Operation;
+				node->op = new Operation::oper;
+				node->type = OpType::arr;
+				Array *array = new Array;
+				array->name = NULL;
+				array->fields = parse_parameter(reader, ']');
+				node->op->array_oper = array;
 			}
 			else if (ch == '{'){	// table construct
 				
 			}
 			else {
 				// error
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
 			}
 		}
 		else if (reader->peek().type == TokenType::keyword) {
 			return node;
 		}
-		else {} // error
+		else {
+			// error
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+		} 
 	}
 	return node;
 }
 
-static OperationExpression * parse_opertor(TokenReader *reader)
+static OperationExpression * parse_operator(TokenReader *reader)
 {
 	OperationExpression *node = NULL;
 	OperationExpression *child1 = subexpr(reader, 0);
@@ -287,6 +369,7 @@ static OperationExpression * parse_opertor(TokenReader *reader)
 		// 到这里应该是操作符
 		OperatorType op = getbinopr(get_operator_type(reader));
 		if (op != OperatorType::op_none) {
+			reader->consume();
 			OperationExpression *child2 = subexpr(reader, priority[(int)op].left);
 			if (child2) {
 				node = new OperationExpression;
@@ -302,8 +385,11 @@ static OperationExpression * parse_opertor(TokenReader *reader)
 
 				node->left = new Operation;
 				node->left->type = OpType::op;
+				node->left->op = new Operation::oper;
 				node->left->op->op_oper = child1;
+
 				node->right = new Operation;
+				node->right->op = new Operation::oper;
 				node->right->type = OpType::op;
 				node->right->op->op_oper = child2;
 				child1 = node;
@@ -313,7 +399,10 @@ static OperationExpression * parse_opertor(TokenReader *reader)
 				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
 			}
 		}
-		else break; // 只有一个
+		else {
+			if (child1) node = child1;
+			break; // 只有一个
+		}
 	}
 	return node;
 }
@@ -342,10 +431,8 @@ static void parse_assignment(TokenReader *reader)
 			}
 		}
 
-		char *name = new char[reader->peek().len + 1];
-		memcpy(name, reader->peek().from, reader->peek().len);
-		name[reader->peek().len] = '\0';
-		as->id->name = name;
+		as->id->name = token.from;
+		as->id->name_len = token.len;
 		
 		reader->consume();
 		if (reader->peek().type == TokenType::sym && str_equal(reader->peek().from, "=", 1)) {
@@ -353,7 +440,57 @@ static void parse_assignment(TokenReader *reader)
 
 			const Token &val = reader->peek();
 			if (val.type == TokenType::iden || val.type == TokenType::num || val.type == TokenType::str || val.type == TokenType::sym) {
-				parse_opertor(reader);
+				as->assign = new AssignmentExpression::assignment;
+				OperationExpression *oper = parse_operator(reader);
+				if (oper->op_type == OperatorType::op_none) {
+					if (oper->left->type == OpType::call) {
+						as->assign->assignment_type = AssignmentExpression::AssignmenType::call;
+						as->assign->ass->call_val = oper->left->op->call_oper;
+					}
+					else if (oper->left->type == OpType::id) {
+						as->assign->assignment_type = AssignmentExpression::AssignmenType::id;
+						as->assign->ass->id_val = oper->left->op->id_oper;
+					}
+					else if (oper->left->type == OpType::index) {
+						as->assign->assignment_type = AssignmentExpression::AssignmenType::index;
+						as->assign->ass->index_val = oper->left->op->index_oper;
+					}
+					else {
+						as->assign->assignment_type = AssignmentExpression::AssignmenType::basic;
+						as->assign->ass->basic_val = new BasicValue;
+						as->assign->ass->basic_val->value = new BasicValue::Value;
+						switch (oper->left->type)
+						{
+							case OpType::num:
+								as->assign->ass->basic_val->type = VariableType::t_number;
+								as->assign->ass->basic_val->value->number = oper->left->op->number_oper;
+								break;
+							case OpType::arr:
+								as->assign->ass->basic_val->type = VariableType::t_array;
+								as->assign->ass->basic_val->value->array = oper->left->op->array_oper;
+								break;
+							case OpType::str:
+								as->assign->ass->basic_val->type = VariableType::t_string;
+								as->assign->ass->basic_val->value->string = oper->left->op->string_oper;
+								break;
+							case OpType::table:
+								as->assign->ass->basic_val->type = VariableType::t_table;
+								as->assign->ass->basic_val->value->table = oper->left->op->table_oper;
+								break;
+							case OpType::boolean:
+								as->assign->ass->basic_val->type = VariableType::t_boolean;
+								as->assign->ass->basic_val->value->boolean = oper->left->op->boolean_oper;
+								break;
+							default:
+								// error
+								break;
+						}
+					}
+				}
+				else {
+					as->assign->ass->oper_val = oper;
+					as->assign->assignment_type = AssignmentExpression::AssignmenType::operation;
+				}
 			}
 			else error_tok(val, reader->get_file_name(), reader->get_content(), "%s", "unkown type ");
 		}

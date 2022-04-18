@@ -51,6 +51,7 @@ enum class VariableType
     t_func,           // 函数
     t_array,          // 数组
     t_table,          // 表
+    t_boolean,        // 布尔
 };
 
 // 文件中的表达式类型
@@ -72,7 +73,8 @@ struct CallExpression;
 struct IdExpression
 {
     bool is_local;
-    const char *name;
+    char *name;
+    int name_len;
     int from;
     int to;
 };
@@ -120,25 +122,13 @@ struct Function
     int to;
 };
 
-// 数组声明初始化，有三种类型：数字，字符串，id(函数名称，数组引用，表引用)
-struct ArrayInit
-{
-    VariableType type;
-    union variable
-    {
-        Number *number;
-        String *string;
-        Boolean *boolean;
-        IdExpression *id_exp;
-        CallExpression *call_exp;
-    };
-};
+struct Operation;
 
 // 数组
 struct Array
 {
     IdExpression *name;
-    vector<ArrayInit *> *fields;
+    vector<Operation *> *fields;
     int from;
     int to;
 };
@@ -164,19 +154,7 @@ struct TableInitItem
         String *string_key;
     };
     Key *k;
-
-    VariableType value_type;
-    union Value
-    {
-        Number *number_val;
-        Boolean *boolean_val;
-        String *string_val;
-        IdExpression *id_val;       // 函数、数组或表的引用
-        Array *array_val;
-        Table *table_val;
-        CallExpression *call_val;   // 直接调函数
-    };
-    Value *v;
+    Operation *v;
 };
 
 struct BasicValue
@@ -213,6 +191,7 @@ struct AssignmentExpression
     IdExpression *id;
     enum class AssignmenType
     {
+        id,
         operation,
         index,
         basic,
@@ -227,29 +206,15 @@ struct AssignmentExpression
             CallExpression *call_val;   // 函数调用
             OperationExpression *oper_val;
             IndexExpression *index_val;
+            IdExpression *id_val;
         };
 
-        assignment_union *assign;
+        assignment_union *ass;
 
         ~assignment(){
-            switch (assignment_type)
-            {
-            case AssignmenType::operation: 
-                delete assign->oper_val;
-                break;
-            case AssignmenType::basic: 
-                delete assign->basic_val;
-                break;
-            case AssignmenType::call: 
-                delete assign->call_val;
-                break;
-            case AssignmenType::index: 
-                delete assign->index_val;
-                break;
-            default:
-                break;
+            if (ass) {
+                delete ass;
             }
-            delete assign;
         }
     };
 
@@ -268,11 +233,13 @@ enum class OpType
     id,
     num,
     str,
-    assign,
-    call,
     arr,
-    op,
     table,
+    boolean,
+    call,
+    op,
+    index,
+    assign,
 };
 
 struct OperationExpression;
@@ -288,6 +255,8 @@ struct Operation
         Number *number_oper;
         Array *array_oper;
         Table *table_oper;
+        Boolean *boolean_oper;
+        IndexExpression *index_oper;
         CallExpression *call_oper;
         OperationExpression *op_oper;
     };
@@ -340,17 +309,17 @@ enum class ForExpType
     for_normal,     // for (a = x, b = 1, c = 2...; condition; exp)
 };
 
+
+
 struct ForExpression
 {
     ForExpType type;
-    union first
+    union first_param
     {
         vector<IdExpression *> *id_vars;
-        vector<AssignmentExpression *> assign_vars;
+        vector<AssignmentExpression *> *assign_vars;
     };
-
-    first *first_statement;
-
+    first_param *first_statement;
     vector<Operation *> *second_statement;
     vector<OperationExpression *> *third_statement;
 
@@ -363,10 +332,11 @@ struct SwitchCaseExpression
     
 };
 
+
 struct CallExpression
 {
     IdExpression *function_name;
-    vector<BasicValue *> *parameters;
+    vector<Operation *> *parameters;
     int from;
     int to;
 };
