@@ -186,7 +186,8 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 			else {
 				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
 			}
-		}
+		} 
+		else reader->unread();
 	}
 	return node;
 }
@@ -269,6 +270,9 @@ static Operation * parse_primary(TokenReader *reader)
 			else {
 				// error
 			}
+		}
+		else if (reader->peek().type == TokenType::keyword) {
+			return node;
 		}
 		else {} // error
 	}
