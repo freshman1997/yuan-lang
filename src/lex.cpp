@@ -63,6 +63,11 @@ Token & TokenReader::get_last()
     return tokens.back();
 }
 
+Token * TokenReader::peek_last_one()
+{
+	return idx - 1 >= 0 ? &tokens[idx - 1] : NULL;
+}
+
 void TokenReader::set_content(char *content)
 {
     this->content = content;

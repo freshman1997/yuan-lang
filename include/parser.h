@@ -13,24 +13,30 @@ enum class OperatorType
     op_sub,         // -
     op_mul,         // *
     op_div,         // /
+    op_mod,         // %
+
+    op_concat,      // ..
+
     op_ne,          // !=
     op_equal,       // ==
-    op_mod,         // %
+
+   
+    op_not,         // !
+    op_len,         // #
+    op_unary_sub,   // 前置 - 负号
+
     op_gt,          // >
     op_gt_eq,       // >=
     op_lt,          // <
     op_lt_eq,       // <=
-    op_concat,      // ..
     op_or,          // ||
     op_and,         // &&
-    op_not,         // !
     op_bin_xor,     // ^
     op_bin_and,     // &
     op_bin_lm,      // <<
     op_bin_rm,      // >> 
     op_bin_lme,     // <<=
     op_bin_rme,     // >>=
-    op_len,         // #
 
     op_none,        
 };
@@ -81,6 +87,15 @@ struct Number
     int to;
 };
 
+struct Boolean
+{
+    bool val;
+    char *raw;      // 原始字符串开始指针
+    int raw_len;    // 原始字符串长度
+    int from;
+    int to;
+};
+
 // 字符串
 struct String
 {
@@ -113,6 +128,7 @@ struct ArrayInit
     {
         Number *number;
         String *string;
+        Boolean *boolean;
         IdExpression *id_exp;
         CallExpression *call_exp;
     };
@@ -153,6 +169,7 @@ struct TableInitItem
     union Value
     {
         Number *number_val;
+        Boolean *boolean_val;
         String *string_val;
         IdExpression *id_val;       // 函数、数组或表的引用
         Array *array_val;
@@ -169,6 +186,7 @@ struct BasicValue
         IdExpression *id;   // 变量，函数、数组或表的引用
         String *string;
         Number *number;
+        Boolean *boolean;
         Array *array;
         Table *table;
         Function *function;
@@ -276,6 +294,7 @@ struct Operation
     oper *op;
 };
 
+// 表示单个操作符 
 struct OperationExpression
 {
     OperatorType op_type; // 这个可以确定是一元运算符或二元运算符

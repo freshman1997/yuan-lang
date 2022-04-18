@@ -39,6 +39,8 @@ public:
     void unread();
     int get_pos();
 
+    Token * peek_last_one();
+
     const char * get_file_name() const;
     void add_token(Token &token);
     void set_file_handle(FILE *fd);
