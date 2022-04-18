@@ -1,4 +1,5 @@
 .vs/*
+.vscode/*
 Debug
 *.dir
 x64
