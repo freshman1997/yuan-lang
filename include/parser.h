@@ -116,7 +116,7 @@ struct Function
 {
     IdExpression *function_name;                // 函数名称
     bool is_local;                              // 是否为 local 修饰
-    vector<BasicValue *> *parameters;         // 参数
+    vector<IdExpression *> *parameters;         // 参数
     vector<BodyStatment *> *body;       // 函数体
     int from;
     int to;
@@ -276,7 +276,7 @@ struct OperationExpression
 // 单个 if 、else if 、 else 这些表达式
 struct IfExpStatement
 {
-    vector<OperationExpression *> *condition;
+    OperationExpression *condition;
     vector<BodyStatment *> *body;
 };
 

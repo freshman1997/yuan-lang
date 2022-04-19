@@ -309,6 +309,7 @@ static Operation * parse_primary(TokenReader *reader)
 					array->name->name_len = id_token.len;
 					array->fields = parse_parameter(reader, ']');
 					node->op->array_oper = array;
+					reader->consume();
 					break;
 				}
 					
@@ -332,6 +333,10 @@ static Operation * parse_primary(TokenReader *reader)
 				node->op = new Operation::oper;
 				node->type = OpType::op;
 				node->op->op_oper = parse_operator(reader);
+				if (reader->peek().type != TokenType::sym || *(reader->peek().from) != ')') {
+					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+				}
+				reader->consume();
 			}
 			else if (ch == '[') {	// array construct
 				node = new Operation;
@@ -341,6 +346,7 @@ static Operation * parse_primary(TokenReader *reader)
 				array->name = NULL;
 				array->fields = parse_parameter(reader, ']');
 				node->op->array_oper = array;
+				reader->consume();
 			}
 			else if (ch == '{'){	// table construct
 				
@@ -405,15 +411,6 @@ static OperationExpression * parse_operator(TokenReader *reader)
 		}
 	}
 	return node;
-}
-
-// subexpr -> (simpleexp | unop subexpr) { binop subexpr }
-static void parse_assignment_operations(TokenReader *reader, AssignmentExpression *as)
-{
-	// 单个标识符，函数声明（匿名），数组声明（匿名），表声明（匿名），表达式计算（一元，二元）
-	if (str_equal(reader->peek().from, "[", 1)) {
-
-	}
 }
 
 static void parse_assignment(TokenReader *reader)
@@ -511,24 +508,111 @@ static void leave_scope()
     
 }
 
-static void parse_if(TokenReader *reader)
+// 严格要求 {} 
+static OperationExpression * parse_if_prefix(TokenReader *reader, bool is_if)
 {
+	if(!is_if) {
+		if (reader->peek().type != TokenType::keyword && reader->peek().len != 4 && !str_equal(reader->peek().from, "else", 4)) {
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid condition key word");
+		}
+	}
+	if (reader->peek().type != TokenType::keyword && reader->peek().len != 2 && !str_equal(reader->peek().from, "if", 2)) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid condition key word");
+	}
+
+	reader->consume(); // consume if key word
+	if (reader->peek().type != TokenType::sym || *(reader->peek().from) != '(') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition statement needs starting with ( ");
+	}
+
+	OperationExpression *oper = parse_operator(reader);
+	if (!oper) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+	}
+
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != ')') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition statement needs ending with ) ");
+	}
+	reader->consume();
+	if (reader->peek().type == TokenType::sym || *reader->peek().from != '{') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition body needs starting with { ");
+	}
+	reader->consume();
+	return oper;
+}
+
+static void parse_if_statement(TokenReader *reader, int start)
+{
+	IfExpStatement *cond = new IfExpStatement;
+	// if else if ... else
+	if (start == 0) { // if
+		cond->condition = parse_if_prefix(reader, true);
+	}
+	else if (start == 1) { // else if
+		cond->condition = parse_if_prefix(reader, false);
+	}
+	else if (start == 2) { // else
+		if (reader->peek().type != TokenType::keyword || reader->peek().len != 4 || !str_equal(reader->peek().from, "else", 4)) {
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid condition key word");
+		}
+		reader->consume(); // consume else 
+		if (reader->peek().type != TokenType::sym || *reader->peek().from != '{') {
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition body needs starting with { ");
+		}
+		reader->consume();
+		cond->condition = NULL; // init
+	}
+	// parse if body
+	// a = 100 b = a + c func(sss) b = tb[1] do {} while();
+
+	reader->consume();
+}
+
+static void parse_do_while_expression(TokenReader *reader)
+{
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != '{') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "loop expression needs { to start");
+	}
+	reader->consume();
+	// loop body
+	
+
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "loop expression needs { to close");
+	}
+	reader->consume();
+	if (reader->peek().type != TokenType::keyword || !str_equal(reader->peek().from, "while", 5)) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid loop expression key word");
+	}
+	reader->consume();
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != ';') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "loop expression needs ; to close");
+	}
+	reader->consume();
+}
+
+static void parse_while_expression(TokenReader *reader)
+{
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != '{') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "loop expression needs { to start");
+	}
+	reader->consume();
+	// while body
+	// 没办法，只能一一尝试，赋值，if，while，函数调用，do while，for
+
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "loop expression needs } to close");
+	}
+	reader->consume();
 
 }
 
-static void parse_do_while(TokenReader *reader)
+static ForExpression * parse_for(TokenReader *reader)
 {
+	ForExpression *forExp = new ForExpression;
 
-}
 
-static void parse_while(TokenReader *reader)
-{
-
-}
-
-static void parse_for(TokenReader *reader)
-{
-
+	return forExp;
 }
 
 static void parse_switch_case(TokenReader *reader)
@@ -536,9 +620,66 @@ static void parse_switch_case(TokenReader *reader)
 
 }
 
-static void parse_fn(TokenReader *reader)
+static Function * parse_fn(TokenReader *reader)
 {
+	bool isLocal = false;
+	if (reader->peek().type != TokenType::keyword) {
+		if (str_equal(reader->peek().from, "local", 5)) {
+			isLocal = true;
+			reader->consume();
+		}
+	}
+	reader->consume();
+	// 下划线开头先不考虑
+	if (reader->peek().type != TokenType::iden) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid funcion name");
+	}
 
+	Function *fun = new Function;
+	IdExpression *funcName = new IdExpression;
+	funcName->name = reader->peek().from;
+	funcName->name_len = reader->peek().len;
+	fun->function_name = funcName;
+	fun->is_local = isLocal;
+
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != '(') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "funcion declare needs ( to start.");
+	}
+	reader->consume();
+	// parse parameter
+	int maxParam = 30; // 最多30 个参数
+	int count = 0;
+	fun->parameters = new vector<IdExpression *>;
+	while (reader->peek().type != TokenType::eof) {
+		if (reader->peek().type == TokenType::sym && *reader->peek().from == ')') break;
+		if (reader->peek().type != TokenType::iden) {
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid funcion parameter");
+		}
+		IdExpression *param = new IdExpression;
+		param->name = reader->peek().from;
+		param->name_len = reader->peek().len;
+		fun->parameters->push_back(param);
+		reader->consume();
+		if (reader->peek().type == TokenType::sym)
+		{
+			if (*reader->peek().from != ',')
+				reader->consume();
+			else if (*reader->peek().from != ')') 
+				break;
+			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "unkown symbol");
+		}
+		++count;
+		if (count >= maxParam) {
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "parameter's number exceed 30");
+		}
+	}
+	reader->consume();
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != '{') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "funcion declare needs { to start");
+	}
+	// parse function body
+
+	return NULL;
 }
 
 static void parse_expression(TokenReader *reader)

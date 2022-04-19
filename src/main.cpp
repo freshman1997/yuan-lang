@@ -9,7 +9,7 @@ int main()
 {
 
     TokenReader reader;
-    tokenize("D:/code/src/vs/yuan-lang/hello.y", reader);
+    tokenize("D:/code/test/cpp/yuan-lang/hello.y", reader);
     unordered_map<string, TokenReader *> files;
     files["hello"] = &reader;
     parse(files);
