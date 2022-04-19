@@ -368,7 +368,7 @@ struct ReturnExpression
 struct BodyStatment
 {
     ExpressionType type;
-    union body
+    union body_expression
     {
         AssignmentExpression *assign_exp;
         IfExpression *if_exp;
@@ -377,13 +377,15 @@ struct BodyStatment
         ForExpression *for_exp;
         ReturnExpression *return_exp;
         SwitchCaseExpression *swtich_case_exp;
+        Function *function_exp;
         CallExpression *call_exp;
     };
+    body_expression *body;
 };
 
 /*********************** do parse **********************/
 
-struct Chuck
+struct Chunck
 {
     vector<BodyStatment *> *statements;
 };

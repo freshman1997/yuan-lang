@@ -6,6 +6,7 @@
 static void verror_at(const char *filename, char *input, int line_no,
                       char *loc, char *fmt, va_list ap) {
     // Find a line containing `loc`.
+	line_no += 1;
     char *line = loc;
     while (input < line && line[-1] != '\n')
       line--;
@@ -191,6 +192,10 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 			}
 		} else {
 			if (child1) node = child1;
+			else {
+				node = new OperationExpression;
+				node->left = parse_primary(reader);
+			}
 		}
 	}
 	return node;
@@ -203,10 +208,10 @@ static vector<Operation *> * parse_parameter(TokenReader *reader, char close)
 	vector<Operation *> *parameters = new vector<Operation *>;
 	while (reader->peek().type != TokenType::eof) {
 		OperationExpression *oper = parse_operator(reader);
-		if (reader->peek().type != TokenType::sym || reader->peek().len != 1 || *(reader->peek().from) != ',' || *(reader->peek().from) != close) {
+		if (reader->peek().type != TokenType::sym) {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
 		}
-
+		
 		// fill the parameters
 		if (oper->op_type == OperatorType::op_none) {
 			parameters->push_back(oper->left);
@@ -219,8 +224,9 @@ static vector<Operation *> * parse_parameter(TokenReader *reader, char close)
 			op->op->op_oper = oper;
 			parameters->push_back(op);
 		}
-		if (*(reader->peek().from) == ',') reader->consume();
-		else if (*(reader->peek().from) == close) break;
+
+		if (*(reader->peek().from) == close) break;
+		else if (*(reader->peek().from) == ',') reader->consume();
 		else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
 	}
 	return parameters;
@@ -228,8 +234,15 @@ static vector<Operation *> * parse_parameter(TokenReader *reader, char close)
 
 static CallExpression * parse_function_call(TokenReader *reader)
 {
-	reader->consume(); // consume (
+	if (reader->peek().type != TokenType::iden) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+	}
 	CallExpression *call = new CallExpression;
+	call->function_name = new IdExpression;
+	call->function_name->name = reader->peek().from;
+	call->function_name->name_len = reader->peek().len;
+	reader->consume(); // consume function name
+	reader->consume(); // consume (
 	call->parameters = parse_parameter(reader, ')');
 	reader->consume(); // )
 	return call;
@@ -413,7 +426,7 @@ static OperationExpression * parse_operator(TokenReader *reader)
 	return node;
 }
 
-static void parse_assignment(TokenReader *reader)
+static AssignmentExpression * parse_assignment(TokenReader *reader)
 {
 	const Token &token = reader->peek();
 	if (token.type == TokenType::iden && is_identity(token.from, token.len)) {
@@ -424,7 +437,7 @@ static void parse_assignment(TokenReader *reader)
 			reader->consume();
 			if (!is_identity(reader->peek().from, reader->peek().len)) {
 				reader->unread();
-				return;
+				return NULL;
 			}
 		}
 
@@ -438,6 +451,7 @@ static void parse_assignment(TokenReader *reader)
 			const Token &val = reader->peek();
 			if (val.type == TokenType::iden || val.type == TokenType::num || val.type == TokenType::str || val.type == TokenType::sym) {
 				as->assign = new AssignmentExpression::assignment;
+				as->assign->ass = new AssignmentExpression::assignment::assignment_union;
 				OperationExpression *oper = parse_operator(reader);
 				if (oper->op_type == OperatorType::op_none) {
 					if (oper->left->type == OpType::call) {
@@ -495,7 +509,9 @@ static void parse_assignment(TokenReader *reader)
 			delete as;
 			reader->unread();
 		}
+		return as;
 	}
+	return NULL;
 }
 
 static void enter_scope()
@@ -540,6 +556,8 @@ static OperationExpression * parse_if_prefix(TokenReader *reader, bool is_if)
 	reader->consume();
 	return oper;
 }
+
+static vector<BodyStatment *> * parse_expressions(TokenReader *reader);
 
 static void parse_if_statement(TokenReader *reader, int start)
 {
@@ -623,17 +641,28 @@ static void parse_switch_case(TokenReader *reader)
 static Function * parse_fn(TokenReader *reader)
 {
 	bool isLocal = false;
-	if (reader->peek().type != TokenType::keyword) {
-		if (str_equal(reader->peek().from, "local", 5)) {
-			isLocal = true;
-			reader->consume();
-		}
+	int pos = reader->get_pos();
+	if (reader->peek().type == TokenType::keyword && str_equal(reader->peek().from, "local", 5)) {
+		isLocal = true;
+		reader->consume();
+	}
+
+	if (reader->peek().type != TokenType::keyword || !str_equal(reader->peek().from, "fn", 2))
+	{
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "funcion declare needs fn ke word.");
 	}
 	reader->consume();
+
 	// 下划线开头先不考虑
 	if (reader->peek().type != TokenType::iden) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid funcion name");
 	}
+	reader->consume();
+
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != '(') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "funcion declare needs ( to start.");
+	}
+	reader->consume();
 
 	Function *fun = new Function;
 	IdExpression *funcName = new IdExpression;
@@ -641,11 +670,7 @@ static Function * parse_fn(TokenReader *reader)
 	funcName->name_len = reader->peek().len;
 	fun->function_name = funcName;
 	fun->is_local = isLocal;
-
-	if (reader->peek().type != TokenType::sym || *reader->peek().from != '(') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "funcion declare needs ( to start.");
-	}
-	reader->consume();
+	
 	// parse parameter
 	int maxParam = 30; // 最多30 个参数
 	int count = 0;
@@ -662,8 +687,9 @@ static Function * parse_fn(TokenReader *reader)
 		reader->consume();
 		if (reader->peek().type == TokenType::sym)
 		{
-			if (*reader->peek().from != ',')
+			if (*reader->peek().from != ',') {
 				reader->consume();
+			}
 			else if (*reader->peek().from != ')') 
 				break;
 			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "unkown symbol");
@@ -677,20 +703,118 @@ static Function * parse_fn(TokenReader *reader)
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '{') {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "funcion declare needs { to start");
 	}
+	reader->consume();
 	// parse function body
-
-	return NULL;
+	fun->body = parse_expressions(reader);
+	return fun;
 }
 
-static void parse_expression(TokenReader *reader)
+static void build_call(vector<BodyStatment *> *statements, TokenReader *reader)
 {
+	CallExpression *call = parse_function_call(reader);
+	if (!call) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+	}
+	BodyStatment *statement = new BodyStatment;
+	statement->body = new BodyStatment::body_expression;
+	statement->body->call_exp = call;
+	statement->type = ExpressionType::call_statement;
+	statements->push_back(statement);
+}
 
+static void build_assign(vector<BodyStatment *> *statements, TokenReader *reader)
+{
+	AssignmentExpression *ass = parse_assignment(reader);
+	if (!ass) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+	}
+	BodyStatment *statement = new BodyStatment;
+	statement->body = new BodyStatment::body_expression;
+	statement->body->assign_exp = ass;
+	statement->type = ExpressionType::assignment_statement;
+	statements->push_back(statement);
+}
+
+static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
+{
+	vector<BodyStatment *> *statements = new vector<BodyStatment *>;
+	while (reader->peek().type != TokenType::eof) {
+		switch (reader->peek().type)
+		{
+		case TokenType::iden:
+		{
+			reader->consume();
+			if (reader->peek().type == TokenType::sym) 	{
+				if (*reader->peek().from == '(') {
+					reader->unread();
+					build_call(statements, reader);
+				}
+				else if (*reader->peek().from == '[') {
+
+				}
+				else if (*reader->peek().from == '=') {
+					reader->unread();
+					build_assign(statements, reader);
+				}
+				else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+			}
+			else {
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+			}
+			break;
+		}
+		case TokenType::keyword:
+		{
+			if (str_equal(reader->peek().from, "if", 2)) {
+				parse_if_statement(reader, 0);
+			}
+			else if (str_equal(reader->peek().from, "fn", 2)) {
+				Function *fun = parse_fn(reader);
+				if (!fun) {
+					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+				}
+			}
+			else if (str_equal(reader->peek().from, "local", 2)){
+				int pos = reader->get_pos();
+				reader->consume();
+				if (str_equal(reader->peek().from, "fn", 2)) {
+
+				}
+				else if (reader->peek().type == TokenType::iden) {
+					reader->consume();
+					if (*reader->peek().from == '=') {
+						reader->set_pos(pos);
+						build_assign(statements, reader);
+					}
+					else if (*reader->peek().from == '(') {
+						reader->set_pos(pos);
+						build_call(statements, reader);
+					}
+					else 
+						error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+				}
+				else 
+					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+			}
+			break;
+		}
+		default:
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+			break;
+		}
+		
+		//parse_do_while_expression(reader);
+		//parse_while_expression(reader);
+		//parse_for(reader);
+		
+	}
+	return statements;
 }
 
 void parse(unordered_map<string, TokenReader *> &files)
 {
 	for(auto &it : files) {
-		parse_assignment(it.second);
+		parse_expressions(it.second);
 	}
 }
 
