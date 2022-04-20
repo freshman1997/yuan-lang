@@ -43,7 +43,6 @@ static OperatorType getbinopr (int op) {
     case '*': return OperatorType::op_mul;
     case '/': return OperatorType::op_div;
     case '%': return OperatorType::op_mod;
-	case '+' + '+': return OperatorType::op_gt;
     case '.' + '.': return OperatorType::op_concat;
     case '!' + '=': return OperatorType::op_ne;
     case '=' + '=': return OperatorType::op_equal;
@@ -74,8 +73,10 @@ static const struct {
 static OperatorType getunopr (int op) {
   switch (op) {
     case '!': return OperatorType::op_not;
-    case -'-': return OperatorType::op_unary_sub;
+    case '-': return OperatorType::op_unary_sub;
     case '#': return OperatorType::op_len;
+	case '+' + '+': return OperatorType::op_add_add;
+	case '-' + '-': return OperatorType::op_sub_sub;
     default: return OperatorType::op_none;
   }
 }
@@ -87,8 +88,9 @@ static int get_operator_type(TokenReader *reader)
 	static unordered_map<string, int> symbol_map;
 	if (symbol_map.empty()) {
 		symbol_map["!"] = '!';
-		symbol_map["u-"] = -'-';
 		symbol_map["#"] = '#';
+		symbol_map["++"] = '+' + '+';
+		symbol_map["--"] = '-' + '-';
 
 		symbol_map["+"] = '+';
 		symbol_map["-"] = '-';
@@ -118,11 +120,6 @@ static int get_operator_type(TokenReader *reader)
 	const char *p = token.from;
 	for(int i = 0; i < token.len; ++i) 
 		t.push_back(p[i]);
-	
-	if (t == "-") {
-
-	}
-
 	return symbol_map.count(t) > 0 ? symbol_map[t] : -1;
 }
 
@@ -175,6 +172,14 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 				child1->left = oper;
 				child1->op_type = OperatorType::op_none;
 			}
+			// 下面为 后置 ++， --
+			if(reader->peek().type == TokenType::sym) {
+				uop = getunopr(get_operator_type(reader));
+				if (uop != OperatorType::op_none && reader->peek().len == 2 && (str_equal(reader->peek().from, "++", 2) || str_equal(reader->peek().from, "--", 2))) {
+					child1->op_type = uop;
+					reader->consume();
+				}
+			}
 		}
 
 		OperatorType op = getbinopr(get_operator_type(reader));
@@ -183,7 +188,6 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 			OperationExpression *exp = subexpr(reader, priority[(int)op].right);
 			if (exp) {
 				node = new OperationExpression;
-				node->op_type = op;
 				node->op_type = op;
 				Operation *child2 = new Operation;
 				child2->op = new Operation::oper;
@@ -560,6 +564,7 @@ static OperationExpression * parse_if_prefix(TokenReader *reader, bool is_if)
 		if (reader->peek().type != TokenType::keyword && reader->peek().len != 4 && !str_equal(reader->peek().from, "else", 4)) {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid condition key word", __LINE__);
 		}
+		reader->consume(); // consume else key word
 	}
 	if (reader->peek().type != TokenType::keyword && reader->peek().len != 2 && !str_equal(reader->peek().from, "if", 2)) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid condition key word", __LINE__);
@@ -569,6 +574,7 @@ static OperationExpression * parse_if_prefix(TokenReader *reader, bool is_if)
 	if (reader->peek().type != TokenType::sym || *(reader->peek().from) != '(') {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition statement needs starting with ( ", __LINE__);
 	}
+	reader->consume();
 
 	OperationExpression *oper = parse_operator(reader);
 	if (!oper) {
@@ -579,7 +585,7 @@ static OperationExpression * parse_if_prefix(TokenReader *reader, bool is_if)
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition statement needs ending with ) ", __LINE__);
 	}
 	reader->consume();
-	if (reader->peek().type == TokenType::sym || *reader->peek().from != '{') {
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != '{') {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition body needs starting with { ", __LINE__);
 	}
 	reader->consume();
@@ -588,35 +594,42 @@ static OperationExpression * parse_if_prefix(TokenReader *reader, bool is_if)
 
 static vector<BodyStatment *> * parse_expressions(TokenReader *reader);
 
-static void build_if_body(IfExpression *cond, TokenReader *reader)
+static void build_if_body(IfStatement *cond, TokenReader *reader)
 {
 	cond->body = parse_expressions(reader);
 	if (!cond->body) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
-	if (reader->peek().type == TokenType::sym || *reader->peek().from != '}') {
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition body needs ending with } ", __LINE__);
 	}
 	reader->consume();
 }
 
-static IfExpression * parse_if_statement(TokenReader *reader, int start)
+static void parse_if_statement(TokenReader *reader, IfExpression *cond, int start)
 {
-	IfExpression *cond = new IfExpression;
+	IfStatement *if_statement = new IfStatement;
+	if_statement->body = new vector<BodyStatment *>;
 	// if else if ... else
 	if (start == 0) { // if
-		cond->condition = parse_if_prefix(reader, true);
-		if (!cond->condition) {
+		if_statement->condition = parse_if_prefix(reader, true);
+		if (!if_statement->condition) {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
-		build_if_body(cond, reader);
+		build_if_body(if_statement, reader);
+		if (reader->peek().type == TokenType::keyword && str_equal(reader->peek().from, "else", 4)) {
+			parse_if_statement(reader, cond, 1);
+		}
 	}
 	else if (start == 1) { // else if
-		cond->condition = parse_if_prefix(reader, false);
-		if (!cond->condition) {
+		if_statement->condition = parse_if_prefix(reader, false);
+		if (!if_statement->condition) {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
-		build_if_body(cond, reader);
+		build_if_body(if_statement, reader);
+		if (reader->peek().type == TokenType::keyword && str_equal(reader->peek().from, "else", 4)) {
+			parse_if_statement(reader, cond, 2);
+		}
 	}
 	else if (start == 2) { // else
 		if (reader->peek().type != TokenType::keyword || reader->peek().len != 4 || !str_equal(reader->peek().from, "else", 4)) {
@@ -627,10 +640,10 @@ static IfExpression * parse_if_statement(TokenReader *reader, int start)
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition body needs starting with { ", __LINE__);
 		}
 		reader->consume();
-		cond->condition = NULL; // init
-		build_if_body(cond, reader);
+		if_statement->condition = NULL; // init
+		build_if_body(if_statement, reader);
 	}
-	return cond;
+	cond->if_statements->push_back(if_statement);
 }
 
 static DoWhileExpression * parse_do_while_expression(TokenReader *reader)
@@ -958,7 +971,9 @@ static void build_function(vector<BodyStatment *> *statements, TokenReader *read
 
 static void build_if(vector<BodyStatment *> *statements, TokenReader *reader)
 {
-	IfExpression *ifExp = parse_if_statement(reader, 0);
+	IfExpression *ifExp = new IfExpression;
+	ifExp->if_statements = new vector<IfStatement *>;
+	parse_if_statement(reader, ifExp, 0);
 	if (!ifExp) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid if statement", __LINE__);
 	}
@@ -1029,7 +1044,7 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
 		case TokenType::keyword:
 		{
 			if (str_equal(reader->peek().from, "if", 2)) {
-				parse_if_statement(reader, 0);
+				build_if(statements, reader);
 			}
 			else if (str_equal(reader->peek().from, "fn", 2)) {
 				build_function(statements, reader);

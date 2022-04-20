@@ -26,7 +26,7 @@ enum class OperatorType
     op_gt_eq,       // >=
     op_or,          // ||
     op_and,         // &&
-    
+
     op_bin_xor,     // ^
     op_bin_and,     // &
     op_bin_lm,      // <<
@@ -278,10 +278,17 @@ struct OperationExpression
 };
 
 // 单个 if 、else if 、 else 这些表达式
-struct IfExpression
+struct IfStatement
 {
     OperationExpression *condition;
     vector<BodyStatment *> *body;
+    int from;
+    int to;
+};
+
+struct IfExpression 
+{
+    vector<IfStatement *> *if_statements; // 多个，if，else if, else
     int from;
     int to;
 };
