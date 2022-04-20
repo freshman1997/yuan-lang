@@ -38,6 +38,7 @@ enum class OperatorType
     op_bin_lme,     // <<=
     op_bin_rme,     // >>=
 
+    op_in,          // in 用在 for 循环
     op_none,        
 };
 
@@ -117,7 +118,7 @@ struct Function
     IdExpression *function_name;                // 函数名称
     bool is_local;                              // 是否为 local 修饰
     vector<IdExpression *> *parameters;         // 参数
-    vector<BodyStatment *> *body;       // 函数体
+    vector<BodyStatment *> *body;               // 函数体
     int from;
     int to;
 };
@@ -240,6 +241,7 @@ enum class OpType
     op,
     index,
     assign,
+    nil,
 };
 
 struct OperationExpression;
@@ -274,15 +276,10 @@ struct OperationExpression
 };
 
 // 单个 if 、else if 、 else 这些表达式
-struct IfExpStatement
+struct IfExpression
 {
     OperationExpression *condition;
     vector<BodyStatment *> *body;
-};
-
-struct IfExpression
-{
-    vector<IfExpStatement *> *statements;  // if {} else if{} else {}, 这里包含以上所有
     int from;
     int to;
 };
@@ -290,15 +287,15 @@ struct IfExpression
 struct WhileExpression
 {
     OperationExpression *condition;
-    vector<IfExpStatement *> *statements;
+    vector<BodyStatment *> *body;
     int from;
     int to;
 };
 
 struct DoWhileExpression
 {
-    vector<IfExpStatement *> *statements;
     OperationExpression *condition;
+    vector<BodyStatment *> *body;
     int from;
     int to;
 };
@@ -309,19 +306,14 @@ enum class ForExpType
     for_normal,     // for (a = x, b = 1, c = 2...; condition; exp)
 };
 
-
-
 struct ForExpression
 {
     ForExpType type;
-    union first_param
-    {
-        vector<IdExpression *> *id_vars;
-        vector<AssignmentExpression *> *assign_vars;
-    };
-    first_param *first_statement;
-    vector<Operation *> *second_statement;
+    vector<AssignmentExpression *> *first_statement;
+    OperationExpression *second_statement;          // condition or in 
     vector<OperationExpression *> *third_statement;
+
+    vector<BodyStatment *> *body;
 
     int from;
     int to;
@@ -341,25 +333,9 @@ struct CallExpression
     int to;
 };
 
-enum class ReturnType
-{
-    value,          // [], {}
-    call,           // func()
-    index,          // a[1], tb["name"]
-};
-
 struct ReturnExpression
 {
-    ReturnType type;
-    union statement
-    {
-        BasicValue *baisc_statement;
-        CallExpression *call_statement;
-        OperationExpression *oper_statement;
-    };
-
-    vector<statement *> *statements;
-
+    OperationExpression *statement;
     int from;
     int to;
 };
@@ -391,6 +367,6 @@ struct Chunck
 };
 
 // 一次只处理一个文件，遇到依赖其他文件的符号，则暂停去编译它在返回继续
-void parse(unordered_map<string, TokenReader *> &files);
+vector<Chunck *> * parse(unordered_map<string, TokenReader *> &files);
 
 #endif
