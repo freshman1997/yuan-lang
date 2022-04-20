@@ -5,6 +5,18 @@
 
 #include "lex.h"
 
+/*
+    目前剩余：
+        str[2:], str[:-1], str[2:3] 字符串截取，str .. str1 字符串拼接
+        str[1], tb["name"], 下标读取
+        tb = {100: "aaa"} 表的构造
+        逻辑运算符
+        item:add  这种函数声明 module
+        require 未增加
+        switch case
+        break default
+*/
+
 /*********************** 变量类型和表达式结构定义 **********************/
 
 enum class OperatorType
@@ -178,13 +190,7 @@ struct BasicValue
 struct IndexExpression
 {
     IdExpression *id;
-    VariableType key_type;
-    union Key
-    {
-        Number *number_key;
-        String *string_key;
-    };
-    vector<Key *> *keys;
+    vector<OperationExpression *> *keys;
 };
 
 struct OperationExpression;
@@ -330,7 +336,7 @@ struct ForExpression
 
 struct SwitchCaseExpression
 {
-    
+
 };
 
 
