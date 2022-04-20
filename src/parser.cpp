@@ -16,7 +16,7 @@ static void verror_at(const char *filename, char *input, int line_no,
       end++;
 
     // Print out the line.
-    int indent = fprintf(stderr, "%s:%d: ", filename, line_no);
+    int indent = fprintf(stderr, "%s:%d", filename, line_no);
     fprintf(stderr, "%.*s\n", (int)(end - line), line);
 
     // Show the error message.
@@ -189,7 +189,7 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 				node->left = child1 ? child1->left : NULL;
 			}
 			else {
-				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
 		} else {
 			if (child1) node = child1;
@@ -210,7 +210,7 @@ static vector<Operation *> * parse_parameter(TokenReader *reader, char close)
 	while (reader->peek().type != TokenType::eof) {
 		OperationExpression *oper = parse_operator(reader);
 		if (reader->peek().type != TokenType::sym) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
 		
 		// fill the parameters
@@ -228,7 +228,7 @@ static vector<Operation *> * parse_parameter(TokenReader *reader, char close)
 
 		if (*(reader->peek().from) == close) break;
 		else if (*(reader->peek().from) == ',') reader->consume();
-		else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+		else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
 	return parameters;
 }
@@ -236,7 +236,7 @@ static vector<Operation *> * parse_parameter(TokenReader *reader, char close)
 static CallExpression * parse_function_call(TokenReader *reader)
 {
 	if (reader->peek().type != TokenType::iden) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
 	CallExpression *call = new CallExpression;
 	call->function_name = new IdExpression;
@@ -346,17 +346,17 @@ static Operation * parse_primary(TokenReader *reader)
 					case '.':	// field or .. 
 						break;
 					case ':':	// module member declare
-						error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "not support yet");
+						error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "not support yet", __LINE__);
 						break;
 					default:
 						// error
-						error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+						error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 						break;
 					}
 				}
 				else {
 					// error
-					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 				}
 			}
 		}
@@ -368,7 +368,7 @@ static Operation * parse_primary(TokenReader *reader)
 				node->type = OpType::op;
 				node->op->op_oper = parse_operator(reader);
 				if (reader->peek().type != TokenType::sym || *(reader->peek().from) != ')') {
-					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 				}
 				reader->consume();
 			}
@@ -387,7 +387,7 @@ static Operation * parse_primary(TokenReader *reader)
 			}
 			else {
 				// error
-				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
 		}
 		else if (reader->peek().type == TokenType::keyword) {
@@ -395,7 +395,7 @@ static Operation * parse_primary(TokenReader *reader)
 		}
 		else {
 			// error
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		} 
 	}
 	return node;
@@ -436,7 +436,7 @@ static OperationExpression * parse_operator(TokenReader *reader)
 			}
 			else {
 				// TODO error
-				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
 		}
 		else {
@@ -524,7 +524,7 @@ static AssignmentExpression * parse_assignment(TokenReader *reader)
 					as->assign->assignment_type = AssignmentExpression::AssignmenType::operation;
 				}
 			}
-			else error_tok(val, reader->get_file_name(), reader->get_content(), "%s", "unkown type ");
+			else error_tok(val, reader->get_file_name(), reader->get_content(), "%s on line: %d", "unkown type ", __LINE__);
 		}
 		else {
 			delete as;
@@ -550,29 +550,29 @@ static OperationExpression * parse_if_prefix(TokenReader *reader, bool is_if)
 {
 	if(!is_if) {
 		if (reader->peek().type != TokenType::keyword && reader->peek().len != 4 && !str_equal(reader->peek().from, "else", 4)) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid condition key word");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid condition key word", __LINE__);
 		}
 	}
 	if (reader->peek().type != TokenType::keyword && reader->peek().len != 2 && !str_equal(reader->peek().from, "if", 2)) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid condition key word");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid condition key word", __LINE__);
 	}
 
 	reader->consume(); // consume if key word
 	if (reader->peek().type != TokenType::sym || *(reader->peek().from) != '(') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition statement needs starting with ( ");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition statement needs starting with ( ", __LINE__);
 	}
 
 	OperationExpression *oper = parse_operator(reader);
 	if (!oper) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
 
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != ')') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition statement needs ending with ) ");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition statement needs ending with ) ", __LINE__);
 	}
 	reader->consume();
 	if (reader->peek().type == TokenType::sym || *reader->peek().from != '{') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition body needs starting with { ");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition body needs starting with { ", __LINE__);
 	}
 	reader->consume();
 	return oper;
@@ -584,10 +584,10 @@ static void build_if_body(IfExpression *cond, TokenReader *reader)
 {
 	cond->body = parse_expressions(reader);
 	if (!cond->body) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
 	if (reader->peek().type == TokenType::sym || *reader->peek().from != '}') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition body needs ending with } ");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition body needs ending with } ", __LINE__);
 	}
 	reader->consume();
 }
@@ -599,24 +599,24 @@ static IfExpression * parse_if_statement(TokenReader *reader, int start)
 	if (start == 0) { // if
 		cond->condition = parse_if_prefix(reader, true);
 		if (!cond->condition) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
 		build_if_body(cond, reader);
 	}
 	else if (start == 1) { // else if
 		cond->condition = parse_if_prefix(reader, false);
 		if (!cond->condition) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
 		build_if_body(cond, reader);
 	}
 	else if (start == 2) { // else
 		if (reader->peek().type != TokenType::keyword || reader->peek().len != 4 || !str_equal(reader->peek().from, "else", 4)) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid condition key word");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid condition key word", __LINE__);
 		}
 		reader->consume(); // consume else 
 		if (reader->peek().type != TokenType::sym || *reader->peek().from != '{') {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition body needs starting with { ");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition body needs starting with { ", __LINE__);
 		}
 		reader->consume();
 		cond->condition = NULL; // init
@@ -628,39 +628,39 @@ static IfExpression * parse_if_statement(TokenReader *reader, int start)
 static DoWhileExpression * parse_do_while_expression(TokenReader *reader)
 {
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '{') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "loop expression needs { to start");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "loop expression needs { to start", __LINE__);
 	}
 	reader->consume();
 	// loop body
 	DoWhileExpression *doWhileExp = new DoWhileExpression;
 	doWhileExp->body = parse_expressions(reader);
 	if (!doWhileExp->body) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
 
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "loop expression needs { to close");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "loop expression needs { to close", __LINE__);
 	}
 	reader->consume();
 	if (reader->peek().type != TokenType::keyword || !str_equal(reader->peek().from, "while", 5)) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid loop expression key word");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid loop expression key word", __LINE__);
 	}
 	reader->consume();
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '(') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition expression needs ( to start");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition expression needs ( to start", __LINE__);
 	}
 	reader->consume();
 	doWhileExp->condition = parse_operator(reader);
 	if (!doWhileExp->condition) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid condition statement");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid condition statement", __LINE__);
 	}
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != ')') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition expression needs ) to close");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition expression needs ) to close", __LINE__);
 	}
 	reader->consume();
 
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != ';') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "loop expression needs ; to close");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "loop expression needs ; to close", __LINE__);
 	}
 	reader->consume();
 
@@ -670,11 +670,11 @@ static DoWhileExpression * parse_do_while_expression(TokenReader *reader)
 static WhileExpression * parse_while_expression(TokenReader *reader)
 {
 	if (reader->peek().type != TokenType::keyword || !str_equal(reader->peek().from, "while", 5)) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid while loop");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid while loop", __LINE__);
 	}
 	reader->consume();
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '(') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition expression needs ( to start");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition expression needs ( to start", __LINE__);
 	}
 	reader->consume();
 
@@ -684,12 +684,12 @@ static WhileExpression * parse_while_expression(TokenReader *reader)
 
 	reader->consume();
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != ')') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "condition expression needs ( to close");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "condition expression needs ( to close", __LINE__);
 	}
 	reader->consume();
 
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '{') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "loop expression needs { to start");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "loop expression needs { to start", __LINE__);
 	}
 	reader->consume();
 	// while body
@@ -697,7 +697,7 @@ static WhileExpression * parse_while_expression(TokenReader *reader)
 	whileExp->body = parse_expressions(reader);
 
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "loop expression needs } to close");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "loop expression needs } to close", __LINE__);
 	}
 	reader->consume();
 
@@ -707,11 +707,11 @@ static WhileExpression * parse_while_expression(TokenReader *reader)
 static ForExpression * parse_for_expression(TokenReader *reader)
 {
 	if (reader->peek().type != TokenType::keyword || reader->peek().len != 3 || !str_equal(reader->peek().from, "for", 3)) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
 	reader->consume();
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '(') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "for expression needs ( to start");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "for expression needs ( to start", __LINE__);
 	}
 	reader->consume();
 	ForExpression *forExp = new ForExpression;
@@ -725,7 +725,7 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 		}
 		AssignmentExpression *assign = parse_assignment(reader);
 		if (!assign) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid for statement");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 		}
 		forExp->first_statement->push_back(assign);
 		if (reader->peek().type != TokenType::sym) {
@@ -735,7 +735,7 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 			else if (*reader->peek().from == ',') {
 				reader->consume();
 			}
-			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid for statement");
+			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 		}
 		else if (reader->peek().type == TokenType::keyword && reader->peek().len == 2 && str_equal(reader->peek().from, "in", 2)) {
 			isIn = true;
@@ -746,10 +746,10 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 		reader->consume();
 		forExp->second_statement = parse_operator(reader);
 		if (!forExp->second_statement) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid for statement");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 		}
 		if (reader->peek().type != TokenType::sym && *reader->peek().from != ';') {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "for loop needs ; to end statement");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "for loop needs ; to end statement", __LINE__);
 		}
 		reader->consume();
 		forExp->third_statement = new vector<OperationExpression *>;
@@ -757,7 +757,7 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 			if (reader->peek().type == TokenType::sym && *reader->peek().from == ')') break;
 			OperationExpression *oper = parse_operator(reader);
 			if (!oper) {
-				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid for statement");
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 			}
 			forExp->third_statement->push_back(oper);
 			if (reader->peek().type != TokenType::sym) {
@@ -767,7 +767,7 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 				else if (*reader->peek().from == ',') {
 					reader->consume();
 				}
-				else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid for statement");
+				else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 			}
 		}
 		reader->consume();
@@ -777,7 +777,7 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 		forExp->second_statement->op_type = OperatorType::op_in;
 		reader->consume();
 		if (reader->peek().type != TokenType::iden) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid for statement");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 		}
 		forExp->third_statement = new vector<OperationExpression *>;
 		OperationExpression *idOper = new OperationExpression;
@@ -790,16 +790,16 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 		idOper->left->op->id_oper->name_len = reader->peek().len;
 		forExp->third_statement->push_back(idOper);
 		if (reader->peek().type != TokenType::sym || *reader->peek().from != ')') {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid for statement");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 		}
 		reader->consume();
 	}
 	forExp->body = parse_expressions(reader);
 	if (!forExp->body) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid for statement");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 	}
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "for expression needs } to close");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "for expression needs } to close", __LINE__);
 	}
 	reader->consume();
 	return forExp;
@@ -821,18 +821,18 @@ static Function * parse_function_expression(TokenReader *reader)
 
 	if (reader->peek().type != TokenType::keyword || !str_equal(reader->peek().from, "fn", 2))
 	{
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "funcion declare needs fn ke word.");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "funcion declare needs fn ke word.", __LINE__);
 	}
 	reader->consume();
 
 	// 下划线开头先不考虑
 	if (reader->peek().type != TokenType::iden) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid funcion name");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid funcion name", __LINE__);
 	}
 	reader->consume();
 
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '(') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "funcion declare needs ( to start.");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "funcion declare needs ( to start.", __LINE__);
 	}
 	reader->consume();
 
@@ -850,7 +850,7 @@ static Function * parse_function_expression(TokenReader *reader)
 	while (reader->peek().type != TokenType::eof) {
 		if (reader->peek().type == TokenType::sym && *reader->peek().from == ')') break;
 		if (reader->peek().type != TokenType::iden) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid funcion parameter");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid funcion parameter", __LINE__);
 		}
 		IdExpression *param = new IdExpression;
 		param->name = reader->peek().from;
@@ -864,20 +864,24 @@ static Function * parse_function_expression(TokenReader *reader)
 			}
 			else if (*reader->peek().from != ')') 
 				break;
-			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "unkown symbol");
+			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "unkown symbol", __LINE__);
 		}
 		++count;
 		if (count >= maxParam) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "parameter's number exceed 30");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "parameter's number exceed 30", __LINE__);
 		}
 	}
 	reader->consume();
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '{') {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "funcion declare needs { to start");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "funcion declare needs { to start", __LINE__);
 	}
 	reader->consume();
 	// parse function body
 	fun->body = parse_expressions(reader);
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "funcion declare needs } to close", __LINE__);
+	}
+	reader->consume();
 	return fun;
 }
 
@@ -885,7 +889,7 @@ static ReturnExpression *parse_return_statement(TokenReader *reader)
 {
 	// id，基础类型的直接构造，index，field，oper，
 	if (reader->peek().type != TokenType::keyword || !str_equal(reader->peek().from, "return", 6)) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid return statement");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid return statement", __LINE__);
 	}
 	reader->consume();
 	ReturnExpression *retExp = new ReturnExpression;
@@ -897,7 +901,7 @@ static void build_call(vector<BodyStatment *> *statements, TokenReader *reader)
 {
 	CallExpression *call = parse_function_call(reader);
 	if (!call) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
@@ -910,12 +914,51 @@ static void build_assign(vector<BodyStatment *> *statements, TokenReader *reader
 {
 	AssignmentExpression *ass = parse_assignment(reader);
 	if (!ass) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->assign_exp = ass;
 	statement->type = ExpressionType::assignment_statement;
+	statements->push_back(statement);
+}
+
+static void build_function(vector<BodyStatment *> *statements, TokenReader *reader)
+{
+	Function *fun = parse_function_expression(reader);
+	if (!fun) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid function statement", __LINE__);
+	}
+	BodyStatment *statement = new BodyStatment;
+	statement->body = new BodyStatment::body_expression;
+	statement->body->function_exp = fun;
+	statement->type = ExpressionType::function_declaration_statement;
+	statements->push_back(statement);
+}
+
+static void build_if(vector<BodyStatment *> *statements, TokenReader *reader)
+{
+	IfExpression *ifExp = parse_if_statement(reader, 0);
+	if (!ifExp) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid if statement", __LINE__);
+	}
+	BodyStatment *statement = new BodyStatment;
+	statement->body = new BodyStatment::body_expression;
+	statement->body->if_exp = ifExp;
+	statement->type = ExpressionType::if_statement;
+	statements->push_back(statement);
+}
+
+static void build_return(vector<BodyStatment *> *statements, TokenReader *reader)
+{
+	ReturnExpression *returnExp = parse_return_statement(reader);
+	if (!returnExp) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid return statement", __LINE__);
+	}
+	BodyStatment *statement = new BodyStatment;
+	statement->body = new BodyStatment::body_expression;
+	statement->body->return_exp = returnExp;
+	statement->type = ExpressionType::return_statement;
 	statements->push_back(statement);
 }
 
@@ -940,29 +983,29 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
 					reader->unread();
 					build_assign(statements, reader);
 				}
-				else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+				else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
 			else {
-				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
 			break;
 		}
+		case TokenType::sym:
+			return statements;
 		case TokenType::keyword:
 		{
 			if (str_equal(reader->peek().from, "if", 2)) {
 				parse_if_statement(reader, 0);
 			}
 			else if (str_equal(reader->peek().from, "fn", 2)) {
-				Function *fun = parse_function_expression(reader);
-				if (!fun) {
-					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
-				}
+				build_function(statements, reader);
 			}
 			else if (str_equal(reader->peek().from, "local", 2)){
 				int pos = reader->get_pos();
 				reader->consume();
 				if (str_equal(reader->peek().from, "fn", 2)) {
-
+					reader->set_pos(pos);
+					build_function(statements, reader);
 				}
 				else if (reader->peek().type == TokenType::iden) {
 					reader->consume();
@@ -975,13 +1018,13 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
 						build_call(statements, reader);
 					}
 					else 
-						error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+						error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 				}
 				else 
-					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
 			else if (str_equal(reader->peek().from, "return", 6)) {
-				parse_return_statement(reader);
+				build_return(statements, reader);
 			}
 			else if (str_equal(reader->peek().from, "while", 5)) {
 				parse_while_expression(reader);
@@ -992,11 +1035,11 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
 			else if (str_equal(reader->peek().from, "for", 5)) {
 				parse_for_expression(reader);
 			}
-			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			break;
 		}
 		default:
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s", "invalid statement");
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			break;
 		}
 		
