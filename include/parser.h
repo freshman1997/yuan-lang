@@ -39,10 +39,23 @@ enum class OperatorType
     op_or,          // ||
     op_and,         // &&
 
+    op_dot,         // .
+
+    op_add_eq,      // +=
+    op_sub_eq,      // -=
+    op_mul_eq,      // *=
+    op_div_eq,      // /=
+    op_mod_eq,      // %= 
+    
+    op_bin_or,      // |
     op_bin_xor,     // ^
     op_bin_and,     // &
+    op_bin_not,      // ~
     op_bin_lm,      // <<
     op_bin_rm,      // >> 
+    op_bin_xor_eq,  // ^=
+    op_bin_and_eq,  // &=
+    op_bin_or_eq,   // |=
     op_bin_lme,     // <<=
     op_bin_rme,     // >>=
 
@@ -53,6 +66,9 @@ enum class OperatorType
     op_sub_sub,     // --
 
     op_in,          // in 用在 for 循环
+
+    op_substr,      // : 
+
     op_none,        
 };
 
@@ -80,6 +96,7 @@ enum class ExpressionType
     do_while_statement,                     // do while 语句表达式
     for_statement,                          // for 语句表达式
     call_statement,                         // 函数调用表达式
+    break_statement,                        // break
 };
 
 struct CallExpression;
@@ -87,7 +104,7 @@ struct CallExpression;
 // 标识符
 struct IdExpression
 {
-    bool is_local;
+    bool is_local = false;
     char *name;
     int name_len;
     int from;
@@ -129,10 +146,11 @@ struct BasicValue;
 // 函数
 struct Function
 {
-    IdExpression *function_name;                // 函数名称
-    bool is_local;                              // 是否为 local 修饰
-    vector<IdExpression *> *parameters;         // 参数
-    vector<BodyStatment *> *body;               // 函数体
+    IdExpression *function_name = NULL;                // 函数名称
+    bool is_local = false;                              // 是否为 local 修饰
+    vector<IdExpression *> *parameters = NULL;         // 参数
+    vector<BodyStatment *> *body = NULL;               // 函数体
+    IdExpression *module = NULL;                       // 所属模块
     int from;
     int to;
 };
@@ -142,34 +160,27 @@ struct Operation;
 // 数组
 struct Array
 {
-    IdExpression *name;
-    vector<Operation *> *fields;
+    IdExpression *name = NULL;
+    vector<Operation *> *fields = NULL;
     int from;
     int to;
 };
 
-struct TableInitItem;
+struct OperationExpression;
+
+// 表声明初始化，键值对
+struct TableItemPair
+{
+    OperationExpression *k = NULL;
+    OperationExpression *v = NULL;
+};
 
 // 表
 struct Table
 {
-    IdExpression *name;
-    vector<TableInitItem *> *members;
+    vector<TableItemPair *> *members = NULL;
     int from;
     int to;
-};
-
-// 表声明初始化，键值对
-struct TableInitItem
-{
-    VariableType key_type;
-    union Key
-    {
-        Number *number_key;
-        String *string_key;
-    };
-    Key *k;
-    Operation *v;
 };
 
 struct BasicValue
@@ -184,20 +195,18 @@ struct BasicValue
         Table *table;
         Function *function;
     };
-    Value *value;
+    Value *value = NULL;
 };
 
 struct IndexExpression
 {
-    IdExpression *id;
-    vector<OperationExpression *> *keys;
+    IdExpression *id = NULL;
+    vector<OperationExpression *> *keys = NULL;
 };
-
-struct OperationExpression;
 
 struct AssignmentExpression
 {
-    IdExpression *id;
+    IdExpression *id = NULL;
     enum class AssignmenType
     {
         id,
@@ -206,7 +215,7 @@ struct AssignmentExpression
         basic,
         call,
     };
-
+    IdExpression *module = NULL;
     struct assignment {
         AssignmenType assignment_type;
         union assignment_union
@@ -218,7 +227,7 @@ struct AssignmentExpression
             IdExpression *id_val;
         };
 
-        assignment_union *ass;
+        assignment_union *ass = NULL;
 
         ~assignment(){
             if (ass) {
@@ -227,7 +236,7 @@ struct AssignmentExpression
         }
     };
 
-    assignment *assign;
+    assignment *assign = NULL;
 
     ~AssignmentExpression() 
     {
@@ -250,6 +259,8 @@ enum class OpType
     index,
     assign,
     nil,
+    substr,
+    function_declear,
 };
 
 struct OperationExpression;
@@ -269,16 +280,17 @@ struct Operation
         IndexExpression *index_oper;
         CallExpression *call_oper;
         OperationExpression *op_oper;
+        Function *fun_oper;         // 这个只在表声明中包含的声明函数使用
     };
-    oper *op;
+    oper *op = NULL;
 };
 
-// 表示单个操作符 
+// 表示单个操作符 , 删除时需要手动
 struct OperationExpression
 {
     OperatorType op_type; // 这个可以确定是一元运算符或二元运算符
-    Operation *left;
-    Operation *right;
+    Operation *left = NULL;
+    Operation *right = NULL;
     int from;
     int to;
 };
@@ -286,31 +298,31 @@ struct OperationExpression
 // 单个 if 、else if 、 else 这些表达式
 struct IfStatement
 {
-    OperationExpression *condition;
-    vector<BodyStatment *> *body;
+    OperationExpression *condition = NULL;
+    vector<BodyStatment *> *body = NULL;
     int from;
     int to;
 };
 
 struct IfExpression 
 {
-    vector<IfStatement *> *if_statements; // 多个，if，else if, else
+    vector<IfStatement *> *if_statements = NULL; // 多个，if，else if, else
     int from;
     int to;
 };
 
 struct WhileExpression
 {
-    OperationExpression *condition;
-    vector<BodyStatment *> *body;
+    OperationExpression *condition = NULL;
+    vector<BodyStatment *> *body = NULL;
     int from;
     int to;
 };
 
 struct DoWhileExpression
 {
-    OperationExpression *condition;
-    vector<BodyStatment *> *body;
+    OperationExpression *condition = NULL;
+    vector<BodyStatment *> *body = NULL;
     int from;
     int to;
 };
@@ -324,11 +336,11 @@ enum class ForExpType
 struct ForExpression
 {
     ForExpType type;
-    vector<AssignmentExpression *> *first_statement;
-    OperationExpression *second_statement;          // condition or in 
-    vector<OperationExpression *> *third_statement;
+    vector<OperationExpression *> *first_statement = NULL;
+    OperationExpression *second_statement = NULL;          // condition or in 
+    vector<OperationExpression *> *third_statement = NULL;
 
-    vector<BodyStatment *> *body;
+    vector<BodyStatment *> *body = NULL;
 
     int from;
     int to;
@@ -342,15 +354,15 @@ struct SwitchCaseExpression
 
 struct CallExpression
 {
-    IdExpression *function_name;
-    vector<Operation *> *parameters;
+    IdExpression *function_name = NULL;
+    vector<Operation *> *parameters = NULL;
     int from;
     int to;
 };
 
 struct ReturnExpression
 {
-    OperationExpression *statement;
+    OperationExpression *statement = NULL;
     int from;
     int to;
 };
@@ -371,14 +383,14 @@ struct BodyStatment
         Function *function_exp;
         CallExpression *call_exp;
     };
-    body_expression *body;
+    body_expression *body = NULL;
 };
 
 /*********************** do parse **********************/
 
 struct Chunck
 {
-    vector<BodyStatment *> *statements;
+    vector<BodyStatment *> *statements = NULL;
 };
 
 // 一次只处理一个文件，遇到依赖其他文件的符号，则暂停去编译它在返回继续
