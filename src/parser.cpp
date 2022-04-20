@@ -16,7 +16,7 @@ static void verror_at(const char *filename, char *input, int line_no,
       end++;
 
     // Print out the line.
-    int indent = fprintf(stderr, "%s:%d", filename, line_no);
+    int indent = fprintf(stderr, "%s:%d ", filename, line_no);
     fprintf(stderr, "%.*s\n", (int)(end - line), line);
 
     // Show the error message.
@@ -43,10 +43,12 @@ static OperatorType getbinopr (int op) {
     case '*': return OperatorType::op_mul;
     case '/': return OperatorType::op_div;
     case '%': return OperatorType::op_mod;
-    case (int)OperatorType::op_concat: return OperatorType::op_concat;
-    case (int)OperatorType::op_ne: return OperatorType::op_ne;
-    case (int)OperatorType::op_equal: return OperatorType::op_equal;
+	case '+' + '+': return OperatorType::op_gt;
+    case '.' + '.': return OperatorType::op_concat;
+    case '!' + '=': return OperatorType::op_ne;
+    case '=' + '=': return OperatorType::op_equal;
     case '<': return OperatorType::op_lt;
+	case '>': return OperatorType::op_gt;
     /*case TK_LE: return OPR_LE;
     case '>': return OPR_GT;
     case TK_GE: return OPR_GE;
@@ -62,7 +64,7 @@ static const struct {
 } priority[] = {  /* ORDER OPR */
    {6, 6}, {6, 6}, {7, 7}, {7, 7}, {7, 7},  /* `+' `-' `/' `%' */
    {5, 4},                          /* concat (right associative) */
-   {3, 3}, {3, 3},                  /* equality and inequality */
+   {3, 3}, {3, 3}, {3, 3}, {3, 3}, {3, 3}, {3, 3}, {3, 3}, {3, 3},               /* !=, ==, <, >, <=, >=, &&, || */
    {3, 3}, {3, 3}, {3, 3}, {3, 3},  /* order */
    {2, 2}, {1, 1}                   /* logical (and/or) */
 };
@@ -96,18 +98,20 @@ static int get_operator_type(TokenReader *reader)
 		
 		symbol_map["&&"] = '&';
 		symbol_map["||"] = '|';
-		symbol_map[">>"] = '>';
-		symbol_map["<<"] = '<';
+		symbol_map[">>"] = '>' + '>';
+		symbol_map["<<"] = '<' + '<';
 
 		symbol_map["|"] = -'|';
 		symbol_map["&"] = -'&';
-		symbol_map[">"] = -'>';
-		symbol_map["<"] = -'<';
+
+		symbol_map[">"] = '>';
+		symbol_map["<"] = '<';
 		symbol_map["<="] = '<' + '=';
 		symbol_map["<="] = '>' + '=';
-
-		symbol_map["=="] = '=';
+		symbol_map["=="] = '=' + '=';
 		symbol_map["!="] = '!' + '=';
+
+		symbol_map[".."] = '.' + '.';
 	}
 
 	string t;
@@ -295,69 +299,62 @@ static Operation * parse_primary(TokenReader *reader)
 			reader->consume();
 		}
 		else if (reader->peek().type == TokenType::iden) {
-			int curPos = reader->get_pos();
-			const Token &t = reader->get_and_read();
-			if (str_equal(t.from, "nil", 3)) {
-				node = new Operation;
-				node->type = OpType::nil;
-				reader->consume();
-			}
-			else if (str_equal(t.from, "true", 4)) {
-				node = build_boolean(reader, true);
-			}
-			else if (str_equal(t.from, "false", 5)) {
-				node = build_boolean(reader, false);
- 			}
-			else {
-				const Token &id_token = reader->get_and_read();
-				if (reader->peek().type == TokenType::sym) {
+			const Token &id_token = reader->get_and_read();
+			if (reader->peek().type == TokenType::sym) {
+				// ( . [ ：
+				char ch = *(reader->peek().from);
+				switch (ch)
+				{
+				case '(':	// function call
+				{
+					reader->unread();
+					node = new Operation;
+					node->op = new Operation::oper;
+					node->type = OpType::call;
+					CallExpression *call = parse_function_call(reader);
+					call->function_name = new IdExpression;
+					call->function_name->name = id_token.from;
+					call->function_name->name_len = id_token.len;
+					node->op->call_oper = call;
+					break;
+				}
+				case '[':	// index data
+				{
+					reader->unread();
+					node = new Operation;
+					node->op = new Operation::oper;
+					node->type = OpType::arr;
+					Array *array = new Array;
+					array->name = new IdExpression;
+					array->name->name = id_token.from;
+					array->name->name_len = id_token.len;
+					array->fields = parse_parameter(reader, ']');
+					node->op->array_oper = array;
+					reader->consume();
+					break;
+				}
 					
-					// ( . [ ：
-					char ch = *(reader->peek().from);
-					switch (ch)
-					{
-					case '(':	// function call
-					{
-						node = new Operation;
-						node->op = new Operation::oper;
-						node->type = OpType::call;
-						CallExpression *call = parse_function_call(reader);
-						call->function_name = new IdExpression;
-						call->function_name->name = id_token.from;
-						call->function_name->name_len = id_token.len;
-						node->op->call_oper = call;
-						break;
-					}
-					case '[':	// index data
-					{
-						node = new Operation;
-						node->op = new Operation::oper;
-						node->type = OpType::arr;
-						Array *array = new Array;
-						array->name = new IdExpression;
-						array->name->name = id_token.from;
-						array->name->name_len = id_token.len;
-						array->fields = parse_parameter(reader, ']');
-						node->op->array_oper = array;
-						reader->consume();
-						break;
-					}
-						
-					case '.':	// field or .. 
-						break;
-					case ':':	// module member declare
-						error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "not support yet", __LINE__);
-						break;
-					default:
-						// error
-						error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
-						break;
-					}
+				case '.':	// field or .. 
+					break;
+				case ':':	// module member declare
+					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "not support yet", __LINE__);
+					break;
+				default:
+					reader->unread();
+					node = new Operation;
+					node->op = new Operation::oper;
+					node->type = OpType::id;
+					IdExpression *idOper = new IdExpression;
+					idOper->name = id_token.from;
+					idOper->name_len = id_token.len;
+					node->op->id_oper = idOper;
+					reader->consume();
+					break;
 				}
-				else {
-					// error
-					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
-				}
+			}
+			else {
+				// error
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
 		}
 		else if (reader->peek().type == TokenType::sym) {
@@ -391,7 +388,18 @@ static Operation * parse_primary(TokenReader *reader)
 			}
 		}
 		else if (reader->peek().type == TokenType::keyword) {
-			return node;
+			if (str_equal(reader->peek().from, "nil", 3)) {
+				node = new Operation;
+				node->type = OpType::nil;
+				reader->consume();
+			}
+			else if (str_equal(reader->peek().from, "true", 4)) {
+				node = build_boolean(reader, true);
+			}
+			else if (str_equal(reader->peek().from, "false", 5)) {
+				node = build_boolean(reader, false);
+ 			}
+			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
 		else {
 			// error
@@ -755,10 +763,17 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 		forExp->third_statement = new vector<OperationExpression *>;
 		while (reader->peek().type != TokenType::eof) {
 			if (reader->peek().type == TokenType::sym && *reader->peek().from == ')') break;
-			OperationExpression *oper = parse_operator(reader);
-			if (!oper) {
+			AssignmentExpression *assign = parse_assignment(reader);
+			if (!assign) {
 				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 			}
+			OperationExpression *oper = new OperationExpression;
+			Operation *op = new Operation;
+			oper->op_type = OperatorType::op_none;
+			op->type = OpType::assign;
+			op->op = new Operation::oper;
+			op->op->assgnment_oper = assign;
+			
 			forExp->third_statement->push_back(oper);
 			if (reader->peek().type != TokenType::sym) {
 				if (*reader->peek().from == ')') {
@@ -794,6 +809,11 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 		}
 		reader->consume();
 	}
+	if (reader->peek().type != TokenType::sym || *reader->peek().from != '{') {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "for expression needs { to start", __LINE__);
+	}
+	reader->consume();
+
 	forExp->body = parse_expressions(reader);
 	if (!forExp->body) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
@@ -962,6 +982,20 @@ static void build_return(vector<BodyStatment *> *statements, TokenReader *reader
 	statements->push_back(statement);
 }
 
+static void build_for(vector<BodyStatment *> *statements, TokenReader *reader)
+{
+	ForExpression *forExp = parse_for_expression(reader);
+	if (!forExp) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid return statement", __LINE__);
+	}
+	BodyStatment *statement = new BodyStatment;
+	statement->body = new BodyStatment::body_expression;
+	statement->body->for_exp = forExp;
+	statement->type = ExpressionType::for_statement;
+	statements->push_back(statement);
+}
+
+
 static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
 {
 	vector<BodyStatment *> *statements = new vector<BodyStatment *>;
@@ -1029,11 +1063,11 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
 			else if (str_equal(reader->peek().from, "while", 5)) {
 				parse_while_expression(reader);
 			}
-			else if (str_equal(reader->peek().from, "do", 5)) {
+			else if (str_equal(reader->peek().from, "do", 2)) {
 				parse_do_while_expression(reader);
 			}
-			else if (str_equal(reader->peek().from, "for", 5)) {
-				parse_for_expression(reader);
+			else if (str_equal(reader->peek().from, "for", 3)) {
+				build_for(statements, reader);
 			}
 			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			break;

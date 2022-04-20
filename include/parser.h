@@ -17,26 +17,28 @@ enum class OperatorType
 
     op_concat,      // ..
 
-    op_ne,          // !=
     op_equal,       // ==
-
+    op_ne,          // !=
    
-    op_not,         // !
-    op_len,         // #
-    op_unary_sub,   // 前置 - 负号
-
-    op_gt,          // >
-    op_gt_eq,       // >=
     op_lt,          // <
+    op_gt,          // >
     op_lt_eq,       // <=
+    op_gt_eq,       // >=
     op_or,          // ||
     op_and,         // &&
+    
     op_bin_xor,     // ^
     op_bin_and,     // &
     op_bin_lm,      // <<
     op_bin_rm,      // >> 
     op_bin_lme,     // <<=
     op_bin_rme,     // >>=
+
+    op_not,         // !
+    op_len,         // #
+    op_unary_sub,   // 前置 - 负号
+    op_add_add,     // ++
+    op_sub_sub,     // --
 
     op_in,          // in 用在 for 循环
     op_none,        
