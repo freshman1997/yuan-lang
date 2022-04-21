@@ -354,7 +354,6 @@ void tokenize(const char *filename, TokenReader &reader)
 		if (ident_len) {
 	        add_token(reader, p, ident_len, TokenType::iden, line, 0, NULL);
 			if (is_keyword(reader.get_last())) reader.get_last().type = TokenType::keyword;
-			if (!is_identity(reader.get_last().from, reader.get_last().len)) error("invalid identifier", filename);
 			p += ident_len;
 			continue;
 		}
