@@ -1,8 +1,4 @@
 
-<<<<<<< HEAD
-
-dict = { 100 : fn(name){return "shit" + name}}
-=======
 for (;;) {
 
 }
@@ -43,6 +39,5 @@ a = ++a.c.d
 a.call(12, 3)
 
 if (a > 1 + 10) {
->>>>>>> 731f6cdf560775be546965b5c0cecf2ac9728bdd
 
 }
