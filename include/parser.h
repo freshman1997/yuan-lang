@@ -97,6 +97,7 @@ enum class ExpressionType
     for_statement,                          // for 语句表达式
     call_statement,                         // 函数调用表达式
     break_statement,                        // break
+    oper_statement,                         // ++a --a 自增自减
 };
 
 struct CallExpression;
@@ -346,12 +347,6 @@ struct ForExpression
     int to;
 };
 
-struct SwitchCaseExpression
-{
-
-};
-
-
 struct CallExpression
 {
     IdExpression *function_name = NULL;
@@ -379,9 +374,9 @@ struct BodyStatment
         DoWhileExpression *do_while_exp;
         ForExpression *for_exp;
         ReturnExpression *return_exp;
-        SwitchCaseExpression *swtich_case_exp;
         Function *function_exp;
         CallExpression *call_exp;
+        OperationExpression *oper_exp;
     };
     body_expression *body = NULL;
 };

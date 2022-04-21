@@ -1,15 +1,37 @@
 
-a = 100 + 20 + 20 / 4
+for (;;) {
+
+}
+
+a = 100 + 20 + (20 / 4 - 2)
 
 fn hello()
 {
     print("hello world!!")
-    ret 100
+    return 100
 }
 
 
 str = ""
 str = str[2:]
 
-dict = { 100 : fn(name){ret "shit" + name}}
+dict = { 
+    100 : fn(name) {
+        return "shit" + name
+    },
+    "name": "hello",
+}
 
+while (a < 10) {
+    print(a + 10)
+}
+
+do {
+
+    a++
+    ++a
+    print(a - 1 + 1000)
+}
+while (a > 0);
+
+a = ++a.c.d
