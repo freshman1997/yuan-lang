@@ -464,6 +464,7 @@ static Operation * parse_primary(TokenReader *reader)
 				node->type = OpType::arr;
 				Array *array = new Array;
 				array->name = NULL;
+				reader->consume();
 				array->fields = parse_parameter(reader, ']');
 				node->op->array_oper = array;
 				reader->consume();
