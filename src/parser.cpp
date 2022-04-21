@@ -607,102 +607,51 @@ static AssignmentExpression * parse_assignment(TokenReader *reader)
 		isLocal = true;
 		reader->consume();
 	}
-	if (reader->peek().type == TokenType::iden) {
-		IdExpression *module = NULL;
-		reader->consume();
-		if (reader->peek().type == TokenType::sym && *reader->peek().from == '.') {
-			reader->unread();
-			module = new IdExpression;
-			module->name = reader->peek().from;
-			module->name_len = reader->peek().len;
-			reader->consume();
-			reader->consume();
-			if (reader->peek().type != TokenType::iden) {
-				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid field index", __LINE__);
-			}
-		}
-		else reader->unread();
-
-		AssignmentExpression *as = new AssignmentExpression;
-		if (module) as->module = module;
-		as->id = new IdExpression;
-		as->id->is_local = isLocal;
-
-		as->id->name = reader->peek().from;
-		as->id->name_len = reader->peek().len;
-		
-		reader->consume();
-		if (reader->peek().type == TokenType::sym && str_equal(reader->peek().from, "=", 1)) {
-			reader->consume();
-
-			const Token &val = reader->peek();
-			if ( (val.type == TokenType::keyword && str_equal(val.from, "require", 7)) || val.type == TokenType::iden || val.type == TokenType::num || val.type == TokenType::str || val.type == TokenType::sym) {
-				as->assign = new AssignmentExpression::assignment;
-				as->assign->ass = new AssignmentExpression::assignment::assignment_union;
-				OperationExpression *oper = parse_operator(reader);
-				if (!oper) {
-					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
-				}
-				if (oper->op_type == OperatorType::op_none) {
-					if (oper->left->type == OpType::call) {
-						as->assign->assignment_type = AssignmentExpression::AssignmenType::call;
-						as->assign->ass->call_val = oper->left->op->call_oper;
-					}
-					else if (oper->left->type == OpType::id) {
-						as->assign->assignment_type = AssignmentExpression::AssignmenType::id;
-						as->assign->ass->id_val = oper->left->op->id_oper;
-					}
-					else if (oper->left->type == OpType::index) {
-						as->assign->assignment_type = AssignmentExpression::AssignmenType::index;
-						as->assign->ass->index_val = oper->left->op->index_oper;
-					}
-					else {
-						as->assign->assignment_type = AssignmentExpression::AssignmenType::basic;
-						as->assign->ass->basic_val = new BasicValue;
-						as->assign->ass->basic_val->value = new BasicValue::Value;
-						switch (oper->left->type)
-						{
-							case OpType::num:
-								as->assign->ass->basic_val->type = VariableType::t_number;
-								as->assign->ass->basic_val->value->number = oper->left->op->number_oper;
-								break;
-							case OpType::arr:
-								as->assign->ass->basic_val->type = VariableType::t_array;
-								as->assign->ass->basic_val->value->array = oper->left->op->array_oper;
-								break;
-							case OpType::str:
-								as->assign->ass->basic_val->type = VariableType::t_string;
-								as->assign->ass->basic_val->value->string = oper->left->op->string_oper;
-								break;
-							case OpType::table:
-								as->assign->ass->basic_val->type = VariableType::t_table;
-								as->assign->ass->basic_val->value->table = oper->left->op->table_oper;
-								break;
-							case OpType::boolean:
-								as->assign->ass->basic_val->type = VariableType::t_boolean;
-								as->assign->ass->basic_val->value->boolean = oper->left->op->boolean_oper;
-								break;
-							default:
-								// error
-								error_tok(val, reader->get_file_name(), reader->get_content(), "%s on line: %d", "unkown type ", __LINE__);
-								break;
-						}
-					}
-				}
-				else {
-					as->assign->ass->oper_val = oper;
-					as->assign->assignment_type = AssignmentExpression::AssignmenType::operation;
-				}
-			}
-			else error_tok(val, reader->get_file_name(), reader->get_content(), "%s on line: %d", "unkown type ", __LINE__);
-		}
-		else {
-			delete as;
-			reader->unread();
-		}
-		return as;
+	if (reader->peek().type != TokenType::iden) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid assign statement", __LINE__);
 	}
-	return NULL;
+	
+	IdExpression *module = NULL;
+	reader->consume();
+	if (reader->peek().type == TokenType::sym && *reader->peek().from == '.') {
+		reader->unread();
+		module = new IdExpression;
+		module->name = reader->peek().from;
+		module->name_len = reader->peek().len;
+		reader->consume();
+		reader->consume();
+		if (reader->peek().type != TokenType::iden) {
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid field index", __LINE__);
+		}
+	}
+	else reader->unread();
+
+	AssignmentExpression *as = new AssignmentExpression;
+	if (module) as->module = module;
+	as->id = new IdExpression;
+	as->id->is_local = isLocal;
+
+	as->id->name = reader->peek().from;
+	as->id->name_len = reader->peek().len;
+	
+	reader->consume();
+	if (reader->peek().type == TokenType::sym && str_equal(reader->peek().from, "=", 1)) {
+		reader->consume();
+		const Token &val = reader->peek();
+		if ( (val.type == TokenType::keyword && str_equal(val.from, "require", 7)) || val.type == TokenType::iden || val.type == TokenType::num || val.type == TokenType::str || val.type == TokenType::sym) {
+			OperationExpression *oper = parse_operator(reader);
+			if (!oper) {
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
+			}
+			as->assign = oper;
+		}
+		else error_tok(val, reader->get_file_name(), reader->get_content(), "%s on line: %d", "unkown type ", __LINE__);
+	}
+	else {
+		delete as;
+		reader->unread();
+	}
+	return as;
 }
 
 static void enter_scope()

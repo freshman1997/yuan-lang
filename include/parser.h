@@ -217,32 +217,8 @@ struct AssignmentExpression
         call,
     };
     IdExpression *module = NULL;
-    struct assignment {
-        AssignmenType assignment_type;
-        union assignment_union
-        {
-            BasicValue *basic_val;
-            CallExpression *call_val;   // 函数调用
-            OperationExpression *oper_val;
-            IndexExpression *index_val;
-            IdExpression *id_val;
-        };
-
-        assignment_union *ass = NULL;
-
-        ~assignment(){
-            if (ass) {
-                delete ass;
-            }
-        }
-    };
-
-    assignment *assign = NULL;
-
-    ~AssignmentExpression() 
-    {
-       if(assign) delete assign;
-    }
+    OperationExpression *assign = NULL;
+    
     int from;
     int to;
 };
@@ -263,8 +239,6 @@ enum class OpType
     substr,
     function_declear,
 };
-
-struct OperationExpression;
 
 struct Operation
 {
