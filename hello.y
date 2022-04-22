@@ -55,13 +55,10 @@ a = ++a.c.d
 a.call(12, 3)
 
 if (a > 1 + 10) {
-<<<<<<< HEAD
-=======
 }
 
 len = #str
 
 
 
->>>>>>> 9123b9a0b6ccc47c8dfdcca9c25f249a00684e5c
 
