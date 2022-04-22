@@ -49,11 +49,6 @@ static OperatorType getbinopr (int op) {
     case '<': return OperatorType::op_lt;
 	case '>': return OperatorType::op_gt;
 	case '.': return OperatorType::op_dot;
-    /*case TK_LE: return OPR_LE;
-    case '>': return OPR_GT;
-    case TK_GE: return OPR_GE;
-    case TK_AND: return OPR_AND;
-    case TK_OR: return OPR_OR;*/
     default: return OperatorType::op_none;
   }
 }
@@ -141,23 +136,7 @@ static Operation * parse_primary(TokenReader *reader);
 ** subexpr -> (simpleexp | unop subexpr) { binop subexpr }
 ** where `binop' is any binary operator with a priority higher than `limit'
 */
-static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
-
-	/*
-		a = 100 + 30 b = 20 arr = [1, 2, 3]
-	 */
-	OperationExpression *node = NULL;
-	OperationExpression *child1 = NULL;
-	if (reader->peek().type != TokenType::eof) {
-		OperatorType uop = getunopr(get_operator_type(reader));
-		if (uop != OperatorType::op_none) {
-			reader->consume();
-			child1 = new OperationExpression;
-			child1->op_type = uop;
-			child1->left = parse_primary(reader);
-		}
-
-		// 100 + 18 + 20 / 2 + 100 - 20 需要生成以下的树
+// 100 + 18 + 20 / 2 + 100 - 20 需要生成以下的树
 		/*
 										  - 
 										/   \
@@ -170,7 +149,17 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 							100	  18  20   2
 							  
 		*/
-
+static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
+	OperationExpression *node = NULL;
+	OperationExpression *child1 = NULL;
+	if (reader->peek().type != TokenType::eof) {
+		OperatorType uop = getunopr(get_operator_type(reader));
+		if (uop != OperatorType::op_none) {
+			reader->consume();
+			child1 = new OperationExpression;
+			child1->op_type = uop;
+			child1->left = parse_primary(reader);
+		}
 		else if (reader->peek().type != TokenType::sym) {
 			Operation *oper = parse_primary(reader);
 			if (oper) {
@@ -656,16 +645,6 @@ static AssignmentExpression * parse_assignment(TokenReader *reader)
 		reader->unread();
 	}
 	return as;
-}
-
-static void enter_scope()
-{
-
-}
-
-static void leave_scope()
-{
-    
 }
 
 // 严格要求 {} 
