@@ -10,7 +10,7 @@ int main()
 
     clock_t start = clock();
     TokenReader reader;
-    tokenize("D:/code/test/cpp/yuan-lang/hello.y", reader);
+    tokenize("D:/code/src/vs/yuan-lang/hello.y", reader);
     unordered_map<string, TokenReader *> files;
     files["D:/code/test/cpp/yuan-lang/hello.y"] = &reader;
     parse(files);
