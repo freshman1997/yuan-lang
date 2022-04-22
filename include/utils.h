@@ -25,7 +25,8 @@ inline bool str_equal(const char *s1, const char *s2, int n)
     return n == 0;
 }
 
-static bool startswith(char* p, const char* q) {
+inline bool startswith(char* p, const char* q)
+{
 	return strncmp(p, q, strlen(q)) == 0;
 }
 

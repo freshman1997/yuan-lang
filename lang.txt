@@ -29,14 +29,10 @@
 		else 
 	
 	循环:
-		for (i : (1 to 100))
-		{	
-		}
-
 		for (i = 0; i < 100; ++i)
 		{
 		}
-		for (a, b : aas) {}
+		for (a, b in aas) {}
 
 
 		while cond
@@ -46,7 +42,7 @@
 			break
 		}
 		
-		do {} while cond#
+		do {} while (cond);
 
 		switch ()
 		{

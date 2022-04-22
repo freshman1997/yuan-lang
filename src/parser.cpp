@@ -49,11 +49,6 @@ static OperatorType getbinopr (int op) {
     case '<': return OperatorType::op_lt;
 	case '>': return OperatorType::op_gt;
 	case '.': return OperatorType::op_dot;
-    /*case TK_LE: return OPR_LE;
-    case '>': return OPR_GT;
-    case TK_GE: return OPR_GE;
-    case TK_AND: return OPR_AND;
-    case TK_OR: return OPR_OR;*/
     default: return OperatorType::op_none;
   }
 }
@@ -141,23 +136,7 @@ static Operation * parse_primary(TokenReader *reader);
 ** subexpr -> (simpleexp | unop subexpr) { binop subexpr }
 ** where `binop' is any binary operator with a priority higher than `limit'
 */
-static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
-
-	/*
-		a = 100 + 30 b = 20 arr = [1, 2, 3]
-	 */
-	OperationExpression *node = NULL;
-	OperationExpression *child1 = NULL;
-	if (reader->peek().type != TokenType::eof) {
-		OperatorType uop = getunopr(get_operator_type(reader));
-		if (uop != OperatorType::op_none) {
-			reader->consume();
-			child1 = new OperationExpression;
-			child1->op_type = uop;
-			child1->left = parse_primary(reader);
-		}
-
-		// 100 + 18 + 20 / 2 + 100 - 20 需要生成以下的树
+// 100 + 18 + 20 / 2 + 100 - 20 需要生成以下的树
 		/*
 										  - 
 										/   \
@@ -170,7 +149,17 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 							100	  18  20   2
 							  
 		*/
-
+static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
+	OperationExpression *node = NULL;
+	OperationExpression *child1 = NULL;
+	if (reader->peek().type != TokenType::eof) {
+		OperatorType uop = getunopr(get_operator_type(reader));
+		if (uop != OperatorType::op_none) {
+			reader->consume();
+			child1 = new OperationExpression;
+			child1->op_type = uop;
+			child1->left = parse_primary(reader);
+		}
 		else if (reader->peek().type != TokenType::sym) {
 			Operation *oper = parse_primary(reader);
 			if (oper) {
@@ -518,6 +507,9 @@ static Operation * parse_primary(TokenReader *reader)
 				node->op->table_oper = tb;
 			}
 			// 让上层处理
+			else if (*(reader->peek().from) != ']' || *(reader->peek().from) != '}' || *(reader->peek().from) != ')') {
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
+			}
 		}
 		else if (reader->peek().type == TokenType::keyword) {
 			if (str_equal(reader->peek().from, "require", 7)) {
@@ -655,16 +647,6 @@ static AssignmentExpression * parse_assignment(TokenReader *reader)
 	return as;
 }
 
-static void enter_scope()
-{
-
-}
-
-static void leave_scope()
-{
-    
-}
-
 // 严格要求 {} 
 static OperationExpression * parse_if_prefix(TokenReader *reader, bool is_if)
 {
@@ -700,11 +682,11 @@ static OperationExpression * parse_if_prefix(TokenReader *reader, bool is_if)
 	return oper;
 }
 
-static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool fromLoop);
+static vector<BodyStatment *> * parse_expressions(TokenReader *reader);
 
 static void build_if_body(IfStatement *cond, TokenReader *reader)
 {
-	cond->body = parse_expressions(reader, false);
+	cond->body = parse_expressions(reader);
 	if (!cond->body) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
@@ -767,7 +749,7 @@ static DoWhileExpression * parse_do_while_expression(TokenReader *reader)
 	reader->consume();
 	// loop body
 	DoWhileExpression *doWhileExp = new DoWhileExpression;
-	doWhileExp->body = parse_expressions(reader, true);
+	doWhileExp->body = parse_expressions(reader);
 	if (!doWhileExp->body) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
@@ -826,7 +808,7 @@ static WhileExpression * parse_while_expression(TokenReader *reader)
 	reader->consume();
 	// while body
 	// 没办法，只能一一尝试，赋值，if，while，函数调用，do while，for
-	whileExp->body = parse_expressions(reader, true);
+	whileExp->body = parse_expressions(reader);
 
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "loop expression needs } to close", __LINE__);
@@ -951,7 +933,7 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 	}
 	reader->consume();
 
-	forExp->body = parse_expressions(reader, true);
+	forExp->body = parse_expressions(reader);
 	if (!forExp->body) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 	}
@@ -1047,7 +1029,7 @@ static Function * parse_function_expression(TokenReader *reader, bool hasName)
 	}
 	reader->consume();
 	// parse function body
-	fun->body = parse_expressions(reader, false);
+	fun->body = parse_expressions(reader);
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "funcion declare needs } to close", __LINE__);
 	}
@@ -1186,7 +1168,7 @@ static void build_operation(vector<BodyStatment *> *statements, TokenReader *rea
 	statements->push_back(statement);
 }
 
-static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool fromLoop)
+static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
 {
 	vector<BodyStatment *> *statements = new vector<BodyStatment *>;
 	while (reader->peek().type != TokenType::eof) {
@@ -1199,6 +1181,10 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool from
 				if (*reader->peek().from == '(') {
 					reader->unread();
 					build_call(statements, reader);
+				}
+				else if (*reader->peek().from == '[') {
+					reader->unread();
+					build_operation(statements, reader);
 				}
 				else if (*reader->peek().from == '=' || *reader->peek().from == '.') {
 					reader->unread();
@@ -1219,7 +1205,21 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool from
 			if (reader->peek().len == 2 && (str_equal(reader->peek().from, "++", 2) || str_equal(reader->peek().from, "--", 2))) {
 				build_operation(statements, reader);
 			}
-			else return statements;
+			else if (*reader->peek().from == '{') {
+				reader->consume();
+				BodyStatment *blockStatement = new BodyStatment;
+				blockStatement->type = ExpressionType::block_statement;
+				blockStatement->body = new BodyStatment::body_expression;
+				blockStatement->body->block_exp = parse_expressions(reader);
+				if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
+					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
+				}
+				reader->consume();
+			}
+			else if (*reader->peek().from == ']' || *reader->peek().from == ')' || *reader->peek().from == '}') {
+				return statements;
+			}
+			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			break;
 		case TokenType::keyword:
 		{
@@ -1262,10 +1262,17 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool from
 			else if (str_equal(reader->peek().from, "for", 3)) {
 				build_for(statements, reader);
 			}
-			else if (fromLoop && str_equal(reader->peek().from, "break", 5)) {
+			else if (str_equal(reader->peek().from, "break", 5)) {
 				BodyStatment *breakStatement = new BodyStatment;
 				breakStatement->type = ExpressionType::break_statement;
 				statements->push_back(breakStatement);
+				reader->consume();
+			}
+			else if (str_equal(reader->peek().from, "continue", 8)) {
+				BodyStatment *breakStatement = new BodyStatment;
+				breakStatement->type = ExpressionType::continue_statement;
+				statements->push_back(breakStatement);
+				reader->consume();
 			}
 			else if (str_equal(reader->peek().from, "default", 7)) {
 
@@ -1287,13 +1294,14 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool from
 	return statements;
 }
 
-vector<Chunck *> * parse(unordered_map<string, TokenReader *> &files)
+unordered_map<string, Chunck *> * parse(unordered_map<string, TokenReader *> &files)
 {
-	vector<Chunck *> *chunks = new vector<Chunck *>;
+	unordered_map<string, Chunck *> *chunks = new unordered_map<string, Chunck *>;
 	for(auto &it : files) {
 		Chunck *chunk = new Chunck;
-		chunk->statements = parse_expressions(it.second, false);
-		chunks->push_back(chunk);
+		chunk->statements = parse_expressions(it.second);
+		chunks->insert(std::make_pair(it.first, chunk));
+		cout << it.first << "\t OK" << endl;
 	}
 	return chunks;
 }
