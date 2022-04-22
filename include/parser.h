@@ -97,7 +97,9 @@ enum class ExpressionType
     for_statement,                          // for 语句表达式
     call_statement,                         // 函数调用表达式
     break_statement,                        // break
+    continue_statement,                     // continue
     oper_statement,                         // ++a --a 自增自减
+    block_statement,                        // {} 块作用域
 };
 
 struct CallExpression;
@@ -142,8 +144,6 @@ struct String
 
 struct BodyStatment;
 
-struct BasicValue;
-
 // 函数
 struct Function
 {
@@ -182,21 +182,6 @@ struct Table
     vector<TableItemPair *> *members = NULL;
     int from;
     int to;
-};
-
-struct BasicValue
-{
-    VariableType type;
-    union Value{
-        IdExpression *id;   // 变量，函数、数组或表的引用
-        String *string;
-        Number *number;
-        Boolean *boolean;
-        Array *array;
-        Table *table;
-        Function *function;
-    };
-    Value *value = NULL;
 };
 
 struct IndexExpression
@@ -351,6 +336,7 @@ struct BodyStatment
         Function *function_exp;
         CallExpression *call_exp;
         OperationExpression *oper_exp;
+        vector<BodyStatment *> *block_exp;
     };
     body_expression *body = NULL;
 };
@@ -363,6 +349,6 @@ struct Chunck
 };
 
 // 一次只处理一个文件，遇到依赖其他文件的符号，则暂停去编译它在返回继续
-vector<Chunck *> * parse(unordered_map<string, TokenReader *> &files);
+unordered_map<string, Chunck *> * parse(unordered_map<string, TokenReader *> &files);
 
 #endif
