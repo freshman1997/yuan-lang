@@ -1,17 +1,11 @@
 
-<<<<<<< HEAD
 ar = [1, 2, 3] +
 
 c = true
 
 id[100]++
 
-=======
-<<<<<<< HEAD
-
 dict = { 100 : fn(name){return "shit" + name}}
-=======
->>>>>>> a07ac05742e359d23cb6736ed91d633a72931d54
 for (;;) {
 
 }
@@ -61,8 +55,6 @@ a = ++a.c.d
 a.call(12, 3)
 
 if (a > 1 + 10) {
->>>>>>> 731f6cdf560775be546965b5c0cecf2ac9728bdd
-
 }
 
 len = #str
