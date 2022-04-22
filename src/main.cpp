@@ -8,11 +8,14 @@ using namespace std;
 int main()
 {
 
+    clock_t start = clock();
     TokenReader reader;
     tokenize("D:/code/test/cpp/yuan-lang/hello.y", reader);
     unordered_map<string, TokenReader *> files;
-    files["hello"] = &reader;
+    files["D:/code/test/cpp/yuan-lang/hello.y"] = &reader;
     parse(files);
-    
+    clock_t end = clock();
+    cout << "spent time: " << (end - start) << endl;
+
     return 0;
 }
