@@ -1045,16 +1045,18 @@ static ReturnExpression *parse_return_statement(TokenReader *reader)
 	}
 	reader->consume();
 	ReturnExpression *retExp = new ReturnExpression;
-	retExp->statement = parse_operator(reader);
+	OperationExpression *oper = parse_operator(reader);
+	if (!oper) {
+		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
+	}
+	retExp->statement = oper;
 	return retExp;
 }
 
 static void build_call(vector<BodyStatment *> *statements, TokenReader *reader)
 {
 	CallExpression *call = parse_function_call(reader);
-	if (!call) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
-	}
+	
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->call_exp = call;
@@ -1065,9 +1067,6 @@ static void build_call(vector<BodyStatment *> *statements, TokenReader *reader)
 static void build_assign(vector<BodyStatment *> *statements, TokenReader *reader)
 {
 	AssignmentExpression *ass = parse_assignment(reader);
-	if (!ass) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
-	}
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->assign_exp = ass;
@@ -1078,9 +1077,6 @@ static void build_assign(vector<BodyStatment *> *statements, TokenReader *reader
 static void build_function(vector<BodyStatment *> *statements, TokenReader *reader)
 {
 	Function *fun = parse_function_expression(reader, true);
-	if (!fun) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid function statement", __LINE__);
-	}
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->function_exp = fun;
@@ -1093,9 +1089,6 @@ static void build_if(vector<BodyStatment *> *statements, TokenReader *reader)
 	IfExpression *ifExp = new IfExpression;
 	ifExp->if_statements = new vector<IfStatement *>;
 	parse_if_statement(reader, ifExp, 0);
-	if (!ifExp) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid if statement", __LINE__);
-	}
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->if_exp = ifExp;
@@ -1106,9 +1099,6 @@ static void build_if(vector<BodyStatment *> *statements, TokenReader *reader)
 static void build_return(vector<BodyStatment *> *statements, TokenReader *reader)
 {
 	ReturnExpression *returnExp = parse_return_statement(reader);
-	if (!returnExp) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid return statement", __LINE__);
-	}
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->return_exp = returnExp;
@@ -1119,9 +1109,6 @@ static void build_return(vector<BodyStatment *> *statements, TokenReader *reader
 static void build_for(vector<BodyStatment *> *statements, TokenReader *reader)
 {
 	ForExpression *forExp = parse_for_expression(reader);
-	if (!forExp) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid return statement", __LINE__);
-	}
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->for_exp = forExp;
@@ -1132,9 +1119,6 @@ static void build_for(vector<BodyStatment *> *statements, TokenReader *reader)
 static void build_while(vector<BodyStatment *> *statements, TokenReader *reader)
 {
 	WhileExpression *whileExp = parse_while_expression(reader);
-	if (!whileExp) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid while statement", __LINE__);
-	}
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->while_exp = whileExp;
@@ -1145,9 +1129,6 @@ static void build_while(vector<BodyStatment *> *statements, TokenReader *reader)
 static void build_do_while(vector<BodyStatment *> *statements, TokenReader *reader)
 {
 	DoWhileExpression *doWhileExp = parse_do_while_expression(reader);
-	if (!doWhileExp) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid do while statement", __LINE__);
-	}
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->do_while_exp = doWhileExp;
@@ -1158,9 +1139,6 @@ static void build_do_while(vector<BodyStatment *> *statements, TokenReader *read
 static void build_operation(vector<BodyStatment *> *statements, TokenReader *reader)
 {
 	OperationExpression *oper = parse_operator(reader);
-	if (!oper) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid do while statement", __LINE__);
-	}
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->oper_exp = oper;

@@ -5,6 +5,11 @@
 
 #include "lex.h"
 
+struct Chunck;
+// 一次只处理一个文件，遇到依赖其他文件的符号，则暂停去编译它在返回继续
+unordered_map<string, Chunck *> * parse(unordered_map<string, TokenReader *> &files);
+
+
 /*
     目前剩余：
         str[2:], str[:-1], str[2:3] 字符串截取，str .. str1 字符串拼接
@@ -83,6 +88,7 @@ enum class VariableType
     t_array,          // 数组
     t_table,          // 表
     t_boolean,        // 布尔
+    t_module,         // 模块
 };
 
 // 文件中的表达式类型
@@ -346,9 +352,7 @@ struct BodyStatment
 struct Chunck
 {
     vector<BodyStatment *> *statements = NULL;
+    TokenReader *reader = NULL;
 };
-
-// 一次只处理一个文件，遇到依赖其他文件的符号，则暂停去编译它在返回继续
-unordered_map<string, Chunck *> * parse(unordered_map<string, TokenReader *> &files);
 
 #endif

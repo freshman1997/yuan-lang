@@ -1,7 +1,7 @@
 
 ar = [1, 2, 3] +
 
-c = true
+c b= 10 c=c+b arr=[{"name":"tomcat"}, {"name":"tomcat"}, [1,2,3]]
 
 id[100]++
 

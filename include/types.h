@@ -18,7 +18,7 @@ class Value
 {
 public:
     ValueType type;
-    virtual int get_type() const = 0;
+    virtual ValueType get_type() const = 0;
 	virtual std::string name() const = 0;
     virtual std::size_t hash() const = 0;
 
@@ -35,15 +35,6 @@ public:
 	};
 };
 
-static bool operator== (Value *lhs, Value *rhs)
-{
-    if (lhs->get_type() == ValueType::t_number) {
-        if (rhs->get_type() == ValueType::t_number) {
-            return true;
-        }
-        return false;
-    }
-    return false;
-}
+static bool is_value_equal(const Value *lhs, const Value *rhs);
 
 #endif
