@@ -20,17 +20,20 @@ enum class ScopeType
 struct ScopeItem 
 {
     VariableType type;          // 这个需要推导其他表达式类型 并得出结果
-    char *name;
+    char *name = NULL;
     int name_len;
-    vector<ScopeItem *> *members;       // 模块的子标识符
+    int varIndex;
+    vector<ScopeItem *> *members = NULL;       // 模块的子标识符
 };
 
 // 必须要能够快速定位声明的变量
 struct Scope
 {
     ScopeType type;
-    vector<ScopeItem *> *items;     // 当前作用域的标识符
-    vector<Scope *> *scopes;        // 子作用域，最后那个为目前的作用域
+    vector<ScopeItem *> *items = NULL;     // 当前作用域的标识符
+    vector<Scope *> *scopes = NULL;        // 子作用域，最后那个为目前的作用域
+    int varIndex = 0;                   // 现在是第几个变量
+    int moduleVarIndex = 0;
 };
 
 
@@ -152,7 +155,7 @@ static void visit_operation(OperationExpression *operExp, CodeWriter &writer)
     {
         Operation *op = operExp->left;
         // 这里有多种类型的
-        
+
         break;
     }
     case OperatorType::op_dot:
