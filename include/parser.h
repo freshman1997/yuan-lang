@@ -88,6 +88,7 @@ enum class VariableType
     t_array,          // 数组
     t_table,          // 表
     t_boolean,        // 布尔
+    t_nil,            // nil
     t_module,         // 模块
 };
 

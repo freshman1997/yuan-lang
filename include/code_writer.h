@@ -13,7 +13,8 @@ public:
     
 private:
     vector<Instruction *> instructions;
-
+    const char *file_name;
+    
 };
 
 

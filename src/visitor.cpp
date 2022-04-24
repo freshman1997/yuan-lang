@@ -8,6 +8,16 @@
 
 using namespace std;
 
+struct UpValueDesc
+{
+    int stack_lv = 0;
+    char *name;
+    int name_len;
+    bool isfun = false;
+    UpValueDesc *pre = NULL;
+    vector<UpValueDesc *> *upvalues;
+};
+
 enum class ScopeType
 {
     main_scope,             // 整个文件
@@ -20,10 +30,10 @@ enum class ScopeType
 
 struct ScopeItem 
 {
-    VariableType type;          // 这个需要推导其他表达式类型 并得出结果
-    char *name = NULL;
-    int name_len;
-    int varIndex;
+    VariableType type;                         // 这个需要推导其他表达式类型 并得出结果
+    const char *name = NULL;
+    int name_len = 0;
+    int varIndex = 0;
     vector<ScopeItem *> *members = NULL;       // 模块的子标识符
 };
 
@@ -33,8 +43,9 @@ struct Scope
     ScopeType type;
     vector<ScopeItem *> *items = NULL;     // 当前作用域的标识符
     vector<Scope *> *scopes = NULL;        // 子作用域，最后那个为目前的作用域
-    int varIndex = 0;                   // 现在是第几个变量
-    int moduleVarIndex = 0;
+    int actVars = 0;                       // 现在是第几个变量  local 
+    int moduleVars = 0;
+    UpValueDesc *upvalue = NULL;
 };
 
 
@@ -42,6 +53,18 @@ struct Scope
 // <file, <>>
 // 每进去一个作用域 push_back 一次
 static unordered_map<string, Scope *> global_scopes;
+static UpValueDesc *env_upvlaue = new UpValueDesc;
+
+static void init_global_upvlaue()
+{
+    env_upvlaue->name = "_ENV";
+    env_upvlaue->name_len = 4;
+    env_upvlaue->upvalues = new vector<UpValueDesc *>;
+    env_upvlaue->upvalues->push_back(new UpValueDesc);
+    env_upvlaue->upvalues->back()->name = "print";
+    env_upvlaue->upvalues->back()->name_len = 5;
+}
+
 
 static void enter_scope(const char *file, ScopeType type)
 {
@@ -50,13 +73,22 @@ static void enter_scope(const char *file, ScopeType type)
     if (!fileScope->scopes) {
         fileScope->scopes = new vector<Scope *>;
         fileScope->items = new vector<ScopeItem *>;
+        fileScope->upvalue = new UpValueDesc;
+        fileScope->upvalue->pre = env_upvlaue;
+        fileScope->upvalue->upvalues = new vector<UpValueDesc *>;
+        fileScope->upvalue->upvalues->push_back(env_upvlaue);
         return;
     }
+    Scope *last = fileScope->scopes->back();
     fileScope->scopes->push_back(new Scope);
     fileScope->scopes->back()->type = type;
+    fileScope->scopes->back()->upvalue = new UpValueDesc;
+    fileScope->scopes->back()->upvalue->pre = last->upvalue;
+    fileScope->scopes->back()->upvalue->upvalues = new vector<UpValueDesc *>;
+    fileScope->scopes->back()->upvalue->upvalues->push_back(env_upvlaue);
 }
 
-static void leave_scope(const char *file, int lv)
+static void leave_scope(const char *file)
 {
     // 清除当前作用域的所有声明的变量
     Scope *fileScope = global_scopes[file];
@@ -66,11 +98,12 @@ static void leave_scope(const char *file, int lv)
         }
         delete fileScope->scopes->back()->items;
     }
+    delete fileScope->scopes->back()->upvalue;
     delete fileScope->scopes->back();
     fileScope->scopes->pop_back();
 }
 
-static bool is_same_id(char *s1, int len1, char *s2, int len2)
+static bool is_same_id(char *s1, int len1, const char *s2, int len2)
 {
     if (len1 != len2) return false;
     int i = 0;
@@ -146,8 +179,6 @@ static void add_identifier(const char *file, char *father, int len1, char *child
     }
 }
 
-
-
 static void visit_operation(OperationExpression *operExp, CodeWriter &writer)
 {
     switch (operExp->op_type)
@@ -202,18 +233,83 @@ static void visit_operation(OperationExpression *operExp, CodeWriter &writer)
 }
 
 
-static void visit_assign()
+static void visit_assign(AssignmentExpression *assignExp, CodeWriter &writer)
 {
 
 }
 
-static void visit_if()
+static void visit_if(IfExpression *ifExp, CodeWriter &writer)
 {
 
 }
 
+static void visit_for(ForExpression *forExp, CodeWriter &writer)
+{
+
+}
+
+static void visit_while(WhileExpression *whileExp, CodeWriter &writer)
+{
+
+}
+
+static void visit_do_while(DoWhileExpression *doWhileExp, CodeWriter &writer)
+{
+
+}
+
+static void visit_return(ReturnExpression *retExp, CodeWriter &writer)
+{
+
+}
+
+static void visit_call(ReturnExpression *retExp, CodeWriter &writer)
+{
+
+}
+
+static void visit_function_decl(ReturnExpression *retExp, CodeWriter &writer)
+{
+
+}
+
+static void visit_block(ReturnExpression *retExp, CodeWriter &writer)
+{
+
+}
 
 void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
 {
-
+    for(auto &it : *chunks) {
+       enter_scope(it.first.c_str(), ScopeType::main_scope);
+       for (auto &it1 : *it.second->statements) {
+           switch (it1->type)
+           {
+            case ExpressionType::oper_statement:
+                break;
+            case ExpressionType::if_statement:
+                break;
+            case ExpressionType::for_statement:
+                break;
+            case ExpressionType::do_while_statement:
+                break;
+            case ExpressionType::while_statement:
+                break;
+            case ExpressionType::return_statement:
+                break;
+            case ExpressionType::call_statement:
+                break;
+            case ExpressionType::block_statement:
+                break;
+            case ExpressionType::assignment_statement:
+                break;
+            case ExpressionType::function_declaration_statement:
+                break;
+           
+           default:
+               break;
+           }
+       }
+       leave_scope(it.first.c_str());
+    }
 }
