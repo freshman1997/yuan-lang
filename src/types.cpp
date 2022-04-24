@@ -11,3 +11,18 @@ static bool is_value_equal(const Value *lhs, const Value *rhs)
     return false;
 }
 
+ValueType Nil::get_type() 
+{
+    return ValueType::t_null;
+}
+
+string Nil::name()
+{
+    return "";
+}
+
+size_t Nil::hash()
+{
+    return 0;
+}
+

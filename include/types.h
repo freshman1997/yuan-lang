@@ -3,6 +3,8 @@
 
 #include <string>
 
+using namespace std;
+
 enum class ValueType
 {
     t_number,           // 数字
@@ -36,5 +38,15 @@ public:
 };
 
 static bool is_value_equal(const Value *lhs, const Value *rhs);
+
+class Nil : public Value
+{
+public:
+	virtual ValueType get_type();
+	virtual std::string name();
+    virtual std::size_t hash();
+
+};
+
 
 #endif

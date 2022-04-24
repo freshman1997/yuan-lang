@@ -1,4 +1,4 @@
-
+﻿
 #include "vm.h"
 #include "state.h"
 #include "stack.h"

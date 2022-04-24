@@ -4,6 +4,7 @@
 
 #include "parser.h"
 #include "visitor.h"
+#include "codegen.h"
 
 using namespace std;
 
