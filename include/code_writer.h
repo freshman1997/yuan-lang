@@ -20,10 +20,11 @@ public:
         return file_name;
     }
 
-    void add(OpCode code)
+    void add(OpCode op, int param)
     {
-        Instruction *ins = new Instruction;
-        instructions->push_back(ins);
+        // 8 位指令，24位操作数
+        int code = int(op) << 24 | param;
+        instructions.push_back(param);
     }
 
     int get_pc()
@@ -32,7 +33,7 @@ public:
     }
 
 private:
-    vector<Instruction *> *instructions = new vector<Instruction *>;
+    vector<int> instructions;
     const char *file_name = NULL;
     int pc = 0;
 };
