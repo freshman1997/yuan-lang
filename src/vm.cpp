@@ -6,10 +6,8 @@
 /*
     每个作用域都需要包含一个表，用来记录变量，这样子就不用记录变量的名字了，运行再根据取得的值计算
 */
-#define isnum(a, b) (a->get_type == ValueType::t_number && b->get_type == ValueType::t_number)
-
-#define add(a, b) (a->value() + b->value())
-
+#define isnum(a, b) (a->get_type() == ValueType::t_number && b->get_type() == ValueType::t_number)
+#define add(v1, v2) ((static_cast<Number *>(v1))->value() + (static_cast<Number *>(v2))->value())
 
 static State *state = NULL;
 
@@ -34,7 +32,7 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
     Value *val2 = state->pop();
     if (isnum(val1, val2)) {
         Number *ret = new Number;
-        switch ()
+        switch (op)
         {
         case 0: ret->set_val(add(val1, val2)); break;
         default:

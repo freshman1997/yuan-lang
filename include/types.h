@@ -53,9 +53,9 @@ public:
 class Boolean : public Value
 {
 public:
-	virtual ValueType get_type();
-	virtual std::string name();
-    virtual std::size_t hash();
+	virtual ValueType get_type() const;
+	virtual std::string name() const;
+    virtual std::size_t hash() const;
     void set(bool val);
     bool value() const;
     void set_name(const string &name);
@@ -68,9 +68,9 @@ private:
 class Number : public Value
 {
 public:
-	virtual ValueType get_type();
-	virtual std::string name();
-    virtual std::size_t hash();
+	virtual ValueType get_type() const;
+	virtual std::string name() const;
+    virtual std::size_t hash() const;
     double value() const;
     void set_name(const string &name);
     void set_val(double val);
@@ -83,18 +83,18 @@ private:
 class Byte : public Value
 {
 public:
-	virtual ValueType get_type();
-	virtual std::string name();
-    virtual std::size_t hash();
+	virtual ValueType get_type() const;
+	virtual std::string name() const;
+    virtual std::size_t hash() const;
     unsigned char _val;
 };
 
 class String : public Value
 {
 public:
-	virtual ValueType get_type();
-	virtual std::string name();
-    virtual std::size_t hash();
+	virtual ValueType get_type() const;
+	virtual std::string name() const;
+    virtual std::size_t hash() const;
     string * value();
     void set_name(const string &name);
     Value * get(int i);
@@ -108,9 +108,9 @@ private:
 class Array : public Value
 {
 public:
-	virtual ValueType get_type();
-	virtual std::string name();
-    virtual std::size_t hash();
+	virtual ValueType get_type()const;
+	virtual std::string name() const;
+    virtual std::size_t hash() const;
     vector<Value *> * member();
     Value * get(int i);
     void add(Value *);
@@ -127,9 +127,9 @@ private:
 class Table : public Value
 {
 public:
-	virtual ValueType get_type();
-	virtual std::string name();
-    virtual std::size_t hash();
+	virtual ValueType get_type() const;
+	virtual std::string name() const;
+    virtual std::size_t hash() const;
     Value * get(Value *key);
     bool set(Value *key, Value *value);
     void remove(Value *key);
@@ -151,9 +151,9 @@ struct UpValue
 class Function : public Value
 {
 public:
-	virtual ValueType get_type();
-	virtual std::string name();
-    virtual std::size_t hash();
+	virtual ValueType get_type() const;
+	virtual std::string name() const;
+    virtual std::size_t hash() const;
     bool isClosure() const;
     void set_name(const string &name);
     UpValue *get_upvalue(int i);
