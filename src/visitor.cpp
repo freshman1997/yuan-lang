@@ -19,35 +19,28 @@ struct UpValueDesc
     vector<UpValueDesc *> *upvalues;
 };
 
-enum class ScopeType
-{
-    main_scope,             // 整个文件
-    funtion_scope,          // 函数
-    if_scope,               // if, else if, else
-    for_scope,              // for
-    while_scope,            // while
-    do_while_scope,         // do while
-};
-
 // local 部分
-struct ScopeItem 
+struct FuncInfoItem 
 {
-    VariableType type;                         // 这个需要推导其他表达式类型 并得出结果
+    VariableType type;                              // 这个需要推导其他表达式类型 并得出结果
     const char *name = NULL;
     int name_len = 0;
     int varIndex = 0;
-    vector<ScopeItem *> *members = NULL;       // 模块的子标识符
+    vector<FuncInfoItem *> *members = NULL;         // 模块的子标识符
 };
 
 // 必须要能够快速定位声明的变量
-struct Scope
+struct FuncInfo
 {
-    ScopeType type;
-    vector<ScopeItem *> *items = NULL;     // 当前作用域的标识符
-    vector<Scope *> *scopes = NULL;        // 子作用域，最后那个为目前的作用域
-    int actVars = 0;                       // 现在是第几个变量  local 
+    vector<FuncInfoItem *> *items = NULL;           // 当前作用域的标识符
+    vector<FuncInfo *> *subFuncInfos = NULL;        // 子作用域，最后那个为目前的作用域
+    int actVars = 0;                                // 现在是第几个变量  local 
     int moduleVars = 0;
     int nupval = 0;
+    const char *func_name = NULL;
+    int name_len = 0;
+    int nparam = 0;
+    int nreturn = 0;
     UpValueDesc *upvalue = NULL;
 };
 
@@ -66,7 +59,7 @@ struct Const
 // 文件 -> 多个同级的 -> 每个作用域下有多个同级的
 // <file, <>>
 // 每进去一个作用域 push_back 一次
-static unordered_map<string, Scope *> global_scopes;
+static unordered_map<string, FuncInfo *> global_subFuncInfos;
 static UpValueDesc *env_upvlaue = new UpValueDesc;
 static unordered_map<int, Const*> global_const;
 static int global_const_index = 0;
@@ -82,42 +75,44 @@ static void init_global_upvlaue()
 }
 
 
-static void enter_scope(const char *file, ScopeType type)
+static void enter_func(const char *file)
 {
-    Scope * &fileScope = global_scopes[file];
+    FuncInfo * &fileFuncInfo = global_subFuncInfos[file];
     // 继承所有父作用域的标识符 和 require 引入的部分；
-    if (!fileScope->scopes) {
-        fileScope->scopes = new vector<Scope *>;
-        fileScope->items = new vector<ScopeItem *>;
-        fileScope->upvalue = new UpValueDesc;
-        fileScope->upvalue->pre = env_upvlaue;
-        fileScope->upvalue->upvalues = new vector<UpValueDesc *>;
-        fileScope->upvalue->upvalues->push_back(env_upvlaue);
+    if (!fileFuncInfo->subFuncInfos) {
+        fileFuncInfo->subFuncInfos = new vector<FuncInfo *>;
+        fileFuncInfo->items = new vector<FuncInfoItem *>;
+        fileFuncInfo->upvalue = new UpValueDesc;
+        fileFuncInfo->upvalue->pre = env_upvlaue;
+        fileFuncInfo->upvalue->upvalues = new vector<UpValueDesc *>;
+        fileFuncInfo->upvalue->upvalues->push_back(env_upvlaue);
+        fileFuncInfo->func_name = "main";
+        fileFuncInfo->name_len = 4;
+        // 最后离开文件时需要检查返回的值
         return;
     }
-    Scope *last = fileScope->scopes->back();
-    fileScope->scopes->push_back(new Scope);
-    fileScope->scopes->back()->type = type;
-    fileScope->scopes->back()->upvalue = new UpValueDesc;
-    fileScope->scopes->back()->upvalue->pre = last->upvalue;
-    fileScope->scopes->back()->upvalue->upvalues = new vector<UpValueDesc *>;
-    fileScope->scopes->back()->upvalue->upvalues->push_back(env_upvlaue);
-    fileScope->scopes->back()->nupval++;
+    FuncInfo *last = fileFuncInfo->subFuncInfos->back();
+    fileFuncInfo->subFuncInfos->push_back(new FuncInfo);
+    fileFuncInfo->subFuncInfos->back()->upvalue = new UpValueDesc;
+    fileFuncInfo->subFuncInfos->back()->upvalue->pre = last->upvalue;
+    fileFuncInfo->subFuncInfos->back()->upvalue->upvalues = new vector<UpValueDesc *>;
+    fileFuncInfo->subFuncInfos->back()->upvalue->upvalues->push_back(env_upvlaue);
+    fileFuncInfo->subFuncInfos->back()->nupval++;
 }
 
-static void leave_scope(const char *file)
+static void leave_func(const char *file)
 {
-    // 清除当前作用域的所有声明的变量
-    Scope *fileScope = global_scopes[file];
-    if (fileScope->scopes->back()->items) {
-        for(auto &it : *fileScope->scopes->back()->items) {
+    // 清除当前作用域的所有声明的变量，记录需要清除的数据
+    FuncInfo *fileFuncInfo = global_subFuncInfos[file];
+    if (fileFuncInfo->subFuncInfos->back()->items) {
+        for(auto &it : *fileFuncInfo->subFuncInfos->back()->items) {
             delete it;
         }
-        delete fileScope->scopes->back()->items;
+        delete fileFuncInfo->subFuncInfos->back()->items;
     }
-    delete fileScope->scopes->back()->upvalue;
-    delete fileScope->scopes->back();
-    fileScope->scopes->pop_back();
+    delete fileFuncInfo->subFuncInfos->back()->upvalue;
+    delete fileFuncInfo->subFuncInfos->back();
+    fileFuncInfo->subFuncInfos->pop_back();
 }
 
 static bool is_same_id(char *s1, int len1, const char *s2, int len2)
@@ -134,9 +129,9 @@ static bool is_same_id(char *s1, int len1, const char *s2, int len2)
 // father 第一个id，child 第二个id，op 操作类型，索引，取值
 static bool has_identifier(const char *file, char *father, int len1, char *child, int len2)
 {
-    Scope *fileScope = global_scopes[file];
+    FuncInfo *fileFuncInfo = global_subFuncInfos[file];
     if (!father) {
-        for (auto &it : *fileScope->scopes->front()->items) {
+        for (auto &it : *fileFuncInfo->subFuncInfos->front()->items) {
             if (is_same_id(child, len2, it->name, it->name_len)) {
                 return true;
             }
@@ -144,7 +139,7 @@ static bool has_identifier(const char *file, char *father, int len1, char *child
         return false;
     }
 
-    for (auto &it : *fileScope->scopes->front()->items) {
+    for (auto &it : *fileFuncInfo->subFuncInfos->front()->items) {
         if (is_same_id(father, len1, it->name, it->name_len)) {
             if (it->type == VariableType::t_table) it->type = VariableType::t_module;
             for (auto &it1 : *it->members) {
@@ -159,39 +154,37 @@ static bool has_identifier(const char *file, char *father, int len1, char *child
 }
 
 // father 第一个id，child 第二个id，模块才会有father
-static void add_identifier(const char *file, char *father, int len1, char *child, int len2, VariableType type)
+static void add_identifier(const char *file, char *father, int len1, char *child, int len2)
 {
     if (has_identifier(file, father, len1, child, len2)) return;
 
-    Scope *fileScope = global_scopes[file];
-    if (!fileScope->scopes->back()->items) fileScope->scopes->back()->items = new vector<ScopeItem *>;
+    FuncInfo *fileFuncInfo = global_subFuncInfos[file];
+    if (!fileFuncInfo->subFuncInfos->back()->items) fileFuncInfo->subFuncInfos->back()->items = new vector<FuncInfoItem *>;
     if (!father) {
-        ScopeItem *item = new ScopeItem;
+        FuncInfoItem *item = new FuncInfoItem;
         item->name = child;
         item->name_len = len2;
-        item->type = type;
-        fileScope->scopes->back()->items->push_back(item);
+        fileFuncInfo->subFuncInfos->back()->items->push_back(item);
     }
     else {
-        ScopeItem *fa = NULL;
-        for (auto &it : *fileScope->scopes->back()->items) {
+        FuncInfoItem *fa = NULL;
+        for (auto &it : *fileFuncInfo->subFuncInfos->back()->items) {
             if (is_same_id(father, len1, it->name, it->name_len)) {
                 fa = it;
                 break;
             }
         }
         if (!fa) {
-            fa = new ScopeItem;
+            fa = new FuncInfoItem;
             fa->name = father;
             fa->name_len = len1;
             fa->type = VariableType::t_module;
-            fa->members = new vector<ScopeItem *>;
-            fileScope->scopes->back()->items->push_back(fa);
+            fa->members = new vector<FuncInfoItem *>;
+            fileFuncInfo->subFuncInfos->back()->items->push_back(fa);
         }
-        ScopeItem *item = new ScopeItem;
+        FuncInfoItem *item = new FuncInfoItem;
         item->name = child;
         item->name_len = len2;
-        item->type = type;
         fa->members->push_back(item);
         fa->varIndex++;
     }
@@ -205,9 +198,10 @@ static void visit_operation(Operation *opera, Instruction *ins, CodeWriter &writ
     case OpType::id:
     {
         // 全局变量
-        if (has_identifier(writer.get_file_name(), NULL, 0, opera->op->id_oper->name, opera->op->id_oper->name_len)) {
-            
+        if (!has_identifier(writer.get_file_name(), NULL, 0, opera->op->id_oper->name, opera->op->id_oper->name_len)) {
+            add_identifier(writer.get_file_name(), NULL, 0, opera->op->id_oper->name, opera->op->id_oper->name_len);
         }
+
         break;
     }
     case OpType::num:
@@ -247,7 +241,9 @@ static void visit_operation(Operation *opera, Instruction *ins, CodeWriter &writ
     }
     case OpType::assign:
     {
-        
+        // 如果有 local 修饰，那么就是当前函数的变量
+        // 如果在当前函数找不到，往前找，直到全局变量，若是找不到且没有local那就是全局变量
+        // 如果在前面的函数中找到了，那么就是 upvalue ，匿名函数就是 upvalue 
         break;
     }
     case OpType::index:
@@ -277,8 +273,8 @@ static void visit_operation(Operation *opera, Instruction *ins, CodeWriter &writ
 
 static void visit_operation_exp(OperationExpression *operExp, CodeWriter &writer)
 {
-    Scope *fileScope = global_scopes[writer.get_file_name()];
-    Scope *scope = fileScope->scopes->back();
+    FuncInfo *fileFuncInfo = global_subFuncInfos[writer.get_file_name()];
+    FuncInfo *FuncInfo = fileFuncInfo->subFuncInfos->back();
     Instruction *ins = new Instruction;
     switch (operExp->op_type)
     {
@@ -382,7 +378,7 @@ static void visit_block(ReturnExpression *retExp, CodeWriter &writer)
 void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
 {
     for(auto &it : *chunks) {
-       enter_scope(it.first.c_str(), ScopeType::main_scope);
+       enter_func(it.first.c_str());
        for (auto &it1 : *it.second->statements) {
            switch (it1->type)
            {
@@ -411,6 +407,6 @@ void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
                break;
            }
        }
-       leave_scope(it.first.c_str());
+       leave_func(it.first.c_str());
     }
 }

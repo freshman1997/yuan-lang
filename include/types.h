@@ -27,7 +27,7 @@ public:
 	virtual std::string name() const = 0;
     virtual std::size_t hash() const = 0;
 
-	struct ValueHasher : public std::unary_function<Value *, std::size_t>  {
+	/*struct ValueHasher : public std::unary_function<Value *, std::size_t>  {
 		std::size_t operator() (const Value *value) const  {
 			return value->hash();
 		}
@@ -37,7 +37,7 @@ public:
 		bool operator() (const Value *left, const Value *right) const  {
 			return left == right;
 		}
-	};
+	};*/
 };
 
 static bool is_value_equal(const Value *lhs, const Value *rhs);
