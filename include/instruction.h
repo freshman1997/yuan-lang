@@ -1,106 +1,114 @@
 ﻿#ifndef __INSTRUCTION_H__
 #define __INSTRUCTION_H__
 
+enum InstructionParamType
+{
+    global_param,
+    local_param,
+    upvalu_param
+};
 
 
 struct InstructionParam
 {
-
+    InstructionParamType type;
+    int index = -1;    
 };
 
-enum class ProgramCode
+enum class OpCode
 {
-    pc_push,
-    pc_pop,
+    op_pushg,           // 入栈全局变量 参数是第几个且是当前文件的
+    op_pushl,           // 入栈局部变量，当前函数的
+    op_pushu,           // 入栈，当前函数的 upvalue
+    op_pushc,           // 入栈常量
+    op_pop,             // 出栈
+    op_storeg,          // 存储 全局变量
+    op_storel,          // 存储 局部变量
+    op_storeu,          // 存储 upvalue
 
-    /* 运算符部分*/
+    /* 运算符部分 */
     /* 二元运算符 */
-    pc_add,             // +
-    pc_sub,             // -
-    pc_mul,             // *
-    pc_div,             // /
-    pc_mod,             // %
-    pc_equal,           // ==
-    pc_not_equal,       // !=
-    pc_gt,              // >
-    pc_lt,              // <
-    pc_gt_eq,           // >=
-    pc_lt_eq,           // <=
-    pc_or,              // ||
-    pc_and,             // &&
-    pc_add_eq,          // +=
-    pc_sub_eq,          // -=
-    pc_mul_eq,          // *=
-    pc_div_eq,          // /=
-    pc_mod_eq,          // %= 
+    op_add,             // +
+    op_sub,             // -
+    op_mul,             // *
+    op_div,             // /
+    op_mod,             // %
+    op_equal,           // ==
+    op_not_equal,       // !=
+    op_gt,              // >
+    op_lt,              // <
+    op_gt_eq,           // >=
+    op_lt_eq,           // <=
+    op_or,              // ||
+    op_and,             // &&
+    op_add_eq,          // +=
+    op_sub_eq,          // -=
+    op_mul_eq,          // *=
+    op_div_eq,          // /=
+    op_mod_eq,          // %= 
 
-    pc_dot,             // .
-    pc_concat,          // ..
+    op_dot,             // .
+    op_concat,          // ..
 
 
     /* 一元运算符 */
-    pc_not,             // !
-    pc_len,             // # 
-    pc_unary_sub,       // 前置 - 负号
-    pc_add_add,         // ++
-    pc_sub_sub,         // --
+    op_not,             // !
+    op_len,             // # 
+    op_unary_sub,       // 前置 - 负号
+    op_add_add,         // ++
+    op_sub_sub,         // --
 
 
     /* 逻辑运算符 */
-    pc_bin_or,          // |
-    pc_bin_xor,         // ^
-    pc_bin_and,         // &
-    pc_bin_not,         // ~
-    pc_bin_lm,          // <<
-    pc_bin_rm,          // >> 
-    pc_bin_xor_eq,      // ^=
-    pc_bin_and_eq,      // &=
-    pc_bin_or_eq,       // |=
-    pc_bin_lme,         // <<=
-    pc_bin_rme,         // >>=
+    op_bin_or,          // |
+    op_bin_xor,         // ^
+    op_bin_and,         // &
+    op_bin_not,         // ~
+    op_bin_lm,          // <<
+    op_bin_rm,          // >> 
+    op_bin_xor_eq,      // ^=
+    op_bin_and_eq,      // &=
+    op_bin_or_eq,       // |=
+    op_bin_lme,         // <<=
+    op_bin_rme,         // >>=
 
     /* jump */
-    pc_break,           // break
-    pc_continue,        // continue
-    pc_jump,            // 跳
+    op_break,           // break
+    op_continue,        // continue
+    op_jump,            // 跳
 
     /* 操作表达式 */
-    pc_assign,          // 赋值
-    pc_for_normal,      // 普通 for
-    pc_for_in,          // for in
-    pc_do_while,        // do while
-    pc_while,           // while
-    pc_call,            // call
-    pc_if,              // if
-    pc_return,          // return
+    op_for_normal,      // 普通 for
+    op_for_in,          // for in
+    op_do_while,        // do while
+    op_while,           // while
+    op_call,            // call
+    op_if,              // if
+    op_return,          // return
 
-    pc_enter_block,     // {
-    pc_leave_block,     // }
+    op_enter_block,     // {
+    op_leave_block,     // }
 
-    pc_set_self,        // 如果是模块，需要self
+    op_set_self,        // 如果是模块，需要self
 
-    pc_load,            // 加载值
 
-    pc_table_new,       // a = {}
-    pc_table_get,       // b = a["name"]
-    pc_table_del,       // a["name"] = nil
-    pc_table_set,       // a["name"] = "tomcat"
+    op_table_new,       // a = {}
+    op_table_get,       // b = a["name"]
+    op_table_del,       // a["name"] = nil
+    op_table_set,       // a["name"] = "tomcat"
 
-    pc_array_new,       // a = []
-    pc_array_get,       // a[0]
-    pc_array_set,       // a[1] = 100
-    pc_array_del,       // a = nil
+    op_array_new,       // a = []
+    op_array_get,       // a[0]
+    op_array_set,       // a[1] = 100
+    op_array_del,       // a = nil
 
-    pc_load_bool,       // ?
-    pc_load_nil,        // ?
+    op_load_bool,       // ?
+    op_load_nil,        // ?
 };
 
 struct Instruction
 {
-    ProgramCode pc;
-    InstructionParam *param;
-
-
+    OpCode op;
 };
 
 #endif
