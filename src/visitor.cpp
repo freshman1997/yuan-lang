@@ -186,176 +186,13 @@ static void syntax_error()
 
 }
 
-static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer)
-{
-    FuncInfo * fileFuncInfo = global_subFuncInfos[writer.get_file_name()];
-    // 这里有多种类型的
-    switch (opera->type)
-    {
-    case OpType::id:
-    {
-        char *id = opera->op->id_oper->name;
-        int len = opera->op->id_oper->name_len;
-        int gVarid = is_blobal_var(id, len);
-        if (gVarid >= 0) {
-            writer.add(OpCode::op_pushl, gVarid);
-            return;
-        }
-
-        // 如果有 local 修饰，那么就是当前函数的变量
-        pair<int, int> p;
-        if (opera->op->id_oper->is_local) {
-            if (has_identifier(info, id, len, p)) {
-                // error redeclare 
-                syntax_error();
-            }
-
-            FuncInfoItem *item = new FuncInfoItem;
-            item->name = id;
-            item->name_len = len;
-            item->varIndex = info->actVars;
-            info->items->push_back(item);
-            writer.add(OpCode::op_pushl, info->actVars);
-            info->actVars++;
-            return;
-        }
-        // 如果在当前函数找不到，往前找，直到全局变量，若是找不到且没有local那就是全局变量
-        // 如果在前面的函数中找到了，那么就是 upvalue ，匿名函数就是 upvalue 
-        if (!has_identifier(info, id, len, p)) {
-            FuncInfoItem item;
-            item.name = id;
-            item.name_len = len;
-            item.varIndex = global_var_index;
-            writer.add(OpCode::op_pushg, global_var_index);
-            global_vars[global_var_index] = item;
-            return;
-        }
-        else {
-            if (p.first == info->in_stack) {
-                writer.add(OpCode::op_pushg, p.second);
-                return;
-            }
-            // upvalue
-            UpValueDesc *up = new UpValueDesc;
-            up->name = id;
-            up->name_len = len;
-            up->index = info->nupval;
-            up->stack_index = p.second;
-            up->stack_lv = p.first;
-            up->index = info->nupval;
-            info->upvalue->upvalues->push_back(up);
-            writer.add(OpCode::op_pushg, info->nupval);
-            info->nupval++;
-        }
-        break;
-    }
-    case OpType::num:
-    {
-        Const *c = new Const;
-        c->type = VariableType::t_number;
-        c->value->val = opera->op->number_oper->val;
-        add_global_const(c);
-        writer.add(OpCode::op_pushg, global_const_index - 1);
-        break;
-    }
-    case OpType::boolean:
-    {
-        writer.add(OpCode::op_load_bool, 0);
-        break;
-    }
-    case OpType::nil:
-    {
-        writer.add(OpCode::op_load_nil, 0);
-        break;
-    }
-    case OpType::str:
-    {
-        Const *c = new Const;
-        c->type = VariableType::t_string;
-        c->value->str = new ConstString;
-        c->value->str->str = opera->op->string_oper->raw;
-        c->value->str->len = opera->op->string_oper->raw_len;
-        add_global_const(c);
-        writer.add(OpCode::op_pushg, global_const_index - 1);
-        break;
-    }
-    case OpType::substr:
-    {
-        // [2:-1]
-        break;
-    }
-    case OpType::arr:
-    {
-        
-        break;
-    }
-    case OpType::table:
-    {
-        
-        break;
-    }
-    case OpType::assign:
-    {
-        
-        break;
-    }
-    case OpType::index:
-    {
-        
-        break;
-    }
-    case OpType::op:
-    {
-        
-        break;
-    }
-    case OpType::call:
-    {
-        int pc = writer.get_pc();
-        CallExpression *call = opera->op->call_oper;
-        pair<int, int> p;
-        char *name = call->function_name->name;
-        int len = call->function_name->name_len;
-        int gVarid = is_blobal_var(name, len);
-        if (gVarid >= 0) {
-            // 参数  fun(fun(12, 2), 3);
-            for (auto &it : *call->parameters) {
-                visit_operation(*it, info, writer);
-            }
-            writer.add(OpCode::op_call, gVarid);
-            return;
-        }
-        if (!has_identifier(info, name, len, p)) {
-            // error
-            syntax_error();
-        }
-        if (p.first == info->in_stack) {
-            for (auto &it : *call->parameters) {
-                visit_operation(*it, info, writer);
-            }
-            writer.add(OpCode::op_call, p.second);
-        }
-        else {
-            // upvalue call
-            
-        }
-        break;
-    }
-    case OpType::function_declear:
-    {
-        
-        break;
-    }
-    default:
-        break;
-    }
-}
+static void visit_statement(vector<BodyStatment *> *statements, CodeWriter &writer);
+static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer);
 
 static void visit_operation_exp(OperationExpression *operExp, CodeWriter &writer)
 {
     FuncInfo *fileFuncInfo = global_subFuncInfos[writer.get_file_name()];
     FuncInfo *FuncInfo = fileFuncInfo->subFuncInfos->back();
-    Instruction *ins = new Instruction;
     switch (operExp->op_type)
     {
     case OperatorType::op_none:
@@ -410,83 +247,340 @@ static void visit_operation_exp(OperationExpression *operExp, CodeWriter &writer
 }
 
 
-static void visit_assign(AssignmentExpression *assignExp, CodeWriter &writer)
+static void visit_assign(AssignmentExpression *assign, FuncInfo *info, CodeWriter &writer)
+{
+     visit_operation_exp(assign->assign, writer);
+    IdExpression *name = assign->id;
+    char *id = name->name;
+    int len = name->name_len;
+    int gVarid = is_blobal_var(id, len);
+    pair<int, int> p;
+    if (gVarid >= 0) {
+            FuncInfoItem item;
+        item.name = id;
+        item.name_len = len;
+        item.varIndex = global_var_index;
+        writer.add(OpCode::op_storeg, global_var_index);
+        global_vars[global_var_index] = item;
+        global_var_index++;
+    }
+    // 如果有 local 修饰，那么就是当前函数的变量
+    else if (name->is_local) {
+        if (has_identifier(info, id, len, p)) {
+            // error redeclare 
+            syntax_error();
+        }
+
+        FuncInfoItem *item = new FuncInfoItem;
+        item->name = id;
+        item->name_len = len;
+        item->varIndex = info->actVars;
+        info->items->push_back(item);
+        writer.add(OpCode::op_pushl, info->actVars);
+        info->actVars++;
+    }
+    else {
+        if (p.first == info->in_stack) {
+            writer.add(OpCode::op_storel, p.second);
+        }
+        // upvalue
+        UpValueDesc *up = new UpValueDesc;
+        up->name = id;
+        up->name_len = len;
+        up->index = info->nupval;
+        up->stack_index = p.second;
+        up->stack_lv = p.first;
+        up->index = info->nupval;
+        info->upvalue->upvalues->push_back(up);
+        writer.add(OpCode::op_storeu, info->nupval);
+        info->nupval++;
+    }
+}
+
+static void visit_if(IfExpression *ifExp, FuncInfo *info, CodeWriter &writer)
 {
 
 }
 
-static void visit_if(IfExpression *ifExp, CodeWriter &writer)
+static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
 {
 
 }
 
-static void visit_for(ForExpression *forExp, CodeWriter &writer)
+static void visit_while(WhileExpression *whileExp, FuncInfo *info, CodeWriter &writer)
 {
 
 }
 
-static void visit_while(WhileExpression *whileExp, CodeWriter &writer)
+static void visit_do_while(DoWhileExpression *doWhileExp, FuncInfo *info, CodeWriter &writer)
 {
 
 }
 
-static void visit_do_while(DoWhileExpression *doWhileExp, CodeWriter &writer)
+static void visit_return(ReturnExpression *retExp, FuncInfo *info, CodeWriter &writer)
 {
 
 }
 
-static void visit_return(ReturnExpression *retExp, CodeWriter &writer)
+static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
 {
-
+    int pc = writer.get_pc();
+    pair<int, int> p;
+    char *name = call->function_name->name;
+    int len = call->function_name->name_len;
+    int gVarid = is_blobal_var(name, len);
+    if (gVarid >= 0) {
+        // 参数  fun(fun(12, 2), 3);
+        for (auto &it : *call->parameters) {
+            visit_operation(it, info, writer);
+        }
+        writer.add(OpCode::op_call, gVarid);
+        return;
+    }
+    if (!has_identifier(info, name, len, p)) {
+        // error
+        syntax_error();
+    }
+    for (auto &it : *call->parameters) {
+        visit_operation(it, info, writer);
+    }
+    if (p.first == info->in_stack) {
+        writer.add(OpCode::op_call, p.second);
+    }
+    else {
+        // upvalue call, 从当前函数的upvalue表找到函数
+        writer.add(OpCode::op_call_upv, -p.second);
+    }
 }
 
-static void visit_call(ReturnExpression *retExp, CodeWriter &writer)
+static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &writer)
 {
-
+    FuncInfo * fileFuncInfo = global_subFuncInfos[writer.get_file_name()];
+    enter_func(writer.get_file_name());
+    FuncInfo *newFun = fileFuncInfo->subFuncInfos->back();
+    if (fun->is_local) {
+        if (!info->subFuncInfos) {
+            info->subFuncInfos = new vector<FuncInfo *>;
+        }
+        info->subFuncInfos->push_back(newFun);
+        FuncInfoItem *item = new FuncInfoItem;
+        item->name = fun->function_name->name;
+        item->name_len = fun->function_name->name_len;
+        item->varIndex = info->actVars;
+        info->items->push_back(item);
+        info->actVars++;
+    }
+    else {
+        FuncInfoItem item;
+        item.name = fun->function_name->name;
+        item.name_len = fun->function_name->name_len;
+        item.varIndex = global_var_index;
+        global_vars[global_var_index] = item;
+        global_var_index++;
+    }
+    newFun->func_name = fun->function_name->name;
+    newFun->name_len = fun->function_name->name_len;
+    newFun->nparam = fun->parameters->size();
+    newFun->in_stack = info->in_stack + 1;
+    writer.add(OpCode::op_enter_func, 0);
+    //TODO visit body
+    visit_statement(fun->body, writer);
+    leave_func(writer.get_file_name());
 }
 
-static void visit_function_decl(ReturnExpression *retExp, CodeWriter &writer)
+static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writer)
 {
-
+    IdExpression *name = index->id;
+    char *id = name->name;
+    int len = name->name_len;
+    int gVarid = is_blobal_var(id, len);
+    // [][][][][][]
+    if (gVarid >= 0) {
+        writer.add(OpCode::op_pushg, gVarid);
+    }
+    else {
+        pair<int, int> p;
+        if (!has_identifier(info, id, len, p)) {
+            // error unkown variable
+            syntax_error();
+        }
+        if (p.first == info->in_stack) {
+            writer.add(OpCode::op_pushl, p.second);
+        }
+        else {
+            // upvalue
+            writer.add(OpCode::op_pushu, p.second);
+        }
+    }
+    for (auto &it : *index->keys) {
+        visit_operation_exp(it, writer);
+        writer.add(OpCode::op_index, 0);
+    }
 }
 
-static void visit_block(ReturnExpression *retExp, CodeWriter &writer)
+static void visit_statement(vector<BodyStatment *> *statements, CodeWriter &writer)
 {
+    for (auto &it1 : *statements) {
+        switch (it1->type)
+        {
+        case ExpressionType::oper_statement:
+            break;
+        case ExpressionType::if_statement:
+            break;
+        case ExpressionType::for_statement:
+            break;
+        case ExpressionType::do_while_statement:
+            break;
+        case ExpressionType::while_statement:
+            break;
+        case ExpressionType::return_statement:
+            break;
+        case ExpressionType::call_statement:
+            break;
+        case ExpressionType::block_statement:
+            break;
+        case ExpressionType::assignment_statement:
+            break;
+        case ExpressionType::function_declaration_statement:
+            break;
+        
+        default:
+            break;
+        }
+    }
+}
 
+static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer)
+{
+    FuncInfo * fileFuncInfo = global_subFuncInfos[writer.get_file_name()];
+    // 这里有多种类型的
+    switch (opera->type)
+    {
+    case OpType::id:
+    {
+        char *id = opera->op->id_oper->name;
+        int len = opera->op->id_oper->name_len;
+        int gVarid = is_blobal_var(id, len);
+        if (gVarid >= 0) {
+            writer.add(OpCode::op_pushl, gVarid);
+            return;
+        }
+
+        pair<int, int> p;
+        if (!has_identifier(info, id, len, p)) {
+            // TODO error
+            return;
+        }
+        else {
+            if (p.first == info->in_stack) {
+                writer.add(OpCode::op_pushl, p.second);
+            }
+            else {
+                // upvalue
+                writer.add(OpCode::op_pushu, info->nupval);
+            }
+        }
+        break;
+    }
+    case OpType::num:
+    {
+        Const *c = new Const;
+        c->type = VariableType::t_number;
+        c->value->val = opera->op->number_oper->val;
+        add_global_const(c);
+        writer.add(OpCode::op_pushg, global_const_index - 1);
+        global_const_index++;
+        break;
+    }
+    case OpType::boolean:
+    {
+        writer.add(OpCode::op_load_bool, 0);
+        break;
+    }
+    case OpType::nil:
+    {
+        writer.add(OpCode::op_load_nil, 0);
+        break;
+    }
+    case OpType::str:
+    {
+        Const *c = new Const;
+        c->type = VariableType::t_string;
+        c->value->str = new ConstString;
+        c->value->str->str = opera->op->string_oper->raw;
+        c->value->str->len = opera->op->string_oper->raw_len;
+        add_global_const(c);
+        writer.add(OpCode::op_pushg, global_const_index - 1);
+        global_const_index++;
+        break;
+    }
+    case OpType::substr:
+    {
+        // [2:-1]
+        IndexExpression *substr = opera->op->index_oper;
+        OperationExpression *param = (*substr->keys)[0];
+        visit_operation(param->left, info, writer);
+        visit_operation(param->right, info, writer);
+        writer.add(OpCode::op_substr, global_const_index - 1);
+        break;
+    }
+    case OpType::arr:
+    {
+        writer.add(OpCode::op_array_new, 0);
+        Array *arr = opera->op->array_oper;
+        for (auto &it : *arr->fields) {
+            visit_operation(it, info, writer);
+            writer.add(OpCode::op_array_set, 0);
+        }
+        break;
+    }
+    case OpType::table:
+    {
+        Table *tb = opera->op->table_oper;
+        writer.add(OpCode::op_table_new, 0);
+        for (auto &it : *tb->members) {
+            visit_operation_exp(it->v, writer);
+            visit_operation_exp(it->k, writer);
+            writer.add(OpCode::op_table_set, 0);
+        }
+        break;
+    }
+    case OpType::assign:
+    {
+        AssignmentExpression *assign = opera->op->assgnment_oper;
+        visit_assign(assign, info, writer);
+        break;
+    }
+    case OpType::index:
+    {
+        IndexExpression *index = opera->op->index_oper;
+        visit_index(index, info, writer);
+        break;
+    }
+    case OpType::op:
+    {
+        OperationExpression *oper = opera->op->op_oper;
+        visit_operation_exp(oper, writer);
+        break;
+    }
+    case OpType::call:
+    {
+        visit_call(opera->op->call_oper, info, writer);
+        break;
+    }
+    case OpType::function_declear:
+    {
+        visit_function_decl(opera->op->fun_oper, info, writer);
+        break;
+    }
+    default:
+        break;
+    }
 }
 
 void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
 {
     for(auto &it : *chunks) {
-       enter_func(it.first.c_str());
-       for (auto &it1 : *it.second->statements) {
-           switch (it1->type)
-           {
-            case ExpressionType::oper_statement:
-                break;
-            case ExpressionType::if_statement:
-                break;
-            case ExpressionType::for_statement:
-                break;
-            case ExpressionType::do_while_statement:
-                break;
-            case ExpressionType::while_statement:
-                break;
-            case ExpressionType::return_statement:
-                break;
-            case ExpressionType::call_statement:
-                break;
-            case ExpressionType::block_statement:
-                break;
-            case ExpressionType::assignment_statement:
-                break;
-            case ExpressionType::function_declaration_statement:
-                break;
-           
-           default:
-               break;
-           }
-       }
-       leave_func(it.first.c_str());
+       visit_statement(it.second->statements, writer);
     }
 }

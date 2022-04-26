@@ -85,6 +85,7 @@ enum class OpCode
     op_do_while,        // do while
     op_while,           // while
     op_call,            // call
+    op_call_upv,        // call upvalue
     op_tail_call,       // return func(1, 2, 3)
     op_return,          // return 参数为返回的个数，后续再pusht结果进栈
 
@@ -94,15 +95,16 @@ enum class OpCode
     op_set_self,        // 如果是模块，需要self
 
     op_table_new,       // a = {}
-    op_table_get,       // b = a["name"]
     op_dot,             // . a.b(); // fun call etc...
     op_table_del,       // a["name"] = nil
     op_table_set,       // a["name"] = "tomcat"
 
     op_array_new,       // a = []
-    op_array_get,       // a[0]
     op_array_set,       // a[1] = 100,      // 这个可以设置多个键值对，用于
     op_array_del,       // a = nil
+
+    op_index,           // a["name"], arr[1]
+    op_substr,          // str[2:2]
 
     op_load_bool,
     op_load_nil,

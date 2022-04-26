@@ -168,7 +168,6 @@ struct Operation;
 // 数组
 struct Array
 {
-    IdExpression *name = NULL;
     vector<Operation *> *fields = NULL;
     int from;
     int to;
@@ -200,14 +199,6 @@ struct IndexExpression
 struct AssignmentExpression
 {
     IdExpression *id = NULL;
-    enum class AssignmenType
-    {
-        id,
-        operation,
-        index,
-        basic,
-        call,
-    };
     IdExpression *module = NULL;
     OperationExpression *assign = NULL;
     

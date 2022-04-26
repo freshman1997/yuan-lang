@@ -341,6 +341,9 @@ static Operation * parse_primary(TokenReader *reader)
 								error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 							}
 							if (substrLeft) {
+								if (oper->op_type != OperatorType::op_none || !oper->left || !(oper->left->type == OpType::num || oper->left->type == OpType::id)) {
+									(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "not support", __LINE__);
+								}
 								OperationExpression *substr= new OperationExpression;
 								substr->op_type = OperatorType::op_substr;
 								substr->left = substrLeft;
@@ -350,12 +353,18 @@ static Operation * parse_primary(TokenReader *reader)
 							}
 							else {
 								if (reader->peek().type == TokenType::sym && *reader->peek().from == ':') { // substring
+									if (oper->op_type != OperatorType::op_none || !oper->left || !(oper->left->type == OpType::num || oper->left->type == OpType::id)) {
+										error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "not support", __LINE__);
+									}
 									Operation *substrRight = NULL;
 									if (reader->peek().type != TokenType::sym || *reader->peek().from == '(') {
 										substrRight = new Operation;
 										substrRight->op = new Operation::oper;
 										substrRight->type = OpType::op;
 										substrRight->op->op_oper = parse_operator(reader);
+										if (substrRight->op->op_oper->op_type != OperatorType::op_none || !substrRight->op->op_oper->left || !(substrRight->op->op_oper->left->type == OpType::num || substrRight->op->op_oper->left->type == OpType::id)) {
+											error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "not support", __LINE__);
+										}
 									}
 									else {
 										substrRight = new Operation;
@@ -418,7 +427,6 @@ static Operation * parse_primary(TokenReader *reader)
 				node->op = new Operation::oper;
 				node->type = OpType::arr;
 				Array *array = new Array;
-				array->name = NULL;
 				reader->consume();
 				array->fields = parse_parameter(reader, ']');
 				node->op->array_oper = array;
