@@ -7,6 +7,8 @@
 
 using namespace std;
 
+// 这个文件是运行时需要的
+
 enum class ValueType
 {
     t_number,           // 数字
@@ -164,6 +166,7 @@ public:
 
 private:
     vector<UpValue *> upvals;
+    // 按编号还是按名称？？
     unordered_map<string, Value *> localVars;
     string _name;
 };

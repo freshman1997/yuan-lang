@@ -11,7 +11,6 @@
 
 using namespace std;
 
-
 // 字符串是否相等
 inline bool str_equal(const char *s1, const char *s2, int n)
 {
@@ -30,5 +29,8 @@ inline void error(const char *msg, const char *s)
     cerr << msg << s << endl;
     exit(1);
 }
+
+struct Token;
+void error_tok(const Token &tok, const char *filename, char * content, char *fmt, ...);
 
 #endif

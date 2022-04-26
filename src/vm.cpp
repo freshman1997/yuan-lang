@@ -43,22 +43,33 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
     }
 }
 
-void execute(const std::vector<Instruction *> &pcs, State *_state, int argc, char **argv)
+static void do_execute(const std::vector<int> &pcs, int from, int to)
 {
-    state = _state;
-    for(auto &it : pcs) {
-        switch (it->op)
+    for (int i = from; i < to; ++i) {
+        int it = pcs[i];
+        int param = (it << 8) >> 8;
+        OpCode op = (OpCode)(it >> 24);
+        switch (op)
         {
         case OpCode::op_storel:
             assign(0);
             break;
-        case OpCode::op_add:
-        {
+        case OpCode::op_add: {
             operate(0, 0);
+            break;
+        }
+        case OpCode::op_pushl:{
+
             break;
         }
         default:
             break;
         }
     }
+}
+
+void execute(const std::vector<int> &pcs, State *_state, int argc, char **argv)
+{
+    state = _state;
+    do_execute(pcs, 0, pcs.size());
 }

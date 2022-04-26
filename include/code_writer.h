@@ -25,6 +25,7 @@ public:
         // 8 位指令，24位操作数
         int code = int(op) << 24 | param;
         instructions.push_back(param);
+        pc++;
     }
 
     int get_pc()

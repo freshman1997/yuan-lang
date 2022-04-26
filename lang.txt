@@ -134,3 +134,10 @@
     		function_body
     		ret result_params_comma_separated
 		}
+
+
+	存储：
+		source 文件
+		line range
+		nparam
+		

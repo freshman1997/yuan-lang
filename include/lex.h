@@ -38,6 +38,7 @@ public:
     void consume();
     void unread();
     int get_pos();
+    const Token & get(int i);
 
     Token * peek_last_one();
 

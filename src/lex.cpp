@@ -83,6 +83,14 @@ int TokenReader::get_pos()
 	return idx;
 }
 
+const Token & TokenReader::get(int i)
+{
+	if (i >= tokens.size()) {
+		error("index over", filename);
+	}
+	return tokens[i];
+}
+
 static char * read_all_the_file(const char *filename, TokenReader &reader)
 {
     FILE *fd = NULL;
