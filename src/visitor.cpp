@@ -209,6 +209,9 @@ static void syntax_error(const char *msg)
     exit(0);
 }
 
+static vector<int> breaks;
+static vector<int> continues;
+
 static void visit_statement(vector<BodyStatment *> *statements, FuncInfo *info, CodeWriter &writer);
 static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer);
 
@@ -413,6 +416,14 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
             }
         }
         writer.add(OpCode::op_jump, -(writer.get_pc() - cond)); // jump back
+        for (auto &it : continues) {
+            writer.set(it, OpCode::op_jump, cond);
+        }
+        for (auto &it : breaks) {
+            writer.set(it, OpCode::op_jump, writer.get_pc());
+        }
+        continues.clear();
+        breaks.clear();
     }
     else {
         // for in 
@@ -433,6 +444,14 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
         visit_statement(forExp->body, info, writer);
         writer.add(OpCode::op_jump, -(writer.get_pc() - start)); // jump back
         writer.set(out, OpCode::op_jump, writer.get_pc() + 1);
+        for (auto &it : continues) {
+            writer.set(it, OpCode::op_jump, start);
+        }
+        for (auto &it : breaks) {
+            writer.set(it, OpCode::op_jump, writer.get_pc());
+        }
+        continues.clear();
+        breaks.clear();
     }
 }
 
@@ -446,6 +465,14 @@ static void visit_while(WhileExpression *whileExp, FuncInfo *info, CodeWriter &w
     visit_statement(whileExp->body, info, writer);
     writer.add(OpCode::op_jump, start);
     writer.set(out, OpCode::op_jump, writer.get_pc() + 1);
+    for (auto &it : continues) {
+        writer.set(it, OpCode::op_jump, start);
+    }
+    for (auto &it : breaks) {
+        writer.set(it, OpCode::op_jump, writer.get_pc());
+    }
+    continues.clear();
+    breaks.clear();
 }
 
 static void visit_do_while(DoWhileExpression *doWhileExp, FuncInfo *info, CodeWriter &writer)
@@ -455,6 +482,14 @@ static void visit_do_while(DoWhileExpression *doWhileExp, FuncInfo *info, CodeWr
     visit_operation_exp(doWhileExp->condition, info, writer);
     writer.add(OpCode::op_test, 0);
     writer.add(OpCode::op_jump, start); // 测试失败不执行
+    for (auto &it : continues) {
+        writer.set(it, OpCode::op_jump, start);
+    }
+    for (auto &it : breaks) {
+        writer.set(it, OpCode::op_jump, writer.get_pc());
+    }
+    continues.clear();
+    breaks.clear();
 }
 
 static void visit_return(ReturnExpression *retExp, FuncInfo *info, CodeWriter &writer)
@@ -639,6 +674,14 @@ static void visit_statement(vector<BodyStatment *> *statements, FuncInfo *info, 
             break;
         case ExpressionType::function_declaration_statement:
             visit_function_decl(it1->body->function_exp, info, writer);
+            break;
+        case ExpressionType::break_statement:
+            writer.add(OpCode::op_jump, 0);
+            breaks.push_back(writer.get_pc());
+            break;
+        case ExpressionType::continue_statement:
+            writer.add(OpCode::op_jump, 0);
+            continues.push_back(writer.get_pc());
             break;
         default:
             syntax_error("not support statement");

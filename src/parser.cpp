@@ -656,11 +656,11 @@ static OperationExpression * parse_if_prefix(TokenReader *reader, bool is_if)
 	return oper;
 }
 
-static vector<BodyStatment *> * parse_expressions(TokenReader *reader);
+static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool breakable);
 
-static void build_if_body(IfStatement *cond, TokenReader *reader)
+static void build_if_body(IfStatement *cond, TokenReader *reader, bool breakable)
 {
-	cond->body = parse_expressions(reader);
+	cond->body = parse_expressions(reader, breakable);
 	if (!cond->body) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
@@ -670,7 +670,7 @@ static void build_if_body(IfStatement *cond, TokenReader *reader)
 	reader->consume();
 }
 
-static void parse_if_statement(TokenReader *reader, IfExpression *cond, int start)
+static void parse_if_statement(TokenReader *reader, IfExpression *cond, int start, bool breakable)
 {
 	IfStatement *if_statement = new IfStatement;
 	if_statement->body = new vector<BodyStatment *>;
@@ -680,9 +680,9 @@ static void parse_if_statement(TokenReader *reader, IfExpression *cond, int star
 		if (!if_statement->condition) {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
-		build_if_body(if_statement, reader);
+		build_if_body(if_statement, reader, breakable);
 		if (reader->peek().type == TokenType::keyword && str_equal(reader->peek().from, "else", 4)) {
-			parse_if_statement(reader, cond, 1);
+			parse_if_statement(reader, cond, 1, breakable);
 		}
 	}
 	else if (start == 1) { // else if
@@ -690,9 +690,9 @@ static void parse_if_statement(TokenReader *reader, IfExpression *cond, int star
 		if (!if_statement->condition) {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
-		build_if_body(if_statement, reader);
+		build_if_body(if_statement, reader, breakable);
 		if (reader->peek().type == TokenType::keyword && str_equal(reader->peek().from, "else", 4)) {
-			parse_if_statement(reader, cond, 2);
+			parse_if_statement(reader, cond, 2, breakable);
 		}
 	}
 	else if (start == 2) { // else
@@ -705,7 +705,7 @@ static void parse_if_statement(TokenReader *reader, IfExpression *cond, int star
 		}
 		reader->consume();
 		if_statement->condition = NULL; // init
-		build_if_body(if_statement, reader);
+		build_if_body(if_statement, reader, breakable);
 	}
 	cond->if_statements->push_back(if_statement);
 }
@@ -723,7 +723,7 @@ static DoWhileExpression * parse_do_while_expression(TokenReader *reader)
 	reader->consume();
 	// loop body
 	DoWhileExpression *doWhileExp = new DoWhileExpression;
-	doWhileExp->body = parse_expressions(reader);
+	doWhileExp->body = parse_expressions(reader, true);
 	if (!doWhileExp->body) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
@@ -782,7 +782,7 @@ static WhileExpression * parse_while_expression(TokenReader *reader)
 	reader->consume();
 	// while body
 	// 没办法，只能一一尝试，赋值，if，while，函数调用，do while，for
-	whileExp->body = parse_expressions(reader);
+	whileExp->body = parse_expressions(reader, true);
 
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "loop expression needs } to close", __LINE__);
@@ -909,7 +909,7 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 	}
 	reader->consume();
 
-	forExp->body = parse_expressions(reader);
+	forExp->body = parse_expressions(reader, true);
 	if (!forExp->body) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 	}
@@ -1007,7 +1007,7 @@ static Function * parse_function_expression(TokenReader *reader, bool hasName)
 	}
 	reader->consume();
 	// parse function body
-	fun->body = parse_expressions(reader);
+	fun->body = parse_expressions(reader, false);
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "funcion declare needs } to close", __LINE__);
 	}
@@ -1062,11 +1062,11 @@ static void build_function(vector<BodyStatment *> *statements, TokenReader *read
 	statements->push_back(statement);
 }
 
-static void build_if(vector<BodyStatment *> *statements, TokenReader *reader)
+static void build_if(vector<BodyStatment *> *statements, TokenReader *reader, bool breakable)
 {
 	IfExpression *ifExp = new IfExpression;
 	ifExp->if_statements = new vector<IfStatement *>;
-	parse_if_statement(reader, ifExp, 0);
+	parse_if_statement(reader, ifExp, 0, breakable);
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->if_exp = ifExp;
@@ -1124,7 +1124,7 @@ static void build_operation(vector<BodyStatment *> *statements, TokenReader *rea
 	statements->push_back(statement);
 }
 
-static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
+static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool breakable)
 {
 	vector<BodyStatment *> *statements = new vector<BodyStatment *>;
 	while (reader->peek().type != TokenType::eof) {
@@ -1166,7 +1166,7 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
 				BodyStatment *blockStatement = new BodyStatment;
 				blockStatement->type = ExpressionType::block_statement;
 				blockStatement->body = new BodyStatment::body_expression;
-				blockStatement->body->block_exp = parse_expressions(reader);
+				blockStatement->body->block_exp = parse_expressions(reader, breakable);
 				if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
 					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 				}
@@ -1180,7 +1180,7 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
 		case TokenType::keyword:
 		{
 			if (str_equal(reader->peek().from, "if", 2)) {
-				build_if(statements, reader);
+				build_if(statements, reader, breakable);
 			}
 			else if (str_equal(reader->peek().from, "fn", 2)) {
 				build_function(statements, reader);
@@ -1218,13 +1218,13 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader)
 			else if (str_equal(reader->peek().from, "for", 3)) {
 				build_for(statements, reader);
 			}
-			else if (str_equal(reader->peek().from, "break", 5)) {
+			else if (breakable && str_equal(reader->peek().from, "break", 5)) {
 				BodyStatment *breakStatement = new BodyStatment;
 				breakStatement->type = ExpressionType::break_statement;
 				statements->push_back(breakStatement);
 				reader->consume();
 			}
-			else if (str_equal(reader->peek().from, "continue", 8)) {
+			else if (breakable && str_equal(reader->peek().from, "continue", 8)) {
 				BodyStatment *breakStatement = new BodyStatment;
 				breakStatement->type = ExpressionType::continue_statement;
 				statements->push_back(breakStatement);
@@ -1255,7 +1255,7 @@ unordered_map<string, Chunck *> * parse(unordered_map<string, TokenReader *> &fi
 	unordered_map<string, Chunck *> *chunks = new unordered_map<string, Chunck *>;
 	for(auto &it : files) {
 		Chunck *chunk = new Chunck;
-		chunk->statements = parse_expressions(it.second);
+		chunk->statements = parse_expressions(it.second, false);
 		chunks->insert(std::make_pair(it.first, chunk));
 		cout << it.first << "\t OK" << endl;
 	}
