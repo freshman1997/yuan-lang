@@ -17,18 +17,6 @@ struct InstructionParam
 
 enum class OpCode
 {
-    op_pushg,           // 入栈全局变量 参数是第几个且是当前文件的
-    op_pushl,           // 入栈局部变量，当前函数的
-    op_pushu,           // 入栈，当前函数的 upvalue
-    op_pushc,           // 入栈常量
-
-    op_pusht,           // 入栈临时值
-
-    op_pop,             // 出栈       参数为次数，出栈后需要释放内存
-    op_storeg,          // 存储 全局变量
-    op_storel,          // 存储 局部变量
-    op_storeu,          // 存储 upvalue
-
     /* 运算符部分 */
     /* 二元运算符 */
     op_add,             // +
@@ -55,15 +43,6 @@ enum class OpCode
     op_bin_lme,         // <<=
     op_bin_rme,         // >>=
 
-    /* 一元运算符 */
-    op_not,             // !
-    op_len,             // # 
-    op_unary_sub,       // 前置 - 负号
-    op_add_add,         // ++
-    op_sub_sub,         // --
-
-    op_test,            // 测试是否为 false ，是则执行跳转，参数为跳转的指令偏移 offset
-
     /* 比较，结果会入栈供 test 指令使用 */
     op_equal,           // ==
     op_not_equal,       // !=
@@ -74,7 +53,28 @@ enum class OpCode
     op_or,              // ||
     op_and,             // &&
 
+    /* 一元运算符 */
+    op_not,             // !
+    op_len,             // # 
+    op_unary_sub,       // 前置 - 负号
+    op_add_add,         // ++
+    op_sub_sub,         // --
+
+    op_test,            // 
+
     op_concat,          // ..  参数二并到参数一上，二者必须为字符串
+
+    op_pushg,           // 入栈全局变量 参数是第几个且是当前文件的
+    op_pushl,           // 入栈局部变量，当前函数的
+    op_pushu,           // 入栈，当前函数的 upvalue
+    op_pushc,           // 入栈常量
+
+    op_pusht,           // 入栈临时值
+
+    op_pop,             // 出栈       参数为次数，出栈后需要释放内存
+    op_storeg,          // 存储 全局变量
+    op_storel,          // 存储 局部变量
+    op_storeu,          // 存储 upvalue
 
     /* jump */
     op_jump,            // 跳
@@ -84,8 +84,10 @@ enum class OpCode
     op_for_in,          // for in
     op_do_while,        // do while
     op_while,           // while
+    op_get_fun_param,   // 
     op_call,            // call
     op_call_upv,        // call upvalue
+    op_call_env,        // 
     op_tail_call,       // return func(1, 2, 3)
     op_return,          // return 参数为返回的个数，后续再pusht结果进栈
 

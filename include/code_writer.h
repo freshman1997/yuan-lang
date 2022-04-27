@@ -23,9 +23,18 @@ public:
     void add(OpCode op, int param)
     {
         // 8 位指令，24位操作数
-        int code = int(op) << 24 | param;
-        instructions.push_back(param);
+        int code = param << 24 | int(op);
+        instructions.push_back(code);
         pc++;
+    }
+
+    void set(int i, OpCode op, int param) 
+    {
+        int code = int(op) << 24 | param;
+        if (i >= instructions.size()) {
+            return;
+        }
+        instructions[i] = code;
     }
 
     int get_pc()

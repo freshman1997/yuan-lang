@@ -8,7 +8,7 @@
     每个作用域都需要包含一个表，用来记录变量，这样子就不用记录变量的名字了，运行再根据取得的值计算
 */
 #define isnum(a, b) (a->get_type() == ValueType::t_number && b->get_type() == ValueType::t_number)
-#define add(v1, v2, k) ((static_cast<Number *>(v1))->value() + (static_cast<Number *>(v2))->value())
+#define add(v1, v2) ((static_cast<Number *>(v1))->value() + (static_cast<Number *>(v2))->value())
 
 static State *state = NULL;
 

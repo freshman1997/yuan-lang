@@ -847,6 +847,7 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "for loop needs ; to end statement", __LINE__);
 		}
 		reader->consume();
+		forExp->type = ForExpType::for_normal;
 		forExp->third_statement = new vector<OperationExpression *>;
 		while (reader->peek().type != TokenType::eof) {
 			if (reader->peek().type == TokenType::sym && *reader->peek().from == ')') break;
@@ -881,6 +882,7 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 		reader->consume();
 	}
 	else {
+		forExp->type = ForExpType::for_in;
 		forExp->second_statement = new OperationExpression;
 		forExp->second_statement->op_type = OperatorType::op_in;
 		reader->consume();
@@ -957,10 +959,12 @@ static Function * parse_function_expression(TokenReader *reader, bool hasName)
 	if (moduleName) fun->module = moduleName;
 
 	if (hasName) {
+		reader->unread();
 		IdExpression *funcName = new IdExpression;
 		funcName->name = reader->peek().from;
 		funcName->name_len = reader->peek().len;
 		fun->function_name = funcName;
+		reader->consume();
 	}
 
 	fun->is_local = isLocal;
