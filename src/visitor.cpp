@@ -126,6 +126,7 @@ static void enter_func(const char *file)
     FuncInfo *last = NULL;
     if (!fileFuncInfo->subFuncInfos->empty()) last = fileFuncInfo->subFuncInfos->back();
     fileFuncInfo->subFuncInfos->push_back(new FuncInfo);
+    fileFuncInfo->subFuncInfos->back()->pre = last;
     fileFuncInfo->subFuncInfos->back()->upvalue = new UpValueDesc;
     //fileFuncInfo->subFuncInfos->back()->upvalue->pre = last->upvalue;
     fileFuncInfo->subFuncInfos->back()->upvalue->upvalues = new vector<UpValueDesc *>;
@@ -559,13 +560,13 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
         if (!info->subFuncInfos) {
             info->subFuncInfos = new vector<FuncInfo *>;
         }
-        info->pre->subFuncInfos->push_back(newFun);
+        info->subFuncInfos->push_back(newFun);
         FuncInfoItem *item = new FuncInfoItem;
         item->name = fun->function_name->name;
         item->name_len = fun->function_name->name_len;
         item->varIndex = info->actVars;
-        info->pre->items->push_back(item);
-        info->pre->actVars++;
+        info->items->push_back(item);
+        info->actVars++;
         newFun->func_name = fun->function_name->name;
         newFun->name_len = fun->function_name->name_len;
     }

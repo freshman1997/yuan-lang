@@ -28,6 +28,8 @@ public:
     virtual ValueType get_type() const = 0;
 	virtual std::string name() const = 0;
     virtual std::size_t hash() const = 0;
+    virtual ~Value() {}
+    int ref_count = 0;
 
 	/*struct ValueHasher : public std::unary_function<Value *, std::size_t>  {
 		std::size_t operator() (const Value *value) const  {
@@ -146,13 +148,34 @@ private:
 struct UpValue
 {
     string name;
+    int is_stack;           //   在函数栈中的位置
     int upval_index;        //   upvalue 中的位置
     int index;              //   在父作用域中的位置（local）
 };
 
-class Function : public Value
+// 函数为单位
+struct FunctionChunk
+{   
+    int from_line;                                             // 开始行号
+    int to_line;                                               // 结束行号
+    bool is_varags = false;                                    // 是否为可变参数
+    const char *filename = NULL;                               // 文件名
+    string *_name = NULL;                                      // 函数名
+    unordered_map<int, Value *> *const_datas = NULL;           // 常量池
+    unordered_map<int, Value *> *global_vars = NULL;           // 全局变量，文件为单位
+    unordered_map<int, Value *> *local_variables = NULL;       // 局部变量，函数为单位
+    vector<UpValue *> *upvals = NULL;                          // upvalue，函数为单位.
+    vector<int> *fun_body_ops = NULL;                          // 函数体指令
+    unordered_map<int, int> *line_info = NULL;                 // 行号信息，一个指令一个行号
+    vector<FunctionChunk *> *subFuncs = NULL;                  // 子函数
+    unordered_map<string, int> *global_var_names_map;          // 全局对象名称对应的位置
+    unordered_map<string, int> *local_var_names_map;           // 局部对象名称对应的位置
+};
+
+class FunctionVal : public Value
 {
 public:
+    FunctionVal();
 	virtual ValueType get_type() const;
 	virtual std::string name() const;
     virtual std::size_t hash() const;
@@ -162,13 +185,10 @@ public:
     void add_upvalue(UpValue *);
     void set_localvar(const string &name, Value *);
     Value * get_localvar(const string &name);
-    Function *pre = NULL;
+    FunctionVal *pre = NULL;
 
 private:
-    vector<UpValue *> upvals;
-    // 按编号还是按名称？？
-    unordered_map<string, Value *> localVars;
-    string _name;
+    FunctionChunk *chunk = NULL;
 };
 
 

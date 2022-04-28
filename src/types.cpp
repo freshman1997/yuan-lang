@@ -193,35 +193,41 @@ void Table::set_name(const string &name)
     _name = std::move(name);
 }
 
-ValueType Function::get_type() const {return ValueType::t_function;}
-std::string Function::name() const {return _name;}
-std::size_t Function::hash() const {return 0;}
-bool Function::isClosure() const
+FunctionVal::FunctionVal()
 {
-    return _name.empty();
+    chunk = new FunctionChunk;
 }
 
-void Function::set_name(const string &name)
+ValueType FunctionVal::get_type() const {return ValueType::t_function;}
+std::string FunctionVal::name() const {return *chunk->_name;}
+std::size_t FunctionVal::hash() const {return 0;}
+bool FunctionVal::isClosure() const
 {
-    _name = std::move(name);
+    return  chunk->_name->empty();
 }
-UpValue * Function::get_upvalue(int i)
+
+void FunctionVal::set_name(const string &name)
 {
-    if (upvals.size() <= i) return NULL;
-    return upvals[i];
+    *chunk->_name = std::move(name);
 }
-void Function::add_upvalue(UpValue *upv)
+UpValue * FunctionVal::get_upvalue(int i)
 {
-    upvals.push_back(upv);
+    if (chunk->upvals->size() <= i) return NULL;
+    return (*chunk->upvals)[i];
 }
-void Function::set_localvar(const string &name, Value *val)
+void FunctionVal::add_upvalue(UpValue *upv)
 {
-    localVars[name] = val;
+    chunk->upvals->push_back(upv);
 }
-Value * Function::get_localvar(const string &name)
+void FunctionVal::set_localvar(const string &name, Value *val)
 {
-    if (localVars.count(name)) {
-        return localVars[name];
+    (*chunk->local_variables)[chunk->local_variables->size()] = val;
+    (*chunk->local_var_names_map)[name] = chunk->local_variables->size() - 1;
+}
+Value * FunctionVal::get_localvar(const string &name)
+{
+    if (chunk->local_var_names_map->count(name)) {
+        return (*chunk->local_variables)[(*chunk->local_var_names_map)[name]];
     }
     return NULL;
 }

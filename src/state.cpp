@@ -18,10 +18,17 @@ VM * State::get_vm()
 State::State(size_t sz)
 {
     this->stack = new VmStack(sz);
+    this->files = new unordered_map<string, FunctionVal *>;
+    this->vm = new VM;
     if (!this->stack) {
         cout << "initial fail!" << endl;
         exit(1);
     }
+}
+
+void State::load(const char *start_file_name)
+{
+
 }
 
 static State * newState()
