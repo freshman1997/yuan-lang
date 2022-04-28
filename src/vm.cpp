@@ -44,9 +44,9 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
         switch (op)
         {
         case 0: ret->set_val(add(val1, val2)); break;
-        case 0: ret->set_val(sub(val1, val2)); break;
-        case 0: ret->set_val(mul(val1, val2)); break;
-        case 0: ret->set_val(div(val1, val2)); break;
+        case 1: ret->set_val(sub(val1, val2)); break;
+        case 2: ret->set_val(mul(val1, val2)); break;
+        case 3: ret->set_val(div(val1, val2)); break;
         default:
             break;
         }
@@ -66,31 +66,31 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         switch (op)
         {
         case OpCode::op_add: {
-            operate(0, op);
+            operate(0, int(op));
             break;
         }
         case OpCode::op_sub: {
-            operate(0, op);
+            operate(0, int(op));
             break;
         }
         case OpCode::op_mul: {
-            operate(0, op);
+            operate(0, int(op));
             break;
         }
         case OpCode::op_div: {
-            operate(0, op);
+            operate(0, int(op));
             break;
         }
         case OpCode::op_mod: {
-            operate(0, op);
+            operate(0, int(op));
             break;
         }
         case OpCode::op_add_eq: {
-            operate(0, op);
+            operate(0, int(op));
             break;
         }
         case OpCode::op_sub_eq: {
-            operate(0, op);
+            operate(0, int(op));
             break;
         }
         case OpCode::op_mul_eq: {
