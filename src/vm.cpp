@@ -33,7 +33,7 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
 {
     if (opers.empty()) {
         // + - * / % && || < > <= >= == != >> << | & ! ~ 
-        for(int i = 0; i < 19; ++i) {
+        for(int i = 0; i < 20; ++i) {
             opers.push_back(i);
         }
     }
@@ -51,11 +51,36 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
             break;
         }
         state->push(ret);
+        // free 
     }
     else {
         panic("can not do this operation!");
     }
 }
+
+static void open_func()
+{
+    // 初始化 局部变量表和 upvalue 表 ref + 1
+    // 保存现场
+    
+}
+
+static void close_func()
+{
+
+}
+
+static void string_concat()
+{
+
+}
+
+static void substring(int from, int to)
+{
+
+}
+
+
 
 static void do_execute(const std::vector<int> &pcs, int from, int to)
 {

@@ -42,6 +42,21 @@ public:
         return pc;
     }
 
+    void flush_proto()
+    {
+
+    }
+
+    void flush_const()
+    {
+
+    }
+
+    void flush_upvals()
+    {
+        
+    }
+
 private:
     vector<int> instructions;
     const char *file_name = NULL;
