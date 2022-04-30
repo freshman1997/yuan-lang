@@ -90,7 +90,7 @@ static void init()
 static void add_global_const(Const *c)
 {
     if (c->type == VariableType::t_number) {
-        global_const[std::hash<double>()(c->v->val)] = c;
+        global_const[global_const_index] = c;
     }
     else if (c->type == VariableType::t_string) {
         static string t;
@@ -98,8 +98,9 @@ static void add_global_const(Const *c)
         for(int i = 0; i < c->v->str->len; ++i) {
             t.push_back(c->v->str->str[i]);
         }
-        global_const[std::hash<string>()(t)] = c;
+        global_const[global_const_index] = c;
     }
+    global_const_index++;
 }
 
 static UpValueDesc * init_global_upvlaue()
@@ -143,6 +144,17 @@ static bool has_identifier(FuncInfo *info, char *name, int len, pair<int, int> &
     return false;
 }
 
+static bool is_env_param(FuncInfo *info, char *name, int len)
+{
+    vector<UpValueDesc *> *upvs = info->upvalue->upvalues;
+    for (auto &it : *(((*upvs)[0])->upvalues)) {
+        if (is_same_id(it->name, it->name_len, name, len)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static int is_blobal_var(char *name, int len)
 {
     for (auto &it : global_vars) {
@@ -180,13 +192,13 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
 
 static void visit_operation_exp(OperationExpression *operExp, FuncInfo *info, CodeWriter &writer)
 {
-    FuncInfo *fileFuncInfo = global_subFuncInfos[writer.get_file_name()];
     switch (operExp->op_type)
     {
     case OperatorType::op_none:
     {
         // 这里是纯字面量或者id
         visit_operation(operExp->left, info, writer);
+        break;
     }
     case OperatorType::op_dot:
     {
@@ -252,10 +264,14 @@ static void visit_operation_exp(OperationExpression *operExp, FuncInfo *info, Co
         break;
     }
     default:
-        if (operExp->left->type == OpType::table || operExp->left->type == OpType::str || operExp->right->type == OpType::table || operExp->right->type == OpType::str) {
+        if (operExp->left->type == OpType::table || operExp->left->type == OpType::str) {
             // error
             syntax_error("illegal type found");
         }
+        if ( operExp->right && (operExp->right->type == OpType::table || operExp->right->type == OpType::str)) {
+            syntax_error("illegal type found");
+        }
+
         visit_operation(operExp->left, info, writer);
         visit_operation(operExp->right, info, writer);
         writer.add((OpCode)operExp->op_type, 0);
@@ -273,6 +289,7 @@ static void visit_assign(AssignmentExpression *assign, FuncInfo *info, CodeWrite
     int gVarid = is_blobal_var(id, len);
     if (gVarid >= 0) {
         writer.add(OpCode::op_storeg, gVarid);
+        return;
     }
 
     // 如果有 local 修饰，那么就是当前函数的变量
@@ -514,6 +531,18 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
 
 static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &writer)
 {
+    if (fun->function_name) {
+        int gVarid = is_blobal_var(fun->function_name->name, fun->function_name->name_len);
+        if (gVarid >= 0 || is_env_param(info, fun->function_name->name, fun->function_name->name_len)) {
+            syntax_error("redeclare function");
+        }
+        pair<int, int> p;
+        bool found = has_identifier(info, fun->function_name->name, fun->function_name->name_len, p);
+        if (found) {
+            syntax_error("redeclare function");
+        }
+    }
+
     FuncInfo *newFun = new FuncInfo;
     newFun->upvalue = new UpValueDesc;
     newFun->upvalue->upvalues = new vector<UpValueDesc *>;
@@ -528,7 +557,6 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
         if (!info->subFuncInfos) {
             info->subFuncInfos = new vector<FuncInfo *>;
         }
-        info->subFuncInfos->push_back(newFun);
         FuncInfoItem *item = new FuncInfoItem;
         item->name = fun->function_name->name;
         item->name_len = fun->function_name->name_len;
@@ -573,6 +601,7 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     //TODO visit body
     visit_statement(fun->body, newFun, writer);
     newFun->to_pc = writer.get_pc();
+    info->subFuncInfos->push_back(newFun);
 }
 
 static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writer)
@@ -662,7 +691,6 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
 {
     if (!opera) return;
 
-    FuncInfo * fileFuncInfo = global_subFuncInfos[writer.get_file_name()];
     // 这里有多种类型的
     switch (opera->type)
     {
@@ -706,8 +734,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         c->v = new Const::value;
         c->v->val = opera->op->number_oper->val;
         add_global_const(c);
-        writer.add(OpCode::op_pushg, global_const_index - 1);
-        global_const_index++;
+        writer.add(OpCode::op_pushc, global_const_index - 1);
         break;
     }
     case OpType::boolean:
@@ -730,8 +757,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         c->v->str->str = opera->op->string_oper->raw;
         c->v->str->len = opera->op->string_oper->raw_len;
         add_global_const(c);
-        writer.add(OpCode::op_pushg, global_const_index - 1);
-        global_const_index++;
+        writer.add(OpCode::op_pushc, global_const_index - 1);
         break;
     }
     case OpType::substr:
@@ -741,7 +767,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         OperationExpression *param = (*substr->keys)[0];
         visit_operation(param->left, info, writer);
         visit_operation(param->right, info, writer);
-        writer.add(OpCode::op_substr, global_const_index - 1);
+        writer.add(OpCode::op_substr, 0);
         break;
     }
     case OpType::arr:
@@ -829,11 +855,17 @@ static void write_function(ofstream &out, FuncInfo *info)
         }
         delete it;
     }
-    i = info->subFuncInfos->size();
-    out.write((char *)&i, sizeof(int));
-    for (auto &it : *info->subFuncInfos) {
-        write_function(out, it);
-        delete it;
+    if (info->subFuncInfos) {
+        i = info->subFuncInfos->size();
+        out.write((char *)&i, sizeof(int));
+        for (auto &it : *info->subFuncInfos) {
+            write_function(out, it);
+            delete it;
+        }
+    }
+    else {
+        i = 0;
+        out.write((char *)&i, sizeof(int));
     }
 }
 
@@ -869,7 +901,7 @@ static void write_to_bin_file(CodeWriter &writer, FuncInfo *info)
             out.write(it.second->v->str->str, it.second->v->str->len);
             delete it.second->v->str;
         }
-        else out.write((char *)&it.second->v->val, sizeof(int));
+        else out.write((char *)&it.second->v->val, sizeof(double));
         delete it.second->v;
         delete it.second;
     }

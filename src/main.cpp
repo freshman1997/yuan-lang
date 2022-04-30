@@ -3,6 +3,7 @@
 #include "lex.h"
 #include "parser.h"
 #include "visitor.h"
+#include "state.h"
 
 using namespace std;
 
@@ -18,6 +19,10 @@ int main()
     visit(chunks, writer);
     clock_t end = clock();
     cout << "spent time: " << (end - start) << endl;
+    State *st = new State(100);
+    VM *vm = st->get_vm();
+    st->load("D:/code/src/vs/yuan-lang/hello.b");
+    st->run();
 
     return 0;
 }

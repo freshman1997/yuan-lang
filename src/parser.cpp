@@ -534,15 +534,7 @@ static OperationExpression * parse_operator(TokenReader *reader)
 			if (child2) {
 				node = new OperationExpression;
 				node->op_type = op;
-				if (child2->right = NULL) {
-					child2->right = child2->left;
-					child2->left = new Operation;
-					child2->left->type = OpType::op;
-					child2->left->op->op_oper = child1;
-					child1 = child2;
-					continue;
-				}
-
+				
 				node->left = new Operation;
 				node->left->type = OpType::op;
 				node->left->op = new Operation::oper;
@@ -552,7 +544,7 @@ static OperationExpression * parse_operator(TokenReader *reader)
 				node->right->op = new Operation::oper;
 				node->right->type = OpType::op;
 				node->right->op->op_oper = child2;
-				child1 = node;
+ 				child1 = node;
 			}
 			else {
 				// TODO error

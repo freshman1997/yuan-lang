@@ -1,9 +1,10 @@
 #ifndef __STACK_H__
 #define __STACK_H__
 #include <vector>
-#include "types.h"
 
 using namespace std;
+
+class Value;
 
 class VmStack
 {

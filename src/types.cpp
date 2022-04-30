@@ -129,6 +129,11 @@ void String::set(int i, Value *val)
     _val[i] = (static_cast<Byte *>(val))->_val;
 }
 
+void String::push(char c)
+{
+    _val.push_back(c);
+}
+
 ValueType Array::get_type() const {return ValueType::t_array;}
 std::string Array::name() const {return _name;}
 std::size_t Array::hash() const {return 0;}
@@ -208,6 +213,7 @@ bool FunctionVal::isClosure() const
 
 void FunctionVal::set_name(const string &name)
 {
+    if (!chunk->_name) chunk->_name = new string;
     *chunk->_name = std::move(name);
 }
 UpValue * FunctionVal::get_upvalue(int i)
@@ -217,6 +223,7 @@ UpValue * FunctionVal::get_upvalue(int i)
 }
 void FunctionVal::add_upvalue(UpValue *upv)
 {
+    if (!chunk->upvals) chunk->upvals = new vector<UpValue *>;
     chunk->upvals->push_back(upv);
 }
 void FunctionVal::set_localvar(const string &name, Value *val)
@@ -231,4 +238,20 @@ Value * FunctionVal::get_localvar(const string &name)
     }
     return NULL;
 }
+
+void FunctionVal::set_chunk(FunctionChunk *c)
+{
+    this->chunk = c;
+}
+
+void FunctionVal::set_subfuns(vector<FunctionVal *> *subFuncs)
+{
+    this->subFuncs = subFuncs;
+}
+
+vector<int> * FunctionVal::get_pcs()
+{
+    return chunk->fun_body_ops;
+}
+
 

@@ -39,18 +39,20 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
     }
     Value *val1 = state->pop();
     Value *val2 = state->pop();
+    // 入栈是第一个先入，出栈是第二个先出
     if (isnum(val1, val2)) {
         Number *ret = new Number;
         switch (op)
         {
-        case 0: ret->set_val(add(val1, val2)); break;
-        case 1: ret->set_val(sub(val1, val2)); break;
-        case 2: ret->set_val(mul(val1, val2)); break;
-        case 3: ret->set_val(div(val1, val2)); break;
+        case 0: ret->set_val(add(val2, val1)); break;
+        case 1: ret->set_val(sub(val2, val1)); break;
+        case 2: ret->set_val(mul(val2, val1)); break;
+        case 3: ret->set_val(div(val2, val1)); break;
         default:
             break;
         }
         state->push(ret);
+        cout << "ret: " << ret->value() << endl;
         // free 
     }
     else {
@@ -86,8 +88,8 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
 {
     for (int i = from; i < to; ++i) {
         int it = pcs[i];
-        int param = (it << 8) >> 8;
-        OpCode op = (OpCode)(it >> 24);
+        int param = (it >> 8);
+        OpCode op = (OpCode)((it << 24) >> 24);
         switch (op)
         {
         case OpCode::op_add: {
@@ -247,11 +249,19 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         case OpCode::op_storel:
             assign(0);
             break;
+        case OpCode::op_pushc:{
+
+            state->pushc(param);
+            break;
+        }
         case OpCode::op_pushl:{
 
             break;
         }
+        
         default:
+            cout << "unsupport operation." << endl;
+            exit(0);
             break;
         }
     }

@@ -23,7 +23,7 @@ public:
     void add(OpCode op, int param)
     {
         // 8 位指令，24位操作数
-        int code = param << 24 | int(op);
+        int code = param << 8 | int(op);
         instructions.push_back(code);
         pc++;
     }
