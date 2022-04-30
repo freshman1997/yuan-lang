@@ -57,6 +57,11 @@ public:
         
     }
 
+    vector<int> & get_instructions()
+    {
+        return instructions;
+    }
+
 private:
     vector<int> instructions;
     const char *file_name = NULL;

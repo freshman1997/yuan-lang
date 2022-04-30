@@ -11,3 +11,4 @@ build
 *.cmake
 CMakeFiles
 CMakeCache.txt
+*.b

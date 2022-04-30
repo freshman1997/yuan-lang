@@ -2,6 +2,7 @@
 #include <vector>
 #include <unordered_map>
 #include <cstdlib>
+#include <fstream>
 
 #include "parser.h"
 #include "visitor.h"
@@ -43,6 +44,8 @@ struct FuncInfo
     int nparam = 0;
     int nreturn = 0;
     int in_stack = 0;
+    int from_pc = 0;
+    int to_pc = 0;
     Function *fun = NULL;
     FuncInfo *pre = NULL;
     UpValueDesc *upvalue = NULL;
@@ -75,6 +78,15 @@ static unordered_map<int, Const*> global_const;     // 常量表 编号，值
 static int global_const_index = 0;
 static int global_var_index = 0;
 
+static void init()
+{
+    global_subFuncInfos.clear();
+    global_vars.clear();
+    global_const.clear();
+    global_const_index = 0;
+    global_var_index = 0;
+}
+
 static void add_global_const(Const *c)
 {
     if (c->type == VariableType::t_number) {
@@ -100,56 +112,6 @@ static UpValueDesc * init_global_upvlaue()
     env_upvlaue->upvalues->back()->name = "print";
     env_upvlaue->upvalues->back()->name_len = 5;
     return env_upvlaue;
-}
-
-
-static void enter_func(const char *file)
-{
-    FuncInfo * fileFuncInfo = NULL;
-    if (!global_subFuncInfos.count(file)) {
-        global_subFuncInfos[file] = new FuncInfo;
-    }
-    fileFuncInfo = global_subFuncInfos[file];
-    // 继承所有父作用域的标识符 和 require 引入的部分；
-    if (!fileFuncInfo->subFuncInfos) {
-        fileFuncInfo->subFuncInfos = new vector<FuncInfo *>;
-        fileFuncInfo->items = new vector<FuncInfoItem *>;
-        fileFuncInfo->upvalue = new UpValueDesc;
-        fileFuncInfo->upvalue->upvalues = new vector<UpValueDesc *>;
-        fileFuncInfo->upvalue->upvalues->push_back(init_global_upvlaue());
-        fileFuncInfo->func_name = "main";
-        fileFuncInfo->name_len = 4;
-        fileFuncInfo->in_stack = 0;
-        // 最后离开文件时需要检查返回的值
-        return;
-    }
-    FuncInfo *last = NULL;
-    if (!fileFuncInfo->subFuncInfos->empty()) last = fileFuncInfo->subFuncInfos->back();
-    fileFuncInfo->subFuncInfos->push_back(new FuncInfo);
-    fileFuncInfo->subFuncInfos->back()->pre = last;
-    fileFuncInfo->subFuncInfos->back()->upvalue = new UpValueDesc;
-    //fileFuncInfo->subFuncInfos->back()->upvalue->pre = last->upvalue;
-    fileFuncInfo->subFuncInfos->back()->upvalue->upvalues = new vector<UpValueDesc *>;
-    fileFuncInfo->subFuncInfos->back()->upvalue->upvalues->push_back(init_global_upvlaue());
-    fileFuncInfo->subFuncInfos->back()->nupval++;
-    fileFuncInfo->subFuncInfos->back()->items = new vector<FuncInfoItem *>;
-    fileFuncInfo->subFuncInfos->back()->in_stack = last ? last->in_stack + 1 : 1;
-}
-
-static void leave_func(const char *file)
-{
-    // 清除当前作用域的所有声明的变量，记录需要清除的数据
-    FuncInfo *fileFuncInfo = global_subFuncInfos[file];
-    if (fileFuncInfo->subFuncInfos->empty()) return;
-    if (fileFuncInfo->subFuncInfos->back()->items) {
-        for(auto &it : *fileFuncInfo->subFuncInfos->back()->items) {
-            delete it;
-        }
-        delete fileFuncInfo->subFuncInfos->back()->items;
-    }
-    delete fileFuncInfo->subFuncInfos->back()->upvalue;
-    delete fileFuncInfo->subFuncInfos->back();
-    fileFuncInfo->subFuncInfos->pop_back();
 }
 
 static bool is_same_id(char *s1, int len1, char *s2, int len2)
@@ -552,10 +514,16 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
 
 static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &writer)
 {
-    FuncInfo * fileFuncInfo = global_subFuncInfos[writer.get_file_name()];
-    enter_func(writer.get_file_name());
-    FuncInfo *newFun = fileFuncInfo->subFuncInfos->back();
+    FuncInfo *newFun = new FuncInfo;
+    newFun->upvalue = new UpValueDesc;
+    newFun->upvalue->upvalues = new vector<UpValueDesc *>;
+    newFun->upvalue->upvalues->push_back(init_global_upvlaue());
+    newFun->nupval++;
+    newFun->items = new vector<FuncInfoItem *>;
+    newFun->in_stack = info->in_stack + 1;
+    newFun->pre = info;
     newFun->fun = fun;
+    newFun->from_pc = writer.get_pc() + 1;
     if (fun->is_local) {
         if (!info->subFuncInfos) {
             info->subFuncInfos = new vector<FuncInfo *>;
@@ -591,7 +559,6 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     }
     
     newFun->nparam = fun->parameters->size();
-    newFun->in_stack = info->in_stack + 1;
     writer.add(OpCode::op_enter_func, 0);
     // check parameter's name is same ?
     pair<int, int> p;
@@ -605,7 +572,7 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
 
     //TODO visit body
     visit_statement(fun->body, newFun, writer);
-    leave_func(writer.get_file_name());
+    newFun->to_pc = writer.get_pc();
 }
 
 static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writer)
@@ -831,12 +798,113 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
     }
 }
 
+static void write_function(ofstream &out, FuncInfo *info)
+{
+    // 参数个数，返回个数，is varargs，local 变量个数，upvalue 个数，upvalue表，子函数个数，子函数表
+    char isVarargs = 0;
+    out.write((char *)&info->name_len, sizeof(int));
+    if (info->name_len) {
+        out.write(info->func_name, info->name_len);
+    }
+    out.write((char *)&info->in_stack, sizeof(int));
+
+    out.write((char *)&info->nparam, sizeof(int));
+    out.write((char *)&info->nreturn, sizeof(int));
+    out.write((char *)&isVarargs, sizeof(char));
+    out.write((char *)&info->actVars, sizeof(int));
+
+    // code
+    out.write((char *)&info->from_pc, sizeof(int));
+    out.write((char *)&info->to_pc, sizeof(int));
+
+    out.write((char *)&info->nupval, sizeof(int));
+    int i = 0;
+    for (auto &it : *info->upvalue->upvalues) {
+        if (i != 0) {
+            out.write((char *)&it->name_len, sizeof(int));
+            out.write(it->name, it->name_len);
+            out.write((char *)&it->index, sizeof(int));
+            out.write((char *)&it->stack_lv, sizeof(int));
+            out.write((char *)&it->stack_index, sizeof(int));
+        }
+        delete it;
+    }
+    i = info->subFuncInfos->size();
+    out.write((char *)&i, sizeof(int));
+    for (auto &it : *info->subFuncInfos) {
+        write_function(out, it);
+        delete it;
+    }
+}
+
+static void write_to_bin_file(CodeWriter &writer, FuncInfo *info)
+{
+    int i = strlen(writer.get_file_name()) - 1;
+    string binFileName;
+    while (i >= 0) {
+        if (writer.get_file_name()[i] != '.')
+            --i;
+        else {
+            int j = i;
+            i = 0;
+            while (i < j) {
+                binFileName.push_back(writer.get_file_name()[i]);
+                ++i;
+            }
+            break;
+        }
+    }
+    binFileName.append(".b");
+    ofstream out;
+    out.open(binFileName.c_str(), ios_base::binary);
+    if (!out.good()) {
+        syntax_error("can not open file");
+    }
+    // 常量表，全局变量表
+    out.write((char *)&global_const_index, sizeof(int));
+    for (auto &it : global_const) {
+        out.put((char)it.second->type);
+        if (it.second->type == VariableType::t_string) {
+            out.write((char *)&it.second->v->str->len, sizeof(int));
+            out.write(it.second->v->str->str, it.second->v->str->len);
+            delete it.second->v->str;
+        }
+        else out.write((char *)&it.second->v->val, sizeof(int));
+        delete it.second->v;
+        delete it.second;
+    }
+    out.write((char *)&global_var_index, sizeof(int));
+    for (auto &it : global_vars) {
+        out.write((char *)&it.second.name_len, sizeof(int));
+        out.write(it.second.name, it.second.name_len);
+    }
+
+    // all code
+    int pcs = writer.get_pc();
+    out.write((char *)&pcs, sizeof(int));
+    out.write((char *)&writer.get_instructions()[0], sizeof(int) * pcs);
+
+    write_function(out, info);
+    out.flush();
+    out.close();
+}
+
 void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
 {
     for(auto &it : *chunks) {
-        enter_func(it.first.c_str());
+        init();
+        FuncInfo *fileFuncInfo = new FuncInfo;
+        fileFuncInfo->subFuncInfos = new vector<FuncInfo *>;
+        fileFuncInfo->items = new vector<FuncInfoItem *>;
+        fileFuncInfo->upvalue = new UpValueDesc;
+        fileFuncInfo->upvalue->upvalues = new vector<UpValueDesc *>;
+        fileFuncInfo->upvalue->upvalues->push_back(init_global_upvlaue());
+        fileFuncInfo->func_name = "main";
+        fileFuncInfo->name_len = 4;
+        fileFuncInfo->in_stack = 0;
         writer.set_file_name(it.first.c_str());
-        visit_statement(it.second->statements, global_subFuncInfos[it.first.c_str()], writer);
-        leave_func(it.first.c_str());
+        visit_statement(it.second->statements, fileFuncInfo, writer);
+        fileFuncInfo->to_pc = writer.get_pc();
+        write_to_bin_file(writer, fileFuncInfo);
     }
 }
