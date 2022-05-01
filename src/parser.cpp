@@ -144,7 +144,7 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 		}
 
 		OperatorType op = getbinopr(get_operator_type(reader));
-		if (op != OperatorType::op_none && priority[(int)op].left > limit) {
+		if (op != OperatorType::op_none && priority[(int)op].left > 6) {
 			reader->consume();
 			OperationExpression *exp = subexpr(reader, priority[(int)op].right);
 			if (exp) {
@@ -530,7 +530,7 @@ static OperationExpression * parse_operator(TokenReader *reader)
 		OperatorType op = getbinopr(get_operator_type(reader));
 		if (op != OperatorType::op_none) {
 			reader->consume();
-			OperationExpression *child2 = subexpr(reader, priority[(int)op].left);
+			OperationExpression *child2 = subexpr(reader, 0);
 			if (child2) {
 				node = new OperationExpression;
 				node->op_type = op;

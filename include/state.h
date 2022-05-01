@@ -27,6 +27,7 @@ public:
     State() = delete;
     State(size_t sz);
     FunctionVal * get_by_file_name(const char *);
+    FunctionVal * get_cur();
     void run();
 
 private:

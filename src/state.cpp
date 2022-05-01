@@ -83,6 +83,12 @@ FunctionVal * State::get_by_file_name(const char *filename)
     return NULL;
 }
 
+FunctionVal * State::get_cur()
+{
+    return this->cur;
+}
+
+
 
 static void read_function(FunctionVal *funChunk, ifstream &in)
 {
@@ -180,6 +186,7 @@ void State::load(const char *file_name)
                 str->push(in.get());
             }
         }
+        val->ref_count = 1;
         mainChunk->const_datas->push_back(val);
     }
 

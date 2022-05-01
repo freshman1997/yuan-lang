@@ -1,4 +1,5 @@
 #include "stack.h"
+#include "types.h"
 
 VmStack::VmStack(size_t initSize)
 {
@@ -15,6 +16,7 @@ Value * VmStack::pop()
     if (this->_stack.empty()) return NULL;
     Value *val = this->_stack.back();
     this->_stack.pop_back();
+    val->ref_count--;
     return val;
 }
 

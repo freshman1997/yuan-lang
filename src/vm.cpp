@@ -12,6 +12,7 @@
 #define sub(v1, v2) ((static_cast<Number *>(v1))->value() - (static_cast<Number *>(v2))->value())
 #define mul(v1, v2) ((static_cast<Number *>(v1))->value() * (static_cast<Number *>(v2))->value())
 #define div(v1, v2) ((static_cast<Number *>(v1))->value() / (static_cast<Number *>(v2))->value())
+#define mod(v1, v2) ((static_cast<Number *>(v1))->value() % (static_cast<Number *>(v2))->value())
 
 static State *state = NULL;
 
@@ -21,16 +22,32 @@ static void panic(const char *reason)
     exit(0);
 }
 
-static void assign(int type)
+static void assign(int type, int i)
 {
+    FunctionVal *cur = state->get_cur();
     Value *val = state->pop();
+    if (type == 0) {
+        // 全局
+        FunctionVal *global = cur;
+        while (global->pre) {
+            global = global->pre;
+        }
+        vector<Value *> *gVars = global->chunk->global_vars;
+        if (gVars->size() <= i) {
+            panic("fatal error");
+        }
+        if (gVars->at(i) && gVars->at(i)->ref_count == 1) delete gVars->at(i);
+        gVars->at(i) = val;
+        
+    }
+    
     // 从局部变量表里面拿，然后赋值
 
 }
-static vector<int> opers;
 
 static void operate(int type, int op) // type 用于区分是一元还是二元
 {
+    static vector<int> opers;
     if (opers.empty()) {
         // + - * / % && || < > <= >= == != >> << | & ! ~ 
         for(int i = 0; i < 20; ++i) {
@@ -72,14 +89,27 @@ static void close_func()
 
 }
 
-static void string_concat()
+static void call_function(int type, int param)
 {
 
 }
 
+static void string_concat()
+{
+    Value *val1 = state->pop();
+    Value *val2 = state->pop();
+    // 右边的链接到左边
+    
+}
+
 static void substring(int from, int to)
 {
-
+    Value *val = state->pop();
+    if (val->get_type() != ValueType::t_string) {
+        panic("not a string variable");
+    }
+    string *str = static_cast<String *>(val)->value();
+    
 }
 
 
@@ -246,9 +276,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             break;
         }
 
-        case OpCode::op_storel:
-            assign(0);
-            break;
+       
         case OpCode::op_pushc:{
 
             state->pushc(param);
@@ -258,6 +286,17 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
 
             break;
         }
+
+        
+        case OpCode::op_storeg:
+            assign(0, 0);
+            break;
+        case OpCode::op_storel:
+            assign(0, 1);
+            break;
+        case OpCode::op_storeu:
+            assign(0, 2);
+            break;
         
         default:
             cout << "unsupport operation." << endl;

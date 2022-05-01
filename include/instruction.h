@@ -1,20 +1,6 @@
 ﻿#ifndef __INSTRUCTION_H__
 #define __INSTRUCTION_H__
 
-enum InstructionParamType
-{
-    global_param,
-    local_param,
-    upvalu_param
-};
-
-
-struct InstructionParam
-{
-    InstructionParamType type;
-    int index = -1;    
-};
-
 enum class OpCode
 {
     /* 运算符部分 */
@@ -111,11 +97,6 @@ enum class OpCode
     op_load_bool,
     op_load_nil,
     
-};
-
-struct Instruction
-{
-    OpCode op;
 };
 
 #endif
