@@ -28,6 +28,7 @@ public:
     virtual ValueType get_type() const = 0;
 	virtual std::string name() const = 0;
     virtual std::size_t hash() const = 0;
+    virtual Value * copy();
     virtual ~Value() {}
     int ref_count = 0;
 
@@ -52,6 +53,7 @@ public:
 	virtual ValueType get_type();
 	virtual std::string name();
     virtual std::size_t hash();
+    virtual Value * copy();
 };
 
 class Boolean : public Value
@@ -60,6 +62,7 @@ public:
 	virtual ValueType get_type() const;
 	virtual std::string name() const;
     virtual std::size_t hash() const;
+    virtual Value * copy();
     void set(bool val);
     bool value() const;
     void set_name(const string &name);
@@ -75,6 +78,7 @@ public:
 	virtual ValueType get_type() const;
 	virtual std::string name() const;
     virtual std::size_t hash() const;
+    virtual Value * copy();
     double value() const;
     void set_name(const string &name);
     void set_val(double val);
@@ -90,6 +94,7 @@ public:
 	virtual ValueType get_type() const;
 	virtual std::string name() const;
     virtual std::size_t hash() const;
+    virtual Value * copy();
     unsigned char _val;
 };
 
@@ -99,7 +104,9 @@ public:
 	virtual ValueType get_type() const;
 	virtual std::string name() const;
     virtual std::size_t hash() const;
+    virtual Value * copy();
     string * value();
+    void set_val(const string&);
     void set_name(const string &name);
     Value * get(int i);
     void set(int i, Value *val);
@@ -116,6 +123,7 @@ public:
 	virtual ValueType get_type()const;
 	virtual std::string name() const;
     virtual std::size_t hash() const;
+    virtual Value * copy();
     vector<Value *> * member();
     Value * get(int i);
     void add(Value *);
@@ -135,10 +143,13 @@ public:
 	virtual ValueType get_type() const;
 	virtual std::string name() const;
     virtual std::size_t hash() const;
+    virtual Value * copy();
     Value * get(Value *key);
     bool set(Value *key, Value *value);
     void remove(Value *key);
     void set_name(const string &name);
+    double size();
+    const unordered_map<int, std::pair<Value *, Value *>> * members();
 
 private:
     // 只能 string, number 作为 key
@@ -179,6 +190,7 @@ public:
 	virtual ValueType get_type() const;
 	virtual std::string name() const;
     virtual std::size_t hash() const;
+    virtual Value * copy();
     bool isClosure() const;
     void set_name(const string &name);
     UpValue *get_upvalue(int i);

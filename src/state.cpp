@@ -58,7 +58,7 @@ void State::pushc(int i)
         cout << "null val: " << __LINE__ << endl;
         exit(0);
     }
-    cout << "val: " << (static_cast<Number *>(val))->value() << endl;
+    cout << "const data: " << (static_cast<Number *>(val))->value() << endl;
     push(val);
 }
 

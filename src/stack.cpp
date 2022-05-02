@@ -9,6 +9,7 @@ VmStack::VmStack(size_t initSize)
 void VmStack::push(Value *val)
 {
     this->_stack.push_back(val);
+    val->ref_count++;
 }
 
 Value * VmStack::pop()

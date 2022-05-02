@@ -30,7 +30,7 @@ public:
 
     void set(int i, OpCode op, int param) 
     {
-        int code = int(op) << 24 | param;
+        int code = param << 8 | int(op);
         if (i >= instructions.size()) {
             return;
         }

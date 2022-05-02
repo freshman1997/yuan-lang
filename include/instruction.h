@@ -32,8 +32,8 @@ enum class OpCode
     /* 比较，结果会入栈供 test 指令使用 */
     op_equal,           // ==
     op_not_equal,       // !=
-    op_gt,              // >
     op_lt,              // <
+    op_gt,              // >
     op_gt_eq,           // >=
     op_lt_eq,           // <=
     op_or,              // ||

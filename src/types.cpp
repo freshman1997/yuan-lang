@@ -1,16 +1,5 @@
 #include "types.h"
 
-static bool is_value_equal(const Value *lhs, const Value *rhs)
-{
-    if (lhs->get_type() == ValueType::t_number) {
-        if (rhs->get_type() == ValueType::t_number) {
-            return true;
-        }
-        return false;
-    }
-    return false;
-}
-
 ValueType Nil::get_type() 
 {
     return ValueType::t_null;
@@ -26,6 +15,10 @@ size_t Nil::hash()
     return 0;
 }
 
+Value * Nil::copy()
+{
+    return NULL;
+}
 
 ValueType Boolean::get_type() const
 {
@@ -55,6 +48,13 @@ bool Boolean::value() const
     return _val;
 }
 
+Value * Boolean::copy()
+{
+    Boolean *b = new Boolean;
+    b->set(this->_val);
+    return b;
+}
+
 ValueType Number::get_type() const
 {
     return ValueType::t_number;
@@ -82,6 +82,13 @@ void Number::set_val(double val)
     this->_val = val;
 }
 
+Value * Number::copy()
+{
+    Number *b = new Number;
+    b->set_val(this->_val);
+    return b;
+}
+
 ValueType Byte::get_type() const
 {
     return ValueType::t_byte;
@@ -94,6 +101,13 @@ std::string Byte::name() const
 std::size_t Byte::hash() const
 {
     return 0;
+}
+
+Value * Byte::copy()
+{
+    Byte *b = new Byte;
+    b->_val = this->_val;
+    return b;
 }
 
 ValueType String::get_type() const
@@ -111,6 +125,11 @@ std::size_t String::hash() const
 string * String::value() 
 {
     return &this->_val;
+}
+
+void String::set_val(const string &v)
+{
+    this->_val = v;
 }
 
 void String::set_name(const string &name)
@@ -132,6 +151,14 @@ void String::set(int i, Value *val)
 void String::push(char c)
 {
     _val.push_back(c);
+}
+
+Value * String::copy()
+{
+    String *s = new String;
+    s->_name = this->_name;
+    s->set_val(*s->value());
+    return s;
 }
 
 ValueType Array::get_type() const {return ValueType::t_array;}
@@ -162,6 +189,15 @@ void Array::set_name(const string &name)
     this->_name = std::move(name);
 }
 
+Value * Array::copy()
+{
+    Array *arr = new Array;
+    for (auto &it : *this->member()) {
+        arr->add(it->copy());
+    }
+    return arr;
+}
+
 
 ValueType Table::get_type() const {return ValueType::t_table;}
 std::string Table::name() const {return _name;}
@@ -185,6 +221,7 @@ bool Table::set(Value *key, Value *value)
     }
     return false;
 }
+
 void Table::remove(Value *key)
 {
     if ((key->get_type() == ValueType::t_number || key->get_type() == ValueType::t_string) && values.count(key->hash())) {
@@ -196,6 +233,27 @@ void Table::remove(Value *key)
 void Table::set_name(const string &name)
 {
     _name = std::move(name);
+}
+
+double Table::size()
+{
+    return this->values.size();
+}
+
+const unordered_map<int, std::pair<Value *, Value *>> * Table::members()
+{
+    return &this->values;
+}
+
+
+Value * Table::copy()
+{
+    Table *tb = new Table;
+    for (auto &it : *this->members()) {
+        const pair<Value*, Value *> &p = it.second;
+        tb->set(p.first, p.second);
+    }
+    return tb;
 }
 
 FunctionVal::FunctionVal()
@@ -254,4 +312,8 @@ vector<int> * FunctionVal::get_pcs()
     return chunk->fun_body_ops;
 }
 
+Value * FunctionVal::copy()
+{
+    return NULL;
+}
 

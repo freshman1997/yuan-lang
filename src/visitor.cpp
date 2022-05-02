@@ -305,7 +305,7 @@ static void visit_assign(AssignmentExpression *assign, FuncInfo *info, CodeWrite
         item->name_len = len;
         item->varIndex = info->actVars;
         info->items->push_back(item);
-        writer.add(OpCode::op_pushl, info->actVars);
+        writer.add(OpCode::op_storel, info->actVars);
         info->actVars++;
     }
     else {
@@ -347,7 +347,7 @@ static void visit_if(IfExpression *ifExp, FuncInfo *info, CodeWriter &writer)
     for (auto &it : *ifExp->if_statements) {
         if (i > 0) {
             next = writer.get_pc();
-            writer.set(last, OpCode::op_jump, next - last);
+            writer.set(last - 1, OpCode::op_jump, next - last);
         }
         if (it->condition) {
             visit_operation_exp(it->condition, info, writer);
@@ -362,15 +362,18 @@ static void visit_if(IfExpression *ifExp, FuncInfo *info, CodeWriter &writer)
         ++i;
     }
     // 修正跳转的位置
+    if (next == -1) {
+        writer.set(last - 1, OpCode::op_jump, writer.get_pc());
+    }
     for (auto &e : jends) {
-        writer.set(e, OpCode::op_jump, writer.get_pc() - e + 1);
+        writer.set(e - 1, OpCode::op_jump, writer.get_pc() - e + 1);
     }
 }
 
 static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
 {
     if (forExp->type == ForExpType::for_normal) {
-        writer.add(OpCode::op_for_normal, 0);
+        //writer.add(OpCode::op_for_normal, 0);
         if (forExp->first_statement) {
             for (auto &it : *forExp->first_statement) {
                 visit_operation_exp(it, info, writer);
@@ -395,12 +398,12 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
                 visit_operation_exp(it, info, writer);
             }
         }
-        writer.add(OpCode::op_jump, -(writer.get_pc() - cond)); // jump back
+        writer.add(OpCode::op_jump, cond - 1); // jump back
         for (auto &it : continues) {
-            writer.set(it, OpCode::op_jump, cond);
+            writer.set(it, OpCode::op_jump, cond - 1);
         }
         for (auto &it : breaks) {
-            writer.set(it, OpCode::op_jump, writer.get_pc());
+            writer.set(it, OpCode::op_jump, writer.get_pc() - 1);
         }
         continues.clear();
         breaks.clear();
@@ -414,21 +417,21 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
         for (auto &it : *forExp->first_statement) {
             visit_operation_exp(it, info, writer);
         }
+        writer.add(OpCode::op_for_in, forExp->first_statement->size()); 
         for (auto &it : *forExp->third_statement) {
             visit_operation_exp(it, info, writer);
         }
-        writer.add(OpCode::op_for_in, forExp->first_statement->size()); 
         writer.add(OpCode::op_jump, 0);  // jump out
         int out = writer.get_pc() - 1;
         // body
         visit_statement(forExp->body, info, writer);
-        writer.add(OpCode::op_jump, -(writer.get_pc() - start)); // jump back
-        writer.set(out, OpCode::op_jump, writer.get_pc() + 1);
+        writer.add(OpCode::op_jump, start - 1); // jump back
+        writer.set(out, OpCode::op_jump, writer.get_pc() - 1);
         for (auto &it : continues) {
             writer.set(it, OpCode::op_jump, start);
         }
         for (auto &it : breaks) {
-            writer.set(it, OpCode::op_jump, writer.get_pc());
+            writer.set(it, OpCode::op_jump, writer.get_pc() - 1);
         }
         continues.clear();
         breaks.clear();
@@ -437,19 +440,19 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
 
 static void visit_while(WhileExpression *whileExp, FuncInfo *info, CodeWriter &writer)
 {
-    int start = writer.get_pc() + 1;
+    int start = writer.get_pc() - 1;
     visit_operation_exp(whileExp->condition, info, writer);
     writer.add(OpCode::op_test, 0);
     writer.add(OpCode::op_jump, 0);
     int out = writer.get_pc();
     visit_statement(whileExp->body, info, writer);
     writer.add(OpCode::op_jump, start);
-    writer.set(out, OpCode::op_jump, writer.get_pc() + 1);
+    writer.set(out - 1, OpCode::op_jump, writer.get_pc() - 1);
     for (auto &it : continues) {
         writer.set(it, OpCode::op_jump, start);
     }
     for (auto &it : breaks) {
-        writer.set(it, OpCode::op_jump, writer.get_pc());
+        writer.set(it, OpCode::op_jump, writer.get_pc() - 1);
     }
     continues.clear();
     breaks.clear();
@@ -457,11 +460,14 @@ static void visit_while(WhileExpression *whileExp, FuncInfo *info, CodeWriter &w
 
 static void visit_do_while(DoWhileExpression *doWhileExp, FuncInfo *info, CodeWriter &writer)
 {
-    int start = writer.get_pc() + 1; // for jump back
+    int start = writer.get_pc() - 1; // for jump back
     visit_statement(doWhileExp->body, info, writer);
     visit_operation_exp(doWhileExp->condition, info, writer);
     writer.add(OpCode::op_test, 0);
-    writer.add(OpCode::op_jump, start); // 测试失败不执行
+    int out = writer.get_pc();
+    writer.add(OpCode::op_jump, 0); // 测试失败执行
+    writer.add(OpCode::op_jump, start);               // 测试成功执行
+    writer.set(out, OpCode::op_jump, writer.get_pc() - 1);
     for (auto &it : continues) {
         writer.set(it, OpCode::op_jump, start);
     }
@@ -705,7 +711,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         else {
             int gVarid = is_blobal_var(id, len);
             if (gVarid >= 0) {
-                writer.add(OpCode::op_pushl, gVarid);
+                writer.add(OpCode::op_pushg, gVarid);
                 return;
             }
 
