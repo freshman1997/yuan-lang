@@ -13,6 +13,7 @@ public:
     void push(Value *val);
     Value * pop();
     Value * get(int i);
+    int get_size();
 
 private:
     vector<Value *> _stack;

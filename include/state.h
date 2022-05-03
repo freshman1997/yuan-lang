@@ -19,7 +19,13 @@ public:
     void pushl(int i);
     void pushu(int i);
     void pushc(int i);
-    void pusht(Value *val);
+
+    Value * getc(int i);
+    Value * getg(int i);
+    Value * getl(int i);
+    Value * getu(int i);
+
+    Value * get_subfun(int i);
     
     Value * get(int pos);
     VM * get_vm();
@@ -28,10 +34,15 @@ public:
     State(size_t sz);
     FunctionVal * get_by_file_name(const char *);
     FunctionVal * get_cur();
+    void set_cur(FunctionVal *fun);
+    void end_call();
     void run();
+    int get_stack_size();
+    int cur_calls();
 
 private:
     FunctionVal *cur = NULL;
+    vector<FunctionVal *> *calls = NULL;
     unordered_map<string, FunctionVal *> *files = NULL;
     VM *vm = NULL;
     VmStack *stack = NULL;

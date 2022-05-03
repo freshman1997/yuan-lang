@@ -22,6 +22,7 @@ State::State(size_t sz)
 {
     this->stack = new VmStack(sz);
     this->files = new unordered_map<string, FunctionVal *>;
+    this->calls = new vector<FunctionVal *>;
     this->vm = new VM;
     if (!this->stack) {
         cout << "initial fail!" << endl;
@@ -31,13 +32,17 @@ State::State(size_t sz)
 
 void State::pushg(int i)
 {
-    if (i >= cur->chunk->global_vars->size()) {
+    FunctionVal *global = cur;
+    while (global->pre) {
+        global = global->pre;
+    }
+    if (i >= global->chunk->global_vars->size()) {
         cout << "invalid index: " << i << endl;
         exit(0);
         return;
     }
 
-    Value *val = (*cur->chunk->global_vars)[i];
+    Value *val = (*global->chunk->global_vars)[i];
     if (!val) {
         cout << "null val: " << __LINE__ << endl;
         exit(0);
@@ -45,21 +50,26 @@ void State::pushg(int i)
     push(val);
 }
 
+
 void State::pushc(int i) 
 {
-    if (i >= cur->chunk->const_datas->size()) {
+    FunctionVal *global = cur;
+    while (global->pre) {
+        global = global->pre;
+    }
+    if (i >= global->chunk->const_datas->size()) {
         cout << "invalid index: " << i << endl;
         exit(0);
         return;
     }
 
-    Value *val = (*cur->chunk->const_datas)[i];
+    Value *val = (*global->chunk->const_datas)[i];
     if (!val) {
         cout << "null val: " << __LINE__ << endl;
         exit(0);
     }
     cout << "const data: " << (static_cast<Number *>(val))->value() << endl;
-    push(val);
+    push(val->copy());
 }
 
 void State::pushl(int i)
@@ -72,15 +82,40 @@ void State::pushu(int i)
 
 }
 
-void State::pusht(Value *val)
+Value * State::getc(int i)
 {
+    return cur->get_global_const(i);
+}
 
+Value * State::getg(int i)
+{
+    return cur->get_global_var(i);
+}
+
+Value * State::getl(int i)
+{
+    return cur->get_localvar(i);
+}
+
+Value * State::getu(int i)
+{
+    return NULL;
+}
+
+Value * State::get_subfun(int i)
+{
+    FunctionVal *fa = cur->pre;
+    if (!fa) {
+        return cur->get_subfun(i);
+    }
+    return fa->get_subfun(i);
 }
 
 FunctionVal * State::get_by_file_name(const char *filename)
 {
     if (this->files->count(filename)) return (*this->files)[filename];
-    return NULL;
+    load(filename);
+    return (*this->files)[filename];
 }
 
 FunctionVal * State::get_cur()
@@ -88,6 +123,27 @@ FunctionVal * State::get_cur()
     return this->cur;
 }
 
+void State::set_cur(FunctionVal *fun)
+{
+    this->cur = fun;
+    this->calls->push_back(fun);
+}
+
+void State::end_call()
+{
+    this->calls->pop_back();
+    cur = calls->back();
+}
+
+int State::get_stack_size()
+{
+    return this->stack->get_size();
+}
+
+int State::cur_calls()
+{
+    return calls->size();
+}
 
 
 static void read_function(FunctionVal *funChunk, ifstream &in)
@@ -114,12 +170,17 @@ static void read_function(FunctionVal *funChunk, ifstream &in)
     in.read(&isVarargs, sizeof(char));
 
     in.read((char *)&localVars, sizeof(int));
+    funChunk->chunk->local_variables = new vector<Value *>(localVars, NULL);
+
+    char isLocal = false;
+    in.read((char *)&isLocal, sizeof(char));
 
     int from_pc = 0, to_pc = 0;
     in.read((char *)&from_pc, sizeof(int));
     in.read((char *)&to_pc, sizeof(int));
     funChunk->from_pc = from_pc;
     funChunk->to_pc = to_pc;
+    funChunk->is_local = isLocal;
 
     int nupvalue = 0;
     in.read((char *)&nupvalue, sizeof(int));
@@ -144,6 +205,7 @@ static void read_function(FunctionVal *funChunk, ifstream &in)
     funChunk->set_subfuns(subFuns);
     for (int i = 0; i < subFunSz; i++) {
         FunctionVal *subFun = new FunctionVal;
+        subFun->set_file_name(funChunk->get_file_name()->c_str());
         read_function(subFun, in);
         subFun->pre = funChunk;
         subFuns->push_back(subFun);
@@ -160,6 +222,7 @@ void State::load(const char *file_name)
     }
     
     FunctionVal *mainFun = new FunctionVal;
+    mainFun->set_file_name(file_name);
     FunctionChunk *mainChunk = new FunctionChunk;
     mainFun->set_chunk(mainChunk);
     mainChunk->const_datas = new vector<Value*>;
@@ -229,6 +292,12 @@ void State::run()
         cout << "not found !!" << endl;
         exit(0);
     }
-    cur = entry;
+
+    // 入参？
+
+    entry->ncalls++;
+    set_cur(entry);
     vm->execute(*entry->get_pcs(), this, 0, NULL);
+    end_call();
+    entry->ncalls--;
 }

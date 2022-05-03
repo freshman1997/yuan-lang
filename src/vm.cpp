@@ -43,7 +43,7 @@ static void assign(int type, int i)
             global = global->pre;
         }
         vector<Value *> *gVars = global->chunk->global_vars;
-        if (gVars->size() <= i) {
+        if (i < 0 || gVars->size() <= i) {
             panic("fatal error");
         }
         if (gVars->at(i)) {
@@ -53,11 +53,10 @@ static void assign(int type, int i)
             }
             else {
                 // 基础类型应该拷贝
-                if (val->get_type() == ValueType::t_number) {
-                    Number *num = new Number;
-                    num->set_val(static_cast<Number *>(val)->value());
-                    gVars->at(i) = num;
+                if (is_basic_type(val)) {
+                    gVars->at(i) = val->copy();
                 }
+                else gVars->at(i) = val;
             }
         }
         else {
@@ -66,7 +65,15 @@ static void assign(int type, int i)
     }
     else if (type == 1) {
         // 从局部变量表里面拿，然后赋值
-
+        if (i < 0 || cur->chunk->local_variables->size() <= i) {
+            panic("fatal error");
+        }
+        if (cur->chunk->local_variables->at(i)) {
+            Value *last = cur->chunk->local_variables->at(i);
+            cur->chunk->local_variables->at(i) = val->copy();
+            check_variable_liveness(last);
+        }
+        else cur->chunk->local_variables->at(i) = val->copy();
     }
     else if (type == 2) {
         // upvalue
@@ -473,7 +480,96 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             cout << "do jump cur: " << i << ", target: " << param << endl;
             i = param;
             break;
+
+        case OpCode::op_array_new:
+        {
+
+            break;
+        }
+        case OpCode::op_array_set:
+        {
+            
+            break;
+        }
+        case OpCode::op_table_new:
+        {
+            
+            break;
+        }
+        case OpCode::op_table_set:
+        {
+            
+            break;
+        }
         
+        
+        // call
+        case OpCode::op_enter_func:
+        {
+            Value *subfun = state->get_subfun(param);
+            if (!subfun) {
+                panic("init subfunction fail");
+            }
+            state->push(subfun);
+            break;
+        }
+        case OpCode::op_get_fun_param:
+        {
+            FunctionVal *cur = state->get_cur();
+            // 内层函数访问外层函数掉参数？
+            
+            break;
+        }
+        case OpCode::op_call:
+        {
+            // 负的是全局函数，否则是local函数
+            Value *val = NULL;
+            if (param < 0) {
+                param = -param - 1;
+                val = state->getg(param);
+                if (!val || val->get_type() != ValueType::t_function) {
+                    panic("no function found");
+                }
+            }
+            else {
+                val = state->getl(param);
+                if (!val || val->get_type() != ValueType::t_function) {
+                    panic("no function found");
+                }
+            }
+
+            FunctionVal *fun = static_cast<FunctionVal *>(val);
+            state->set_cur(fun);
+            // 参数前面应该已经入栈了
+            FunctionVal *file_main_fun = state->get_by_file_name(fun->get_file_name()->c_str());
+            if (!file_main_fun) {
+                panic("load file fail");
+            }
+            if (fun->from_pc < 0 || fun->to_pc > file_main_fun->to_pc) {
+                panic("fatal error, invalid instructions");
+            }
+            fun->param_stack = state->get_stack_size();
+            fun->ncalls++;
+            // 执行完，栈中应该有对应的返回值
+            do_execute(*file_main_fun->chunk->fun_body_ops, fun->from_pc, fun->to_pc);
+            fun->ncalls--;
+            state->end_call();
+            break;
+        }
+         case OpCode::op_call_upv:
+        {
+            // 负的是从全局的常量拿到键，再去环境中找，正的直接就是 upvalue 
+
+            break;
+        }
+
+
+        case OpCode::op_return:
+        {
+            
+            break;
+        }
+
         default:
             panic("unsupport operation !!!");
             break;

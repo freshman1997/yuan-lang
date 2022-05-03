@@ -28,7 +28,7 @@ public:
     virtual ValueType get_type() const = 0;
 	virtual std::string name() const = 0;
     virtual std::size_t hash() const = 0;
-    virtual Value * copy();
+    virtual Value * copy() = 0;
     virtual ~Value() {}
     int ref_count = 0;
 
@@ -181,6 +181,9 @@ struct FunctionChunk
     unordered_map<int, int> *line_info = NULL;                 // 行号信息，一个指令一个行号
     unordered_map<string, int> *global_var_names_map;          // 全局对象名称对应的位置
     unordered_map<string, int> *local_var_names_map;           // 局部对象名称对应的位置
+
+    // 如果 require 了其他文件，则其他文件的 全局变量和常量都可以访问
+
 };
 
 class FunctionVal : public Value
@@ -197,21 +200,35 @@ public:
     void add_upvalue(UpValue *);
     void set_localvar(const string &name, Value *);
     Value * get_localvar(const string &name);
+    Value * get_localvar(int i);
+    Value * get_global_var(int i);
+    Value * get_global_const(int i);
+
+    void set_file_name(const char *);
+    string * get_file_name();
+
     FunctionVal *pre = NULL;
     void set_chunk(FunctionChunk *c);
     void set_subfuns(vector<FunctionVal *> *subFuncs);
     vector<int> * get_pcs();
 
+    FunctionVal * get_subfun(int i);
+    vector<FunctionVal *> * get_subfuns();
+
+    bool is_local = false;
     int from_pc = 0;
     int to_pc = 0;
     int nparam = 0;
     int nreturn = 0;
     int in_stack = 0;
     bool varargs = false;
+    int ncalls = 0;                                         // 调用自身的次数，也就是递归
+    int param_stack = 0;
     FunctionChunk *chunk = NULL;
 
 private:
     vector<FunctionVal *> *subFuncs = NULL;                  // 子函数
+    string *_filename = NULL;
 };
 
 

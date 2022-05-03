@@ -26,3 +26,8 @@ Value * VmStack::get(int i)
     if (this->_stack.size() < i) return NULL;
     return this->_stack[i];
 }
+
+int VmStack::get_size()
+{
+    this->_stack.size();
+}

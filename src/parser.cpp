@@ -175,7 +175,8 @@ static vector<Operation *> * parse_parameter(TokenReader *reader, char close)
 {
 	vector<Operation *> *parameters = new vector<Operation *>;
 	while (reader->peek().type != TokenType::eof) {
-		OperationExpression *oper = parse_operator(reader);
+		if (reader->peek().type == TokenType::sym && *reader->peek().from == ')') break;  // no parameter
+ 		OperationExpression *oper = parse_operator(reader);
 		if (reader->peek().type != TokenType::sym) {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
@@ -316,66 +317,16 @@ static Operation * parse_primary(TokenReader *reader)
 					index->keys = new vector<OperationExpression *>;
 					reader->consume();
 
-					// parse [1][2][3][4]  str[:-1]
+					// parse [1][2][3][4]
 					while (reader->peek().type != TokenType::eof)
 					{
 						if (reader->peek().type == TokenType::sym && *reader->peek().from == '[') {
 							reader->consume();
-
-							Operation *substrLeft = NULL;
-							if (reader->peek().type == TokenType::sym && *reader->peek().from == ':') { // substring
-								substrLeft = new Operation;
-								substrLeft->op = new Operation::oper;
-								substrLeft->type = OpType::num;
-								substrLeft->op->number_oper = new Number;
-								reader->consume();
-							}
 							OperationExpression *oper = parse_operator(reader);
 							if (!oper) {
 								error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 							}
-							if (substrLeft) {
-								if (oper->op_type != OperatorType::op_none || !oper->left || !(oper->left->type == OpType::num || oper->left->type == OpType::id)) {
-									(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "not support", __LINE__);
-								}
-								OperationExpression *substr= new OperationExpression;
-								substr->op_type = OperatorType::op_substr;
-								substr->left = substrLeft;
-								substr->right = oper->left;
-								delete oper;
-								index->keys->push_back(substr);
-							}
-							else {
-								if (reader->peek().type == TokenType::sym && *reader->peek().from == ':') { // substring
-									if (oper->op_type != OperatorType::op_none || !oper->left || !(oper->left->type == OpType::num || oper->left->type == OpType::id)) {
-										error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "not support", __LINE__);
-									}
-									Operation *substrRight = NULL;
-									if (reader->peek().type != TokenType::sym || *reader->peek().from == '(') {
-										substrRight = new Operation;
-										substrRight->op = new Operation::oper;
-										substrRight->type = OpType::op;
-										substrRight->op->op_oper = parse_operator(reader);
-										if (substrRight->op->op_oper->op_type != OperatorType::op_none || !substrRight->op->op_oper->left || !(substrRight->op->op_oper->left->type == OpType::num || substrRight->op->op_oper->left->type == OpType::id)) {
-											error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "not support", __LINE__);
-										}
-									}
-									else {
-										substrRight = new Operation;
-										substrRight->op = new Operation::oper;
-										substrRight->type = OpType::num;
-										substrRight->op->number_oper = new Number;
-									}
-									reader->consume();
-									OperationExpression *substr= new OperationExpression;
-									substr->op_type = OperatorType::op_substr;
-									substr->left = oper->left;
-									substr->right = substrRight;
-									delete oper;
-									index->keys->push_back(substr);
-								}
-								else index->keys->push_back(oper);
-							}
+							index->keys->push_back(oper);
 							if (reader->peek().type != TokenType::sym || *reader->peek().from != ']') {
 								error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 							}
@@ -410,6 +361,9 @@ static Operation * parse_primary(TokenReader *reader)
 					while (reader->peek().type != TokenType::eof) {
 						if (reader->peek().type == TokenType::sym && *reader->peek().from == '.') reader->consume();
 						else break;
+						if (reader->peek().type != TokenType::iden) {
+							error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
+						}
 						OperationExpression *oper = parse_operator(reader);
 						// 由生成代码那边确定逻辑是否正确
 						index->keys->push_back(oper);
@@ -1196,7 +1150,7 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool brea
 				else if (*reader->peek().from == '.') {
 					// aa.bb.cc() ?
 					// 如果发现前面都未定义，则认为在env中
-					// 4种情况要处理，1、aa.bb.cc = 100, 2、aa.bb.vv(), 3、aa.bb.cc[100].dd[qq].ff, 4、sr = aa.bb.cc[2:][1:2]
+					// 4种情况要处理，1、aa.bb.cc = 100, 2、aa.bb.vv(), 3、aa.bb.cc[100].dd[qq].ff
 					reader->unread();
 					build_operation(statements, reader);
 				}
@@ -1215,17 +1169,6 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool brea
 			if (reader->peek().len == 2 && (str_equal(reader->peek().from, "++", 2) || str_equal(reader->peek().from, "--", 2))) {
 				build_operation(statements, reader);
 			}
-			/*else if (*reader->peek().from == '{') {
-				reader->consume();
-				BodyStatment *blockStatement = new BodyStatment;
-				blockStatement->type = ExpressionType::block_statement;
-				blockStatement->body = new BodyStatment::body_expression;
-				blockStatement->body->block_exp = parse_expressions(reader, breakable);
-				if (reader->peek().type != TokenType::sym || *reader->peek().from != '}') {
-					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
-				}
-				reader->consume();
-			}*/
 			else if (*reader->peek().from == ']' || *reader->peek().from == ')' || *reader->peek().from == '}') {
 				return statements;
 			} 

@@ -297,6 +297,43 @@ Value * FunctionVal::get_localvar(const string &name)
     return NULL;
 }
 
+Value * FunctionVal::get_localvar(int i)
+{
+    if (i >= chunk->local_variables->size()) return NULL;
+    return (*chunk->local_variables)[i];
+}
+
+Value * FunctionVal::get_global_var(int i)
+{
+    FunctionVal *cur = this;
+    while (cur->pre) {
+        cur = cur->pre;
+    }
+    if (i < 0 || i >= cur->chunk->global_vars->size()) return NULL;
+    return cur->chunk->global_vars->at(i);
+}
+
+Value * FunctionVal::get_global_const(int i)
+{
+    FunctionVal *cur = this;
+    while (cur->pre) {
+        cur = cur->pre;
+    }
+    if (i < 0 || i >= cur->chunk->const_datas->size()) return NULL;
+    return cur->chunk->const_datas->at(i);
+}
+
+void FunctionVal::set_file_name(const char *name)
+{
+    this->_filename = new string(name);
+}
+
+string * FunctionVal::get_file_name()
+{
+    return this->_filename;
+}
+
+
 void FunctionVal::set_chunk(FunctionChunk *c)
 {
     this->chunk = c;
@@ -312,8 +349,24 @@ vector<int> * FunctionVal::get_pcs()
     return chunk->fun_body_ops;
 }
 
+FunctionVal * FunctionVal::get_subfun(int i)
+{
+    if (i < 0 || i >= subFuncs->size()) return NULL;
+    return this->subFuncs->at(i);
+}
+
+vector<FunctionVal *> * FunctionVal::get_subfuns()
+{  
+    return this->subFuncs;
+}
+
 Value * FunctionVal::copy()
 {
-    return NULL;
+    FunctionVal *val = new FunctionVal;
+    val->chunk = new FunctionChunk;
+    *val->chunk = *this->chunk;
+    *val = *this;
+    val->set_subfuns(this->get_subfuns());
+    return val;
 }
 

@@ -143,7 +143,7 @@ static bool is_keyword(const Token& tok) {
 static int read_ident(char* s)
 {
 	int len = 0;
-	while (!isspace((unsigned char)s[len]) && !ispunct((unsigned char)s[len])) {
+	while (s[len] == '_' || (!isspace((unsigned char)s[len]) && !ispunct((unsigned char)s[len]))) {
 		len++;
 	}
 	return len;

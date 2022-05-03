@@ -46,6 +46,7 @@ struct FuncInfo
     int in_stack = 0;
     int from_pc = 0;
     int to_pc = 0;
+    bool is_local = false;
     Function *fun = NULL;
     FuncInfo *pre = NULL;
     UpValueDesc *upvalue = NULL;
@@ -381,13 +382,14 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
         }
         int cond = -1;
         if (forExp->second_statement) {
-            cond = writer.get_pc() + 1;
+            cond = writer.get_pc();
             visit_operation_exp(forExp->second_statement, info, writer);
             writer.add(OpCode::op_test, 0);
             writer.add(OpCode::op_jump, 0); // 跳出循环体或进入循环体
+            breaks.push_back(writer.get_pc() - 1);
         }
         else {
-            cond = writer.get_pc() + 1;
+            cond = writer.get_pc();
             writer.add(OpCode::op_load_bool, 1);
             writer.add(OpCode::op_test, 0);
         }
@@ -482,7 +484,7 @@ static void visit_return(ReturnExpression *retExp, FuncInfo *info, CodeWriter &w
 {
     // a = ss() {return 100}
     visit_operation_exp(retExp->statement, info, writer);
-    writer.add(OpCode::op_return, 0);
+    //writer.add(OpCode::op_return, 0);
 }
 
 static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
@@ -502,12 +504,12 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
             for (auto &it : *call->parameters) {
                 visit_operation(it, info, writer);
             }
-            writer.add(OpCode::op_call, -gVarid);
+            writer.add(OpCode::op_call, -gVarid - 1);
             return;
         }
         if (!has_identifier(info, name, len, p)) {
             // 看在不在 env 中
-            int i = 0;
+            /*int i = 0;
             vector<UpValueDesc *> *upvs = info->upvalue->upvalues;
             for (auto &it : *(((*upvs)[0])->upvalues)) {
                 if (is_same_id(it->name, it->name_len, name, len)) {
@@ -518,9 +520,19 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
                     return;
                 }
                 i++;
-            }
-            // error
-            syntax_error("unkown identifier");
+            }*/
+
+            // 添加到全局常量里面，运行时去env中找，找不到再crash
+            Const *c = new Const;
+            c->type = VariableType::t_string;
+            c->v = new Const::value;
+            c->v = new Const::value;
+            c->v->str = new ConstString;
+            c->v->str->str = name;
+            c->v->str->len = len;
+            add_global_const(c);
+            writer.add(OpCode::op_call_upv, -(global_const_index - 1));
+
         }
         for (auto &it : *call->parameters) {
             visit_operation(it, info, writer);
@@ -558,7 +570,7 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     newFun->in_stack = info->in_stack + 1;
     newFun->pre = info;
     newFun->fun = fun;
-    newFun->from_pc = writer.get_pc() + 1;
+    newFun->is_local = fun->is_local;
     if (fun->is_local) {
         if (!info->subFuncInfos) {
             info->subFuncInfos = new vector<FuncInfo *>;
@@ -579,7 +591,6 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
             item.name_len = fun->function_name->name_len;
             item.varIndex = global_var_index;
             global_vars[global_var_index] = item;
-            global_var_index++;
             newFun->func_name = fun->function_name->name;
             newFun->name_len = fun->function_name->name_len;
         }
@@ -588,12 +599,20 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
             FuncInfoItem item;
             item.varIndex = global_var_index;
             global_vars[global_var_index] = item;
-            global_var_index++;
         }
+        global_var_index++;
     }
-    
+    info->subFuncInfos->push_back(newFun);
+
+    // 创建函数对象
+    writer.add(OpCode::op_enter_func, info->subFuncInfos->size() - 1);
+    if (fun->is_local) writer.add(OpCode::op_storel, info->actVars - 1);
+    else writer.add(OpCode::op_storeg, global_var_index - 1);
+
     newFun->nparam = fun->parameters->size();
-    writer.add(OpCode::op_enter_func, 0);
+    int enter = writer.get_pc();
+    writer.add(OpCode::op_jump, 0);
+    newFun->from_pc = writer.get_pc();
     // check parameter's name is same ?
     pair<int, int> p;
     for (auto &it : *fun->parameters) {
@@ -607,7 +626,7 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     //TODO visit body
     visit_statement(fun->body, newFun, writer);
     newFun->to_pc = writer.get_pc();
-    info->subFuncInfos->push_back(newFun);
+    writer.set(enter, OpCode::op_jump, writer.get_pc() - 1);
 }
 
 static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writer)
@@ -717,8 +736,16 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
 
             pair<int, int> p;
             if (!has_identifier(info, id, len, p)) {
-                // TODO error
-                syntax_error("unkown indetifier");
+                // 未发现的先添加的到全局字符串常量表中
+                Const *c = new Const;
+                c->type = VariableType::t_string;
+                c->v = new Const::value;
+                c->v = new Const::value;
+                c->v->str = new ConstString;
+                c->v->str->str = id;
+                c->v->str->len = len;
+                add_global_const(c);
+                writer.add(OpCode::op_pushc, global_const_index - 1);
                 return;
             }
             else {
@@ -766,16 +793,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         writer.add(OpCode::op_pushc, global_const_index - 1);
         break;
     }
-    case OpType::substr:
-    {
-        // [2:-1]
-        IndexExpression *substr = opera->op->index_oper;
-        OperationExpression *param = (*substr->keys)[0];
-        visit_operation(param->left, info, writer);
-        visit_operation(param->right, info, writer);
-        writer.add(OpCode::op_substr, 0);
-        break;
-    }
+    
     case OpType::arr:
     {
         writer.add(OpCode::op_array_new, 0);
@@ -844,6 +862,8 @@ static void write_function(ofstream &out, FuncInfo *info)
     out.write((char *)&info->nreturn, sizeof(int));
     out.write((char *)&isVarargs, sizeof(char));
     out.write((char *)&info->actVars, sizeof(int));
+
+    out.write((char *)&info->is_local, sizeof(char));
 
     // code
     out.write((char *)&info->from_pc, sizeof(int));
