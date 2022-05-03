@@ -29,5 +29,5 @@ Value * VmStack::get(int i)
 
 int VmStack::get_size()
 {
-    this->_stack.size();
+    return this->_stack.size();
 }

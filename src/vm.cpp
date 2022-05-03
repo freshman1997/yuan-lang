@@ -48,7 +48,7 @@ static void assign(int type, int i)
         }
         if (gVars->at(i)) {
             if (!is_basic_type(gVars->at(i))) {
-                if (gVars->at(i) && gVars->at(i)->ref_count == 1) delete gVars->at(i);
+                //if (gVars->at(i) && gVars->at(i)->ref_count == 1) delete gVars->at(i);
                 gVars->at(i) = val;
             }
             else {
@@ -62,6 +62,7 @@ static void assign(int type, int i)
         else {
             gVars->at(i) = val;
         }
+        gVars->at(i)->ref_count = 1;
     }
     else if (type == 1) {
         // 从局部变量表里面拿，然后赋值
@@ -80,6 +81,7 @@ static void assign(int type, int i)
         
     }
     else panic("unknow operation!");
+    check_variable_liveness(val);
 }
 
 static void operate(int type, int op) // type 用于区分是一元还是二元
@@ -111,7 +113,27 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
             // free 
         }
         else {
-            panic("can not do this operation!");
+            if (op == 0) {
+                if (val1->get_type() == ValueType::t_string && val2->get_type() == ValueType::t_string) {
+                    static_cast<String*>(val2)->value()->append(*static_cast<String*>(val1)->value());
+                    state->push(val2);
+                }
+                else if (val1->get_type() == ValueType::t_string && val2->get_type() == ValueType::t_number)
+                {
+                    String *str = new String;
+                    str->value()->append(*static_cast<String*>(val2)->value()).append(to_string((int)static_cast<Number*>(val1)->value()));
+                    state->push(str);
+                    //delete val2;
+                }
+                else if (val1->get_type() == ValueType::t_number && val2->get_type() == ValueType::t_string)
+                {
+                    String *str = new String;
+                    str->value()->append(*static_cast<String*>(val2)->value()).append(to_string((int)static_cast<Number*>(val1)->value()));
+                    state->push(str);
+                    //delete val1;
+                }
+            }
+            else panic("can not do this operation!");
         }
     }
     else if (type == 1){
@@ -157,7 +179,7 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
             }
             case ValueType::t_table:
             {
-                len->set_val(static_cast<Table *>(val)->size());
+                len->set_val(static_cast<TableVal *>(val)->size());
                 break;
             }
             default:
@@ -192,7 +214,7 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
             }
             Number *num = static_cast<Number *>(val);
             num->set_val(num->value() - 1);
-            cout << "val: " << num->value() << endl;
+            //cout << "val: " << num->value() << endl;
             break;
         }
         default:
@@ -275,17 +297,19 @@ static void string_concat()
 
 }
 
-static void substring(int from, int to)
+static Value * find_env_param(String *key, FunctionVal *cur)
 {
-    Value *val = state->pop();
-    if (val->get_type() != ValueType::t_string) {
-        panic("not a string variable");
+    if (!cur->chunk->upvals || cur->chunk->upvals->empty()) return NULL;
+    TableVal *envTb = dynamic_cast<TableVal *>(cur->chunk->upvals->at(0)->val);
+    if (!envTb) return NULL;
+    for (auto &it : *envTb->members()) {
+        Value *k = it.second.first;
+        if (k->get_type() == ValueType::t_string && *static_cast<String *>(k)->value() == *key->value()) {
+            return it.second.second;
+        }
     }
-    string *str = static_cast<String *>(val)->value();
-    
+    return NULL;
 }
-
-
 
 static void do_execute(const std::vector<int> &pcs, int from, int to)
 {
@@ -477,9 +501,10 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             if (param >= to || param < from) {
                 panic("can not jump out of the border!");
             }
-            cout << "do jump cur: " << i << ", target: " << param << endl;
+            //cout << "do jump cur: " << i << ", target: " << param << endl;
             i = param;
             break;
+
 
         case OpCode::op_array_new:
         {
@@ -501,6 +526,22 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             
             break;
         }
+
+        case OpCode::op_index:
+        {
+            Value *val = state->pop();
+            if (val->get_type() == ValueType::t_string) {
+
+            }
+            else if (val->get_type() == ValueType::t_table) {
+
+            }
+            else if (val->get_type() == ValueType::t_array){
+
+            }
+            else panic("index operator only support array or table data!!!");
+            break;
+        }
         
         
         // call
@@ -517,7 +558,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         {
             FunctionVal *cur = state->get_cur();
             // 内层函数访问外层函数掉参数？
-            
+
             break;
         }
         case OpCode::op_call:
@@ -556,10 +597,25 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             state->end_call();
             break;
         }
-         case OpCode::op_call_upv:
+        case OpCode::op_call_upv:
         {
             // 负的是从全局的常量拿到键，再去环境中找，正的直接就是 upvalue 
-
+            if (param < 0) {
+                String *key = dynamic_cast<String*>(state->getc(-param - 1));
+                if (!key) panic("unexpected!!!");
+                Value *v = find_env_param(key, state->get_cur());
+                if (!v) {
+                    panic("not found function!!!");
+                }
+                FunctionVal *cfun = static_cast<FunctionVal *>(v);
+                if (!cfun->isC) {
+                    panic("not C function!!!");
+                }
+                cfun->cfun(state);  // call c function
+            }
+            else {
+                
+            }
             break;
         }
 
@@ -575,6 +631,29 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             break;
         }
     }
+}
+
+static int print(State* st)
+{
+    Value *val = st->pop();
+    if (val->get_type() == ValueType::t_string) {
+        cout << *static_cast<String *>(val)->value() << endl;
+    }
+    else if (val->get_type() == ValueType::t_number) {
+        cout << static_cast<Number *>(val)->value() << endl;
+    }
+    check_variable_liveness(val);
+    return 0;
+}
+
+void VM::load_lib(TableVal *tb)
+{
+    String *key = new String;
+    key->set_val("print");
+    FunctionVal *p = new FunctionVal;
+    p->isC = true;
+    p->cfun = print;
+    tb->set(key, p);
 }
 
 void VM::execute(const std::vector<int> &pcs, State *_state, int argc, char **argv)

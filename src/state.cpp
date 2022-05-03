@@ -68,8 +68,11 @@ void State::pushc(int i)
         cout << "null val: " << __LINE__ << endl;
         exit(0);
     }
-    cout << "const data: " << (static_cast<Number *>(val))->value() << endl;
-    push(val->copy());
+    //cout << "const data: " << (static_cast<Number *>(val))->value() << endl;
+    if (val->get_type() == ValueType::t_number)
+        push(val->copy());
+    else 
+        push(val);
 }
 
 void State::pushl(int i)
@@ -104,9 +107,13 @@ Value * State::getu(int i)
 
 Value * State::get_subfun(int i)
 {
+    if (!cur->chunk->upvals->at(0)) cur->chunk->upvals->at(0) = cur->pre->chunk->upvals->at(0);
+
     FunctionVal *fa = cur->pre;
     if (!fa) {
-        return cur->get_subfun(i);
+        FunctionVal *subfun = cur->get_subfun(i);
+        if (!subfun->chunk->upvals->at(0)) subfun->chunk->upvals->at(0) = subfun->pre->chunk->upvals->at(0);
+        return subfun;
     }
     return fa->get_subfun(i);
 }
@@ -132,7 +139,8 @@ void State::set_cur(FunctionVal *fun)
 void State::end_call()
 {
     this->calls->pop_back();
-    cur = calls->back();
+    if (!this->calls->empty())
+        cur = calls->back();
 }
 
 int State::get_stack_size()
@@ -184,8 +192,7 @@ static void read_function(FunctionVal *funChunk, ifstream &in)
 
     int nupvalue = 0;
     in.read((char *)&nupvalue, sizeof(int));
-    UpValue *envUpv = new UpValue;
-    funChunk->add_upvalue(envUpv);
+    funChunk->add_upvalue(NULL); // env
     
     for (int i = 0; i < nupvalue; i++) {
         UpValue *upv = new UpValue;
@@ -285,6 +292,13 @@ void State::load(const char *file_name)
     in.close();
 }
 
+static TableVal * init_env(VM *vm)
+{
+    static TableVal *tb = new TableVal;
+    vm->load_lib(tb);
+    return tb;
+}
+
 void State::run()
 {
     FunctionVal *entry = get_by_file_name("D:/code/src/vs/yuan-lang/hello.b");
@@ -295,6 +309,8 @@ void State::run()
 
     // 入参？
 
+    entry->chunk->upvals->at(0) = new UpValue;
+    entry->chunk->upvals->at(0)->val = init_env(this->get_vm());
     entry->ncalls++;
     set_cur(entry);
     vm->execute(*entry->get_pcs(), this, 0, NULL);

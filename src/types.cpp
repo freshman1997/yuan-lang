@@ -132,6 +132,12 @@ void String::set_val(const string &v)
     this->_val = v;
 }
 
+void String::set_val(const char *k)
+{
+    this->_val = k;
+}
+
+
 void String::set_name(const string &name)
 {
     this->_name = std::move(name);
@@ -199,56 +205,66 @@ Value * Array::copy()
 }
 
 
-ValueType Table::get_type() const {return ValueType::t_table;}
-std::string Table::name() const {return _name;}
-std::size_t Table::hash() const {return 0;}
-Value * Table::get(Value *key)
+ValueType TableVal::get_type() const {return ValueType::t_table;}
+std::string TableVal::name() const {return _name;}
+std::size_t TableVal::hash() const {return 0;}
+TableVal::TableVal()
 {
-    if ((key->get_type() == ValueType::t_number || key->get_type() == ValueType::t_string) && values.count(key->hash())) {
-        return values[key->hash()].second;
+    this->values = new unordered_map<int, std::pair<Value *, Value *>>;
+}
+
+Value * TableVal::get(Value *key)
+{
+    if ((key->get_type() == ValueType::t_number || key->get_type() == ValueType::t_string) && values->count(key->hash())) {
+        return (*values)[key->hash()].second;
     }
     return NULL;
 }
-bool Table::set(Value *key, Value *value)
+
+bool TableVal::set(Value *key, Value *value)
 {
+    int hash = key->hash();
     if ((key->get_type() == ValueType::t_number || key->get_type() == ValueType::t_string)) {
-        if (values.count(key->hash())) {
-            delete values[key->hash()].second;
-            delete values[key->hash()].first;
+        if (values->count(hash)) {
+            if ((*values)[hash].second->ref_count <= 0)
+                delete (*values)[hash].second;
+            if ((*values)[hash].first->ref_count <= 0)
+                delete (*values)[hash].first;
         }
-        values[key->hash()] = std::make_pair(key, value);
+        (*values)[hash] = std::make_pair(key, value);
         return true;
     }
     return false;
 }
 
-void Table::remove(Value *key)
+void TableVal::remove(Value *key)
 {
-    if ((key->get_type() == ValueType::t_number || key->get_type() == ValueType::t_string) && values.count(key->hash())) {
-        delete values[key->hash()].second;
-        delete values[key->hash()].first;
-        values.erase(key->hash());
+    int hash = key->hash();
+    if ((key->get_type() == ValueType::t_number || key->get_type() == ValueType::t_string) && (*values).count(hash)) {
+        delete (*values)[hash].second;
+        delete (*values)[hash].first;
+        (*values).erase(hash);
     }
 }
-void Table::set_name(const string &name)
+void TableVal::set_name(const string &name)
 {
     _name = std::move(name);
 }
 
-double Table::size()
+double TableVal::size()
 {
-    return this->values.size();
+    return this->values->size();
 }
 
-const unordered_map<int, std::pair<Value *, Value *>> * Table::members()
+const unordered_map<int, std::pair<Value *, Value *>> * TableVal::members()
 {
-    return &this->values;
+    return this->values;
 }
 
 
-Value * Table::copy()
+Value * TableVal::copy()
 {
-    Table *tb = new Table;
+    TableVal *tb = new TableVal;
     for (auto &it : *this->members()) {
         const pair<Value*, Value *> &p = it.second;
         tb->set(p.first, p.second);

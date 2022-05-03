@@ -1,14 +1,11 @@
 a = 2
-
 fn do_sth(){
-    b = 0
     c = 10
-    for (; a > 0; --a, c--) {
-        b = b + a
+    for (b = 0; b < 100; b++) {
+        print("cur: " + b)
     }
 }
 
 do_sth()
-
 
 

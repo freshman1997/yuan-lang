@@ -107,6 +107,7 @@ public:
     virtual Value * copy();
     string * value();
     void set_val(const string&);
+    void set_val(const char *);
     void set_name(const string &name);
     Value * get(int i);
     void set(int i, Value *val);
@@ -137,13 +138,14 @@ private:
     string _name;
 };
 
-class Table : public Value
+class TableVal : public Value
 {
 public:
 	virtual ValueType get_type() const;
 	virtual std::string name() const;
     virtual std::size_t hash() const;
     virtual Value * copy();
+    TableVal();
     Value * get(Value *key);
     bool set(Value *key, Value *value);
     void remove(Value *key);
@@ -153,8 +155,8 @@ public:
 
 private:
     // 只能 string, number 作为 key
-    unordered_map<int, std::pair<Value *, Value *>> values;
-    string _name;
+    unordered_map<int, std::pair<Value *, Value *>> *values = NULL;
+    string _name = "";
 };
 
 struct UpValue
@@ -163,6 +165,7 @@ struct UpValue
     int in_stack;           //   在函数栈中的位置
     int upval_index;        //   upvalue 中的位置
     int index;              //   在父作用域中的位置（local）
+    Value *val = NULL;
 };
 
 // 函数为单位
@@ -185,6 +188,9 @@ struct FunctionChunk
     // 如果 require 了其他文件，则其他文件的 全局变量和常量都可以访问
 
 };
+
+class State;
+typedef int (*C_Function)(State *st);
 
 class FunctionVal : public Value
 {
@@ -225,6 +231,9 @@ public:
     int ncalls = 0;                                         // 调用自身的次数，也就是递归
     int param_stack = 0;
     FunctionChunk *chunk = NULL;
+
+    bool isC = false;
+    C_Function cfun = NULL;
 
 private:
     vector<FunctionVal *> *subFuncs = NULL;                  // 子函数

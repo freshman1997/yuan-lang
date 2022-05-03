@@ -156,7 +156,7 @@ static bool is_env_param(FuncInfo *info, char *name, int len)
     return false;
 }
 
-static int is_blobal_var(char *name, int len)
+static int is_global_var(char *name, int len)
 {
     for (auto &it : global_vars) {
         if (is_same_id(it.second.name, it.second.name_len, name, len)) {
@@ -287,7 +287,7 @@ static void visit_assign(AssignmentExpression *assign, FuncInfo *info, CodeWrite
     IdExpression *name = assign->id;
     char *id = name->name;
     int len = name->name_len;
-    int gVarid = is_blobal_var(id, len);
+    int gVarid = is_global_var(id, len);
     if (gVarid >= 0) {
         writer.add(OpCode::op_storeg, gVarid);
         return;
@@ -493,12 +493,15 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
     pair<int, int> p;
     char *name = call->function_name->name;
     int len = call->function_name->name_len;
+    for (auto &it : *call->parameters) {
+        visit_operation(it, info, writer);
+    }
     int pId = is_fun_param(info, name, len);
     if (pId >= 0) {
         writer.add(OpCode::op_get_fun_param, pId);
     }
     else {
-        int gVarid = is_blobal_var(name, len);
+        int gVarid = is_global_var(name, len);
         if (gVarid >= 0) {
             // 参数  fun(fun(12, 2), 3);
             for (auto &it : *call->parameters) {
@@ -507,21 +510,9 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
             writer.add(OpCode::op_call, -gVarid - 1);
             return;
         }
+        
         if (!has_identifier(info, name, len, p)) {
             // 看在不在 env 中
-            /*int i = 0;
-            vector<UpValueDesc *> *upvs = info->upvalue->upvalues;
-            for (auto &it : *(((*upvs)[0])->upvalues)) {
-                if (is_same_id(it->name, it->name_len, name, len)) {
-                    for (auto &it : *call->parameters) {
-                        visit_operation(it, info, writer);
-                    }
-                    writer.add(OpCode::op_call_env, i);
-                    return;
-                }
-                i++;
-            }*/
-
             // 添加到全局常量里面，运行时去env中找，找不到再crash
             Const *c = new Const;
             c->type = VariableType::t_string;
@@ -531,12 +522,10 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
             c->v->str->str = name;
             c->v->str->len = len;
             add_global_const(c);
-            writer.add(OpCode::op_call_upv, -(global_const_index - 1));
-
+            writer.add(OpCode::op_call_upv, -(global_const_index - 1) - 1);
+            return;
         }
-        for (auto &it : *call->parameters) {
-            visit_operation(it, info, writer);
-        }
+        
         if (p.first == info->in_stack) {
             writer.add(OpCode::op_call, p.second);
         }
@@ -550,7 +539,7 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
 static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &writer)
 {
     if (fun->function_name) {
-        int gVarid = is_blobal_var(fun->function_name->name, fun->function_name->name_len);
+        int gVarid = is_global_var(fun->function_name->name, fun->function_name->name_len);
         if (gVarid >= 0 || is_env_param(info, fun->function_name->name, fun->function_name->name_len)) {
             syntax_error("redeclare function");
         }
@@ -616,11 +605,17 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     // check parameter's name is same ?
     pair<int, int> p;
     for (auto &it : *fun->parameters) {
-        int gVarid = is_blobal_var(it->name, it->name_len);
+        int gVarid = is_global_var(it->name, it->name_len);
         if (has_identifier(info, it->name, it->name_len, p) || gVarid >= 0) {
-            // error
+            // error, 重名
             syntax_error("unkown identifier");
         }
+        FuncInfoItem *item = new FuncInfoItem;
+        item->name = it->name;
+        item->name_len = it->name_len;
+        item->varIndex = info->actVars;
+        info->items->push_back(item);
+        info->actVars++;
     }
 
     //TODO visit body
@@ -639,7 +634,7 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
         writer.add(OpCode::op_get_fun_param, pId);
     }
     else {
-        int gVarid = is_blobal_var(id, len);
+        int gVarid = is_global_var(id, len);
         // [][][][][][]
         if (gVarid >= 0) {
             writer.add(OpCode::op_pushg, gVarid);
@@ -647,8 +642,17 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
         else {
             pair<int, int> p;
             if (!has_identifier(info, id, len, p)) {
+                Const *c = new Const;
+                c->type = VariableType::t_string;
+                c->v = new Const::value;
+                c->v->str = new ConstString;
+                c->v->str->str = id;
+                c->v->str->len = len;
+                add_global_const(c);
+                writer.add(OpCode::op_pushc, global_const_index - 1);
+
                 // error unkown variable
-                syntax_error("unkown identifier");
+                //syntax_error("unkown identifier");
             }
             if (p.first == info->in_stack) {
                 writer.add(OpCode::op_pushl, p.second);
@@ -728,7 +732,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
             writer.add(OpCode::op_get_fun_param, pId);
         }
         else {
-            int gVarid = is_blobal_var(id, len);
+            int gVarid = is_global_var(id, len);
             if (gVarid >= 0) {
                 writer.add(OpCode::op_pushg, gVarid);
                 return;
@@ -784,7 +788,6 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
     {
         Const *c = new Const;
         c->type = VariableType::t_string;
-        c->v = new Const::value;
         c->v = new Const::value;
         c->v->str = new ConstString;
         c->v->str->str = opera->op->string_oper->raw;

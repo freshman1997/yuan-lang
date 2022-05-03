@@ -4,12 +4,14 @@
 #include "instruction.h"
 
 class State;
+class TableVal;
 
 class VM
 {
 public:
     void execute(const std::vector<int> &pcs, State *state, int argc, char **argv);
 
+    void load_lib(TableVal *tb);
 };
 
 
