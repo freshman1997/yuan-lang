@@ -14,7 +14,7 @@ void VmStack::push(Value *val)
 
 Value * VmStack::pop()
 {
-    if (this->_stack.empty()) return NULL;
+    if (this->_stack.empty()) return new Nil;
     Value *val = this->_stack.back();
     this->_stack.pop_back();
     val->ref_count--;
@@ -23,7 +23,7 @@ Value * VmStack::pop()
 
 Value * VmStack::get(int i)
 {
-    if (this->_stack.size() < i) return NULL;
+    if (this->_stack.size() < i) return new Nil;
     return this->_stack[i];
 }
 

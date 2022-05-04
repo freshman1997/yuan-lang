@@ -50,9 +50,9 @@ static bool is_value_equal(const Value *lhs, const Value *rhs);
 class Nil : public Value
 {
 public:
-	virtual ValueType get_type();
-	virtual std::string name();
-    virtual std::size_t hash();
+	virtual ValueType get_type() const;
+	virtual std::string name() const;
+    virtual std::size_t hash() const;
     virtual Value * copy();
 };
 

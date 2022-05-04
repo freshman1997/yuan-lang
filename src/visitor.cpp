@@ -532,6 +532,7 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
             up->stack_lv = p.first;
             up->index = info->nupval;
             info->upvalue->upvalues->push_back(up);
+
             writer.add(OpCode::op_pushu, p.second);
             writer.add(OpCode::op_storeu, info->upvalue->upvalues->size() - 1);
             info->nupval++;

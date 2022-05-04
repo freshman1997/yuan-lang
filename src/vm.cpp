@@ -36,8 +36,6 @@ static void assign(int type, int i)
 {
     FunctionVal *cur = state->get_cur();
     Value *val = state->pop();
-    if (!val) panic("assign fatal error");
-
     if (type == 0) {
         // 全局
         FunctionVal *global = cur;
@@ -105,6 +103,9 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
         }
         Value *val1 = state->pop();
         Value *val2 = state->pop();
+        if (val1->get_type() == ValueType::t_null || val2->get_type() == ValueType::t_null) {
+            panic("operator must be positive");
+        }
         // 入栈是第一个先入，出栈是第二个先出
         if (isnum(val1, val2)) {
             Number *ret = new Number;
@@ -149,7 +150,7 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
     }
     else if (type == 1){
         Value *val = state->pop();
-        if (!val) {
+        if (val->get_type() == ValueType::t_null && op != 0) {
             panic("unexpected!");
         }
         switch (op)
@@ -239,7 +240,7 @@ static void compair(OpCode op)
 {
     Value *rhs = state->pop();
     Value *lhs = state->pop();
-    if (!rhs || !lhs) {
+    if (rhs->get_type() == ValueType::t_null || lhs->get_type() == ValueType::t_null) {
         panic("compair operator must be positive");
     }
     Boolean *b = new Boolean;
@@ -528,6 +529,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 panic("no boolean variable found");
             }
             if (static_cast<Boolean *>(cond)->value()) {
+                cout << "hello";
                 ++i;   // to jump op 
             }
             check_variable_liveness(cond);

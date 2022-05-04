@@ -1,23 +1,23 @@
 #include "types.h"
 
-ValueType Nil::get_type() 
+ValueType Nil::get_type() const
 {
     return ValueType::t_null;
 }
 
-string Nil::name()
+string Nil::name() const
 {
     return "";
 }
 
-size_t Nil::hash()
+size_t Nil::hash() const
 {
     return 0;
 }
 
 Value * Nil::copy()
 {
-    return NULL;
+    return new Nil;
 }
 
 ValueType Boolean::get_type() const
