@@ -29,13 +29,15 @@ static bool is_basic_type(Value *val)
 
 static void check_variable_liveness(Value *val)
 {
-    if (val->ref_count <= 0) delete val;
+    if (val && val->ref_count <= 0) delete val;
 }
 
 static void assign(int type, int i)
 {
     FunctionVal *cur = state->get_cur();
     Value *val = state->pop();
+    if (!val) panic("assign fatal error");
+
     if (type == 0) {
         // 全局
         FunctionVal *global = cur;
@@ -46,39 +48,46 @@ static void assign(int type, int i)
         if (i < 0 || gVars->size() <= i) {
             panic("fatal error");
         }
-        if (gVars->at(i)) {
-            if (!is_basic_type(gVars->at(i))) {
-                //if (gVars->at(i) && gVars->at(i)->ref_count == 1) delete gVars->at(i);
-                gVars->at(i) = val;
-            }
-            else {
-                // 基础类型应该拷贝
-                if (is_basic_type(val)) {
-                    gVars->at(i) = val->copy();
-                }
-                else gVars->at(i) = val;
-            }
-        }
-        else {
-            gVars->at(i) = val;
-        }
-        gVars->at(i)->ref_count = 1;
+        // 基础类型应该拷贝
+        if (is_basic_type(val)) gVars->at(i) = val->copy();
+        else gVars->at(i) = val;
+        gVars->at(i)->ref_count++;
     }
     else if (type == 1) {
         // 从局部变量表里面拿，然后赋值
         if (i < 0 || cur->chunk->local_variables->size() <= i) {
             panic("fatal error");
         }
-        if (cur->chunk->local_variables->at(i)) {
-            Value *last = cur->chunk->local_variables->at(i);
-            cur->chunk->local_variables->at(i) = val->copy();
-            check_variable_liveness(last);
-        }
-        else cur->chunk->local_variables->at(i) = val->copy();
+        Value *last = cur->chunk->local_variables->at(i);
+        if (last) last->ref_count--;
+        if (is_basic_type(val)) cur->chunk->local_variables->at(i) = val->copy();
+        else cur->chunk->local_variables->at(i) = val;
+        cur->chunk->local_variables->at(i)->ref_count++;
+        check_variable_liveness(last);
     }
     else if (type == 2) {
         // upvalue
-        
+        if (i < 0 || cur->chunk->upvals->size() <= i) {
+            panic("fatal error");
+        }
+        UpValue *upv = cur->get_upvalue(i);
+        if (!upv) panic("no upvalue found error");
+        else {
+            int stack = upv->in_stack;
+            int index = upv->index;
+            int funStack = cur->in_stack;
+            FunctionVal *tar = cur;
+            while (stack < funStack) {
+                tar = tar->pre;
+                if (!cur) panic("finding upvalue unexpected!!");
+                --funStack;
+            }
+            vector<Value *> *locVars = tar->chunk->local_variables;
+            if (locVars->size() <= index) panic("finding upvalue unexpected!!");
+            if (is_basic_type(val)) locVars->at(index) = val->copy();
+            else locVars->at(index) = val;
+            locVars->at(index)->ref_count++;
+        }
     }
     else panic("unknow operation!");
     check_variable_liveness(val);
@@ -128,13 +137,15 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
                 else if (val1->get_type() == ValueType::t_number && val2->get_type() == ValueType::t_string)
                 {
                     String *str = new String;
-                    str->value()->append(*static_cast<String*>(val2)->value()).append(to_string((int)static_cast<Number*>(val1)->value()));
+                    str->value()->append(*static_cast<String*>(val2)->value()).append(to_string(static_cast<Number*>(val1)->value()));
                     state->push(str);
                     //delete val1;
                 }
             }
             else panic("can not do this operation!");
         }
+        check_variable_liveness(val1);
+        check_variable_liveness(val2);
     }
     else if (type == 1){
         Value *val = state->pop();
@@ -155,7 +166,7 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
                 if (num->value() != 0) b->set(false);
                 else b->set(true);
             }
-            else panic("can not do this operation!");
+            else b->set(false);
             state->push(b);
             break;
         }
@@ -304,11 +315,33 @@ static Value * find_env_param(String *key, FunctionVal *cur)
     if (!envTb) return NULL;
     for (auto &it : *envTb->members()) {
         Value *k = it.second.first;
-        if (k->get_type() == ValueType::t_string && *static_cast<String *>(k)->value() == *key->value()) {
+        if (k->get_type() == ValueType::t_string && static_cast<String *>(k)->hash() == key->hash()) {
             return it.second.second;
         }
     }
     return NULL;
+}
+
+static void do_execute(const std::vector<int> &pcs, int from, int to);
+
+static void do_call(Value *val)
+{
+    FunctionVal *fun = static_cast<FunctionVal *>(val);
+    state->set_cur(fun);
+    // 参数前面应该已经入栈了
+    FunctionVal *file_main_fun = state->get_by_file_name(fun->get_file_name()->c_str());
+    if (!file_main_fun) {
+        panic("load file fail");
+    }
+    if (fun->from_pc < 0 || fun->to_pc > file_main_fun->to_pc) {
+        panic("fatal error, invalid instructions");
+    }
+    fun->param_stack = state->get_stack_size();
+    fun->ncalls++;
+    // 执行完，栈中应该有对应的返回值
+    do_execute(*file_main_fun->chunk->fun_body_ops, fun->from_pc, fun->to_pc);
+    fun->ncalls--;
+    state->end_call();
 }
 
 static void do_execute(const std::vector<int> &pcs, int from, int to)
@@ -451,7 +484,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             break;
         }
         
-
+        /*    入栈相关   */
         case OpCode::op_pushc:{
             state->pushc(param);
             break;
@@ -464,16 +497,20 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             state->pushl(param);
             break;
         }
+        case OpCode::op_pushu:{
+            state->pushu(param + 1);
+            break;
+        }
 
         
         case OpCode::op_storeg:
             assign(0, param);
             break;
         case OpCode::op_storel:
-            assign(0, param);
+            assign(1, param);
             break;
         case OpCode::op_storeu:
-            assign(0, param);
+            assign(2, param + 1);
             break;
 
         
@@ -568,33 +605,13 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             if (param < 0) {
                 param = -param - 1;
                 val = state->getg(param);
-                if (!val || val->get_type() != ValueType::t_function) {
-                    panic("no function found");
-                }
             }
-            else {
-                val = state->getl(param);
-                if (!val || val->get_type() != ValueType::t_function) {
-                    panic("no function found");
-                }
-            }
+            else val = state->getl(param);
 
-            FunctionVal *fun = static_cast<FunctionVal *>(val);
-            state->set_cur(fun);
-            // 参数前面应该已经入栈了
-            FunctionVal *file_main_fun = state->get_by_file_name(fun->get_file_name()->c_str());
-            if (!file_main_fun) {
-                panic("load file fail");
+            if (!val || val->get_type() != ValueType::t_function) {
+                panic("no function found");
             }
-            if (fun->from_pc < 0 || fun->to_pc > file_main_fun->to_pc) {
-                panic("fatal error, invalid instructions");
-            }
-            fun->param_stack = state->get_stack_size();
-            fun->ncalls++;
-            // 执行完，栈中应该有对应的返回值
-            do_execute(*file_main_fun->chunk->fun_body_ops, fun->from_pc, fun->to_pc);
-            fun->ncalls--;
-            state->end_call();
+            do_call(val);
             break;
         }
         case OpCode::op_call_upv:
@@ -614,7 +631,11 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 cfun->cfun(state);  // call c function
             }
             else {
-                
+                Value *val = state->getu(param + 1);
+                if (!val || val->get_type() != ValueType::t_function) {
+                    panic("not a function upvalue");
+                }
+                do_call(val);
             }
             break;
         }

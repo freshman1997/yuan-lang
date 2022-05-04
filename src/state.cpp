@@ -3,6 +3,11 @@
 #include "state.h"
 #include "types.h"
 
+static bool is_basic_type(Value *val)
+{
+    return val->get_type() == ValueType::t_boolean || val->get_type() == ValueType::t_null || val->get_type() == ValueType::t_number || val->get_type() == ValueType::t_function;
+}
+
 Value * State::pop()
 {
     return this->stack->pop();
@@ -77,12 +82,12 @@ void State::pushc(int i)
 
 void State::pushl(int i)
 {
-
+    push(cur->get_localvar(i));
 }
 
 void State::pushu(int i)
 {
-
+    push(getu(i));
 }
 
 Value * State::getc(int i)
@@ -102,20 +107,30 @@ Value * State::getl(int i)
 
 Value * State::getu(int i)
 {
-    return NULL;
+    UpValue *upv = cur->get_upvalue(i);
+    if (!upv) return NULL;
+    else {
+        int stack = upv->in_stack;
+        int index = upv->index;
+        int funStack = cur->in_stack;
+        FunctionVal *tar = cur;
+        while (stack < funStack) {
+            tar = tar->pre;
+            if (!tar) return NULL;
+            --funStack;
+        }
+        vector<Value *> *locVars = tar->chunk->local_variables;
+        if (locVars->size() <= index) return NULL;
+        return locVars->at(index);
+    }
 }
 
 Value * State::get_subfun(int i)
 {
     if (!cur->chunk->upvals->at(0)) cur->chunk->upvals->at(0) = cur->pre->chunk->upvals->at(0);
-
-    FunctionVal *fa = cur->pre;
-    if (!fa) {
-        FunctionVal *subfun = cur->get_subfun(i);
-        if (!subfun->chunk->upvals->at(0)) subfun->chunk->upvals->at(0) = subfun->pre->chunk->upvals->at(0);
-        return subfun;
-    }
-    return fa->get_subfun(i);
+    FunctionVal *subfun = cur->get_subfun(i);
+    if (!subfun->chunk->upvals->at(0)) subfun->chunk->upvals->at(0) = subfun->pre->chunk->upvals->at(0);
+    return subfun;
 }
 
 FunctionVal * State::get_by_file_name(const char *filename)
@@ -196,13 +211,9 @@ static void read_function(FunctionVal *funChunk, ifstream &in)
     
     for (int i = 0; i < nupvalue; i++) {
         UpValue *upv = new UpValue;
-        name_len = 0;
-        in.read((char *)&name_len, sizeof(int));
-        for (int j = 0; j < name_len; j++) upv->name.push_back(in.get());
         in.read((char *)&upv->upval_index, sizeof(int));
         in.read((char *)&upv->in_stack, sizeof(int));
         in.read((char *)&upv->index, sizeof(int));
-
         funChunk->add_upvalue(upv);
     }
     int subFunSz = 0;

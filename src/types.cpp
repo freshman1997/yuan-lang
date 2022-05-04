@@ -382,6 +382,8 @@ Value * FunctionVal::copy()
     val->chunk = new FunctionChunk;
     *val->chunk = *this->chunk;
     *val = *this;
+    val->chunk->local_variables = new vector<Value *>;
+    *val->chunk->local_variables = *this->chunk->local_variables;       // local variable must copy
     val->set_subfuns(this->get_subfuns());
     return val;
 }

@@ -145,17 +145,6 @@ static bool has_identifier(FuncInfo *info, char *name, int len, pair<int, int> &
     return false;
 }
 
-static bool is_env_param(FuncInfo *info, char *name, int len)
-{
-    vector<UpValueDesc *> *upvs = info->upvalue->upvalues;
-    for (auto &it : *(((*upvs)[0])->upvalues)) {
-        if (is_same_id(it->name, it->name_len, name, len)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 static int is_global_var(char *name, int len)
 {
     for (auto &it : global_vars) {
@@ -184,9 +173,9 @@ static void syntax_error(const char *msg)
     cout << msg << endl;
     exit(0);
 }
-
-static vector<int> breaks;
-static vector<int> continues;
+static int stack_lv = 0;
+static map<int, vector<int>> breaks;
+static map<int, vector<int>> continues;
 
 static void visit_statement(vector<BodyStatment *> *statements, FuncInfo *info, CodeWriter &writer);
 static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer);
@@ -325,7 +314,7 @@ static void visit_assign(AssignmentExpression *assign, FuncInfo *info, CodeWrite
             up->stack_lv = p.first;
             up->index = info->nupval;
             info->upvalue->upvalues->push_back(up);
-            writer.add(OpCode::op_storeu, info->nupval);
+            writer.add(OpCode::op_storeu, info->upvalue->upvalues->size() - 1);
             info->nupval++;
         }
         else {
@@ -348,31 +337,32 @@ static void visit_if(IfExpression *ifExp, FuncInfo *info, CodeWriter &writer)
     for (auto &it : *ifExp->if_statements) {
         if (i > 0) {
             next = writer.get_pc();
-            writer.set(last - 1, OpCode::op_jump, next - last);
+            writer.set(last, OpCode::op_jump, next - last - 1);
         }
         if (it->condition) {
             visit_operation_exp(it->condition, info, writer);
             writer.add(OpCode::op_test, 0);
             // if else if else if else 跳到下一个条件
-            writer.add(OpCode::op_jump, 0);
             last = writer.get_pc();
+            writer.add(OpCode::op_jump, 0);
         }
         visit_statement(it->body, info, writer);
-        writer.add(OpCode::op_jump, 0); // 跳出 if 
         jends.push_back(writer.get_pc());
+        writer.add(OpCode::op_jump, 0); // 跳出 if 
         ++i;
     }
     // 修正跳转的位置
     if (next == -1) {
-        writer.set(last - 1, OpCode::op_jump, writer.get_pc());
+        writer.set(last, OpCode::op_jump, writer.get_pc() - 1);
     }
     for (auto &e : jends) {
-        writer.set(e - 1, OpCode::op_jump, writer.get_pc() - e + 1);
+        writer.set(e, OpCode::op_jump, writer.get_pc() - 1);
     }
 }
 
 static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
 {
+    ++stack_lv;
     if (forExp->type == ForExpType::for_normal) {
         //writer.add(OpCode::op_for_normal, 0);
         if (forExp->first_statement) {
@@ -386,7 +376,7 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
             visit_operation_exp(forExp->second_statement, info, writer);
             writer.add(OpCode::op_test, 0);
             writer.add(OpCode::op_jump, 0); // 跳出循环体或进入循环体
-            breaks.push_back(writer.get_pc() - 1);
+            breaks[stack_lv].push_back(writer.get_pc() - 1);
         }
         else {
             cond = writer.get_pc();
@@ -401,14 +391,12 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
             }
         }
         writer.add(OpCode::op_jump, cond - 1); // jump back
-        for (auto &it : continues) {
+        for (auto &it : continues[stack_lv]) {
             writer.set(it, OpCode::op_jump, cond - 1);
         }
-        for (auto &it : breaks) {
+        for (auto &it : breaks[stack_lv]) {
             writer.set(it, OpCode::op_jump, writer.get_pc() - 1);
         }
-        continues.clear();
-        breaks.clear();
     }
     else {
         // for in 
@@ -429,19 +417,21 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
         visit_statement(forExp->body, info, writer);
         writer.add(OpCode::op_jump, start - 1); // jump back
         writer.set(out, OpCode::op_jump, writer.get_pc() - 1);
-        for (auto &it : continues) {
+        for (auto &it : continues[stack_lv]) {
             writer.set(it, OpCode::op_jump, start);
         }
-        for (auto &it : breaks) {
+        for (auto &it : breaks[stack_lv]) {
             writer.set(it, OpCode::op_jump, writer.get_pc() - 1);
         }
-        continues.clear();
-        breaks.clear();
     }
+    continues.clear();
+    breaks.clear();
+    --stack_lv;
 }
 
 static void visit_while(WhileExpression *whileExp, FuncInfo *info, CodeWriter &writer)
 {
+    ++stack_lv;
     int start = writer.get_pc() - 1;
     visit_operation_exp(whileExp->condition, info, writer);
     writer.add(OpCode::op_test, 0);
@@ -450,18 +440,20 @@ static void visit_while(WhileExpression *whileExp, FuncInfo *info, CodeWriter &w
     visit_statement(whileExp->body, info, writer);
     writer.add(OpCode::op_jump, start);
     writer.set(out - 1, OpCode::op_jump, writer.get_pc() - 1);
-    for (auto &it : continues) {
+    for (auto &it : continues[stack_lv]) {
         writer.set(it, OpCode::op_jump, start);
     }
-    for (auto &it : breaks) {
+    for (auto &it : breaks[stack_lv]) {
         writer.set(it, OpCode::op_jump, writer.get_pc() - 1);
     }
     continues.clear();
     breaks.clear();
+    ++stack_lv;
 }
 
 static void visit_do_while(DoWhileExpression *doWhileExp, FuncInfo *info, CodeWriter &writer)
 {
+    ++stack_lv;
     int start = writer.get_pc() - 1; // for jump back
     visit_statement(doWhileExp->body, info, writer);
     visit_operation_exp(doWhileExp->condition, info, writer);
@@ -470,14 +462,15 @@ static void visit_do_while(DoWhileExpression *doWhileExp, FuncInfo *info, CodeWr
     writer.add(OpCode::op_jump, 0); // 测试失败执行
     writer.add(OpCode::op_jump, start);               // 测试成功执行
     writer.set(out, OpCode::op_jump, writer.get_pc() - 1);
-    for (auto &it : continues) {
+    for (auto &it : continues[stack_lv]) {
         writer.set(it, OpCode::op_jump, start);
     }
-    for (auto &it : breaks) {
+    for (auto &it : breaks[stack_lv]) {
         writer.set(it, OpCode::op_jump, writer.get_pc());
     }
     continues.clear();
     breaks.clear();
+    --stack_lv;
 }
 
 static void visit_return(ReturnExpression *retExp, FuncInfo *info, CodeWriter &writer)
@@ -531,6 +524,17 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
         }
         else {
             // upvalue call, 从当前函数的upvalue表找到函数
+            UpValueDesc *up = new UpValueDesc;
+            up->name = name;
+            up->name_len = len;
+            up->index = info->nupval;
+            up->stack_index = p.second;
+            up->stack_lv = p.first;
+            up->index = info->nupval;
+            info->upvalue->upvalues->push_back(up);
+            writer.add(OpCode::op_pushu, p.second);
+            writer.add(OpCode::op_storeu, info->upvalue->upvalues->size() - 1);
+            info->nupval++;
             writer.add(OpCode::op_call_upv, p.second);
         }
     }
@@ -540,7 +544,7 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
 {
     if (fun->function_name) {
         int gVarid = is_global_var(fun->function_name->name, fun->function_name->name_len);
-        if (gVarid >= 0 || is_env_param(info, fun->function_name->name, fun->function_name->name_len)) {
+        if (gVarid >= 0) {
             syntax_error("redeclare function");
         }
         pair<int, int> p;
@@ -553,7 +557,7 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     FuncInfo *newFun = new FuncInfo;
     newFun->upvalue = new UpValueDesc;
     newFun->upvalue->upvalues = new vector<UpValueDesc *>;
-    newFun->upvalue->upvalues->push_back(init_global_upvlaue());
+    //newFun->upvalue->upvalues->push_back(init_global_upvlaue());
     newFun->nupval++;
     newFun->items = new vector<FuncInfoItem *>;
     newFun->in_stack = info->in_stack + 1;
@@ -703,11 +707,11 @@ static void visit_statement(vector<BodyStatment *> *statements, FuncInfo *info, 
             break;
         case ExpressionType::break_statement:
             writer.add(OpCode::op_jump, 0);
-            breaks.push_back(writer.get_pc());
+            breaks[stack_lv].push_back(writer.get_pc() - 1);
             break;
         case ExpressionType::continue_statement:
             writer.add(OpCode::op_jump, 0);
-            continues.push_back(writer.get_pc());
+            continues[stack_lv].push_back(writer.get_pc() - 1);
             break;
         default:
             syntax_error("not support statement");
@@ -758,7 +762,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
                 }
                 else {
                     // upvalue
-                    writer.add(OpCode::op_pushu, info->nupval);
+                    writer.add(OpCode::op_pushu, p.second);
                 }
             }
         }
@@ -872,18 +876,16 @@ static void write_function(ofstream &out, FuncInfo *info)
     out.write((char *)&info->from_pc, sizeof(int));
     out.write((char *)&info->to_pc, sizeof(int));
 
-    out.write((char *)&info->nupval, sizeof(int));
-    int i = 0;
+    int nupv = info->upvalue->upvalues->size();
+    out.write((char *)&nupv, sizeof(int));
     for (auto &it : *info->upvalue->upvalues) {
-        if (i != 0) {
-            out.write((char *)&it->name_len, sizeof(int));
-            out.write(it->name, it->name_len);
-            out.write((char *)&it->index, sizeof(int));
-            out.write((char *)&it->stack_lv, sizeof(int));
-            out.write((char *)&it->stack_index, sizeof(int));
-        }
+        out.write((char *)&it->index, sizeof(int));
+        out.write((char *)&it->stack_lv, sizeof(int));
+        out.write((char *)&it->stack_index, sizeof(int));
         delete it;
     }
+
+    int i = 0;
     if (info->subFuncInfos) {
         i = info->subFuncInfos->size();
         out.write((char *)&i, sizeof(int));
@@ -959,7 +961,7 @@ void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
         fileFuncInfo->items = new vector<FuncInfoItem *>;
         fileFuncInfo->upvalue = new UpValueDesc;
         fileFuncInfo->upvalue->upvalues = new vector<UpValueDesc *>;
-        fileFuncInfo->upvalue->upvalues->push_back(init_global_upvlaue());
+        //fileFuncInfo->upvalue->upvalues->push_back(init_global_upvlaue());
         fileFuncInfo->func_name = "main";
         fileFuncInfo->name_len = 4;
         fileFuncInfo->in_stack = 0;
