@@ -145,6 +145,22 @@ static bool has_identifier(FuncInfo *info, char *name, int len, pair<int, int> &
     return false;
 }
 
+static int get_function_param_amount(FuncInfo *info, char *name, int len)
+{
+    FuncInfo *cur = info;
+    while (cur) {
+        if (cur->subFuncInfos) {
+            for (auto &it : *cur->subFuncInfos) {
+                if (it->func_name) {
+                    if (is_same_id(it->func_name, it->name_len, name, len)) return it->nparam;
+                }
+            }
+        }
+        cur = cur->pre;
+    }
+    return -1;
+}
+
 static int is_global_var(char *name, int len)
 {
     for (auto &it : global_vars) {
@@ -486,58 +502,62 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
     pair<int, int> p;
     char *name = call->function_name->name;
     int len = call->function_name->name_len;
+    bool hasId = has_identifier(info, name, len, p);
+    if (hasId) {
+        int callParamAmount = get_function_param_amount(info, name, len);
+        if (callParamAmount < 0) {
+            syntax_error("internal compile error");
+        }
+        if (call->parameters->size() != callParamAmount) { // 参数数目不匹配
+            syntax_error("funtion parameter amount not matched!");
+        }
+    }
     for (auto &it : *call->parameters) {
         visit_operation(it, info, writer);
     }
-    int pId = is_fun_param(info, name, len);
-    if (pId >= 0) {
-        writer.add(OpCode::op_get_fun_param, pId);
+    int gVarid = is_global_var(name, len);
+    if (gVarid >= 0) {
+        // 参数  fun(fun(12, 2), 3);
+        for (auto &it : *call->parameters) {
+            visit_operation(it, info, writer);
+        }
+        writer.add(OpCode::op_call, -gVarid - 1);
+        return;
+    }
+    
+    if (!hasId) {
+        // 看在不在 env 中
+        // 添加到全局常量里面，运行时去env中找，找不到再crash
+        Const *c = new Const;
+        c->type = VariableType::t_string;
+        c->v = new Const::value;
+        c->v = new Const::value;
+        c->v->str = new ConstString;
+        c->v->str->str = name;
+        c->v->str->len = len;
+        add_global_const(c);
+        writer.add(OpCode::op_call_upv, -(global_const_index - 1) - 1);
+        return;
+    }
+    
+    if (p.first == info->in_stack) {
+        writer.add(OpCode::op_call, p.second);
     }
     else {
-        int gVarid = is_global_var(name, len);
-        if (gVarid >= 0) {
-            // 参数  fun(fun(12, 2), 3);
-            for (auto &it : *call->parameters) {
-                visit_operation(it, info, writer);
-            }
-            writer.add(OpCode::op_call, -gVarid - 1);
-            return;
-        }
-        
-        if (!has_identifier(info, name, len, p)) {
-            // 看在不在 env 中
-            // 添加到全局常量里面，运行时去env中找，找不到再crash
-            Const *c = new Const;
-            c->type = VariableType::t_string;
-            c->v = new Const::value;
-            c->v = new Const::value;
-            c->v->str = new ConstString;
-            c->v->str->str = name;
-            c->v->str->len = len;
-            add_global_const(c);
-            writer.add(OpCode::op_call_upv, -(global_const_index - 1) - 1);
-            return;
-        }
-        
-        if (p.first == info->in_stack) {
-            writer.add(OpCode::op_call, p.second);
-        }
-        else {
-            // upvalue call, 从当前函数的upvalue表找到函数
-            UpValueDesc *up = new UpValueDesc;
-            up->name = name;
-            up->name_len = len;
-            up->index = info->nupval;
-            up->stack_index = p.second;
-            up->stack_lv = p.first;
-            up->index = info->nupval;
-            info->upvalue->upvalues->push_back(up);
+        // upvalue call, 从当前函数的upvalue表找到函数
+        UpValueDesc *up = new UpValueDesc;
+        up->name = name;
+        up->name_len = len;
+        up->index = info->nupval;
+        up->stack_index = p.second;
+        up->stack_lv = p.first;
+        up->index = info->nupval;
+        info->upvalue->upvalues->push_back(up);
 
-            writer.add(OpCode::op_pushu, p.second);
-            writer.add(OpCode::op_storeu, info->upvalue->upvalues->size() - 1);
-            info->nupval++;
-            writer.add(OpCode::op_call_upv, p.second);
-        }
+        writer.add(OpCode::op_pushu, p.second);
+        writer.add(OpCode::op_storeu, info->upvalue->upvalues->size() - 1);
+        info->nupval++;
+        writer.add(OpCode::op_call_upv, p.second);
     }
 }
 
@@ -619,8 +639,12 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
         item->name = it->name;
         item->name_len = it->name_len;
         item->varIndex = info->actVars;
-        info->items->push_back(item);
-        info->actVars++;
+        newFun->items->push_back(item);
+        newFun->actVars++;
+    }
+    int sz = fun->parameters->size() - 1;
+    for (auto it = fun->parameters->rbegin(); it != fun->parameters->rend(); ++it) {
+        writer.add(OpCode::op_storel, sz--);
     }
 
     //TODO visit body
@@ -634,38 +658,32 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
     IdExpression *name = index->id;
     char *id = name->name;
     int len = name->name_len;
-    int pId = is_fun_param(info, id, len);
-    if (pId >= 0) {
-        writer.add(OpCode::op_get_fun_param, pId);
+    int gVarid = is_global_var(id, len);
+    // [][][][][][]
+    if (gVarid >= 0) {
+        writer.add(OpCode::op_pushg, gVarid);
     }
     else {
-        int gVarid = is_global_var(id, len);
-        // [][][][][][]
-        if (gVarid >= 0) {
-            writer.add(OpCode::op_pushg, gVarid);
+        pair<int, int> p;
+        if (!has_identifier(info, id, len, p)) {
+            Const *c = new Const;
+            c->type = VariableType::t_string;
+            c->v = new Const::value;
+            c->v->str = new ConstString;
+            c->v->str->str = id;
+            c->v->str->len = len;
+            add_global_const(c);
+            writer.add(OpCode::op_pushc, global_const_index - 1);
+
+            // error unkown variable
+            //syntax_error("unkown identifier");
+        }
+        if (p.first == info->in_stack) {
+            writer.add(OpCode::op_pushl, p.second);
         }
         else {
-            pair<int, int> p;
-            if (!has_identifier(info, id, len, p)) {
-                Const *c = new Const;
-                c->type = VariableType::t_string;
-                c->v = new Const::value;
-                c->v->str = new ConstString;
-                c->v->str->str = id;
-                c->v->str->len = len;
-                add_global_const(c);
-                writer.add(OpCode::op_pushc, global_const_index - 1);
-
-                // error unkown variable
-                //syntax_error("unkown identifier");
-            }
-            if (p.first == info->in_stack) {
-                writer.add(OpCode::op_pushl, p.second);
-            }
-            else {
-                // upvalue
-                writer.add(OpCode::op_pushu, p.second);
-            }
+            // upvalue
+            writer.add(OpCode::op_pushu, p.second);
         }
     }
     for (auto &it : *index->keys) {
@@ -732,39 +750,33 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
     {
         char *id = opera->op->id_oper->name;
         int len = opera->op->id_oper->name_len;
-        int pId = is_fun_param(info, id, len);
-        if (pId >= 0) {
-            writer.add(OpCode::op_get_fun_param, pId);
+        int gVarid = is_global_var(id, len);
+        if (gVarid >= 0) {
+            writer.add(OpCode::op_pushg, gVarid);
+            return;
+        }
+
+        pair<int, int> p;
+        if (!has_identifier(info, id, len, p)) {
+            // 未发现的先添加的到全局字符串常量表中
+            Const *c = new Const;
+            c->type = VariableType::t_string;
+            c->v = new Const::value;
+            c->v = new Const::value;
+            c->v->str = new ConstString;
+            c->v->str->str = id;
+            c->v->str->len = len;
+            add_global_const(c);
+            writer.add(OpCode::op_pushc, global_const_index - 1);
+            return;
         }
         else {
-            int gVarid = is_global_var(id, len);
-            if (gVarid >= 0) {
-                writer.add(OpCode::op_pushg, gVarid);
-                return;
-            }
-
-            pair<int, int> p;
-            if (!has_identifier(info, id, len, p)) {
-                // 未发现的先添加的到全局字符串常量表中
-                Const *c = new Const;
-                c->type = VariableType::t_string;
-                c->v = new Const::value;
-                c->v = new Const::value;
-                c->v->str = new ConstString;
-                c->v->str->str = id;
-                c->v->str->len = len;
-                add_global_const(c);
-                writer.add(OpCode::op_pushc, global_const_index - 1);
-                return;
+            if (p.first == info->in_stack) {
+                writer.add(OpCode::op_pushl, p.second);
             }
             else {
-                if (p.first == info->in_stack) {
-                    writer.add(OpCode::op_pushl, p.second);
-                }
-                else {
-                    // upvalue
-                    writer.add(OpCode::op_pushu, p.second);
-                }
+                // upvalue
+                writer.add(OpCode::op_pushu, p.second);
             }
         }
         break;

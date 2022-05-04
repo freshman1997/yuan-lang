@@ -529,7 +529,6 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 panic("no boolean variable found");
             }
             if (static_cast<Boolean *>(cond)->value()) {
-                cout << "hello";
                 ++i;   // to jump op 
             }
             check_variable_liveness(cond);
