@@ -8,9 +8,11 @@ fn do_sth()
     else if (a != 100) {
         print("80")
     }
-    else {
-        print(a)
+    else if (a == 50) {
+        a = 50
     }
+    
+
     local fn hello()
     {
         print("hello world!!!")

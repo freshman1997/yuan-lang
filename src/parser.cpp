@@ -660,7 +660,14 @@ static void parse_if_statement(TokenReader *reader, IfExpression *cond, int star
 		}
 		build_if_body(if_statement, reader, breakable);
 		if (reader->peek().type == TokenType::keyword && str_equal(reader->peek().from, "else", 4)) {
-			parse_if_statement(reader, cond, 2, breakable);
+			reader->consume();
+			if (reader->peek().type == TokenType::keyword && str_equal(reader->peek().from, "if", 2)){
+				reader->unread();
+				parse_if_statement(reader, cond, 1, breakable);
+			} else {
+				reader->unread();
+				parse_if_statement(reader, cond, 2, breakable);
+			}
 		}
 	}
 	else if (start == 2) { // else
