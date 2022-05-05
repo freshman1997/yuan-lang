@@ -321,25 +321,30 @@ static void visit_if(IfExpression *ifExp, FuncInfo *info, CodeWriter &writer)
     int next = -1, last = -1;
     int i = 0;
     vector<int> jends;
-    for (auto &it : *ifExp->if_statements) {
+    for (auto it = ifExp->if_statements->rbegin(); it != ifExp->if_statements->rend(); ++it) {
         if (i > 0) {
             next = writer.get_pc();
-            writer.set(last, OpCode::op_jump, next - last - 1);
+            writer.set(last, OpCode::op_jump, next);
+            last = -1;
         }
-        if (it->condition) {
-            visit_operation_exp(it->condition, info, writer);
+        if ((*it)->condition) {
+            visit_operation_exp((*it)->condition, info, writer);
             writer.add(OpCode::op_test, 0);
             // if else if else if else 跳到下一个条件
             last = writer.get_pc();
-            writer.add(OpCode::op_jump, 0);
+            writer.add(OpCode::op_jump, 0); // false 跳到下一个块
+            writer.add(OpCode::op_jump, writer.get_pc() - 1); // true 执行块
         }
-        visit_statement(it->body, info, writer);
+        visit_statement((*it)->body, info, writer);
         jends.push_back(writer.get_pc());
         writer.add(OpCode::op_jump, 0); // 跳出 if 
         ++i;
     }
     // 修正跳转的位置
     if (next == -1) {
+        writer.set(last, OpCode::op_jump, writer.get_pc() - 1);
+    }
+    if (last != -1) {
         writer.set(last, OpCode::op_jump, writer.get_pc() - 1);
     }
     for (auto &e : jends) {
@@ -631,7 +636,7 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
     IdExpression *name = index->id;
     char *id = name->name;
     int len = name->name_len;
-    
+
     delete name;
     int gVarid = is_global_var(id, len);
     // [][][][][][]
