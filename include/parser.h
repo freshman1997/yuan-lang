@@ -104,7 +104,6 @@ enum class ExpressionType
     break_statement,                        // break
     continue_statement,                     // continue
     oper_statement,                         // ++a --a 自增自减
-    block_statement,                        // {} 块作用域
 };
 
 struct CallExpression;

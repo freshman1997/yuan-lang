@@ -11,5 +11,6 @@
 #define MAX_UPVALUE_NUM     60                    // uplvaue 最大的数量
 #define MAX_LOCAL_VARIABLE  200                   // 一个函数最多能定义的局部变量数目
 
+#define MAX_RECURSE_NUM     200                   // 最大递归次数
 
 #endif

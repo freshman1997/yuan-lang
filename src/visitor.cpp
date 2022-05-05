@@ -206,65 +206,33 @@ static void visit_operation_exp(OperationExpression *operExp, FuncInfo *info, Co
         visit_operation(operExp->left, info, writer);
         break;
     }
-    case OperatorType::op_dot:
-    {
-
-        break;
-    }
-    case OperatorType::op_concat:
-    {
-        if (!(operExp->left->type == OpType::id || operExp->left->type == OpType::str || operExp->right->type == OpType::id || operExp->right->type == OpType::str)) {
-            // error
-            syntax_error("illegal type found");
-        }
-        break;
-    }
+    
     case OperatorType::op_not:
     {
-        if (operExp->left->type != OpType::id) {
-            // error
-            syntax_error("illegal type found");
-        }
         visit_operation(operExp->left, info, writer);
         writer.add(OpCode::op_add_add, 0);
         break;
     }
     case OperatorType::op_len:
     {
-        if (!(operExp->left->type == OpType::id || operExp->left->type == OpType::arr || operExp->left->type == OpType::table)) {
-            // error
-            syntax_error("illegal type found");
-        }
         visit_operation(operExp->left, info, writer);
         writer.add(OpCode::op_len, 0);
         break;
     }
     case OperatorType::op_unary_sub:
     {
-        if (!(operExp->left->type == OpType::id || operExp->left->type == OpType::num)) {
-            // error
-            syntax_error("illegal type found");
-        }
         visit_operation(operExp->left, info, writer);
         writer.add(OpCode::op_unary_sub, 0);
         break;
     }
     case OperatorType::op_add_add:
     {
-        if (operExp->left->type != OpType::id) {
-            // error
-            syntax_error("illegal type found");
-        }
         visit_operation(operExp->left, info, writer);
         writer.add(OpCode::op_add_add, 0);
         break;
     }
     case OperatorType::op_sub_sub:
     {
-        if (operExp->left->type != OpType::id) {
-            // error
-            syntax_error("illegal type found");
-        }
         visit_operation(operExp->left, info, writer);
         writer.add(OpCode::op_sub_sub, 0);
         break;
@@ -283,6 +251,9 @@ static void visit_operation_exp(OperationExpression *operExp, FuncInfo *info, Co
         writer.add((OpCode)operExp->op_type, 0);
         break;
     }
+    
+    if (operExp->left) delete operExp->left;
+    if (operExp->right) delete operExp->right;
 }
 
 
@@ -493,7 +464,8 @@ static void visit_return(ReturnExpression *retExp, FuncInfo *info, CodeWriter &w
 {
     // a = ss() {return 100}
     visit_operation_exp(retExp->statement, info, writer);
-    //writer.add(OpCode::op_return, 0);
+    info->nreturn = retExp->statement ? 1 : 0;
+    writer.add(OpCode::op_return, 0);
 }
 
 static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
@@ -553,10 +525,10 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
         up->stack_lv = p.first;
         up->index = info->nupval;
         info->upvalue->upvalues->push_back(up);
+        info->nupval++;
 
         writer.add(OpCode::op_pushu, p.second);
-        writer.add(OpCode::op_storeu, info->upvalue->upvalues->size() - 1);
-        info->nupval++;
+        writer.add(OpCode::op_storeu, p.second);
         writer.add(OpCode::op_call_upv, p.second);
     }
 }
@@ -578,8 +550,6 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     FuncInfo *newFun = new FuncInfo;
     newFun->upvalue = new UpValueDesc;
     newFun->upvalue->upvalues = new vector<UpValueDesc *>;
-    //newFun->upvalue->upvalues->push_back(init_global_upvlaue());
-    newFun->nupval++;
     newFun->items = new vector<FuncInfoItem *>;
     newFun->in_stack = info->in_stack + 1;
     newFun->pre = info;
@@ -607,6 +577,7 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
             global_vars[global_var_index] = item;
             newFun->func_name = fun->function_name->name;
             newFun->name_len = fun->function_name->name_len;
+            delete fun->function_name;
         }
         else {
             // 匿名函数
@@ -645,7 +616,9 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     int sz = fun->parameters->size() - 1;
     for (auto it = fun->parameters->rbegin(); it != fun->parameters->rend(); ++it) {
         writer.add(OpCode::op_storel, sz--);
+        delete *it;
     }
+    delete fun->parameters;
 
     //TODO visit body
     visit_statement(fun->body, newFun, writer);
@@ -658,6 +631,8 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
     IdExpression *name = index->id;
     char *id = name->name;
     int len = name->name_len;
+    
+    delete name;
     int gVarid = is_global_var(id, len);
     // [][][][][][]
     if (gVarid >= 0) {
@@ -674,11 +649,9 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
             c->v->str->len = len;
             add_global_const(c);
             writer.add(OpCode::op_pushc, global_const_index - 1);
-
-            // error unkown variable
-            //syntax_error("unkown identifier");
+            writer.add(OpCode::op_get_env, 0);
         }
-        if (p.first == info->in_stack) {
+        else if (p.first == info->in_stack) {
             writer.add(OpCode::op_pushl, p.second);
         }
         else {
@@ -689,7 +662,9 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
     for (auto &it : *index->keys) {
         visit_operation_exp(it, info, writer);
         writer.add(OpCode::op_index, 0);
+        delete it;
     }
+    delete index->keys;
 }
 
 static void visit_statement(vector<BodyStatment *> *statements, FuncInfo *info, CodeWriter &writer)
@@ -699,30 +674,39 @@ static void visit_statement(vector<BodyStatment *> *statements, FuncInfo *info, 
         {
         case ExpressionType::oper_statement:
             visit_operation_exp(it1->body->oper_exp, info, writer);
+            delete it1->body->oper_exp;
             break;
         case ExpressionType::if_statement:
             visit_if(it1->body->if_exp, info, writer);
+            delete it1->body->if_exp;
             break;
         case ExpressionType::for_statement:
             visit_for(it1->body->for_exp, info, writer);
+            delete it1->body->for_exp;
             break;
         case ExpressionType::do_while_statement:
             visit_do_while(it1->body->do_while_exp, info, writer);
+            delete it1->body->do_while_exp;
             break;
         case ExpressionType::while_statement:
             visit_while(it1->body->while_exp, info, writer);
+            delete it1->body->while_exp;
             break;
         case ExpressionType::return_statement:
             visit_return(it1->body->return_exp, info, writer);
+            delete it1->body->return_exp;
             break;
         case ExpressionType::call_statement:
             visit_call(it1->body->call_exp, info, writer);
+            delete it1->body->call_exp;
             break;
         case ExpressionType::assignment_statement:
             visit_assign(it1->body->assign_exp, info, writer);
+            delete it1->body->assign_exp;
             break;
         case ExpressionType::function_declaration_statement:
             visit_function_decl(it1->body->function_exp, info, writer);
+            delete it1->body->function_exp;
             break;
         case ExpressionType::break_statement:
             writer.add(OpCode::op_jump, 0);
@@ -736,7 +720,11 @@ static void visit_statement(vector<BodyStatment *> *statements, FuncInfo *info, 
             syntax_error("not support statement");
             break;
         }
+
+        if (it1->body) delete it1->body;
+        delete it1;
     }
+    delete statements;
 }
 
 static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer)
@@ -753,6 +741,8 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         int gVarid = is_global_var(id, len);
         if (gVarid >= 0) {
             writer.add(OpCode::op_pushg, gVarid);
+            delete opera->op->id_oper;
+            delete opera->op;
             return;
         }
 
@@ -768,7 +758,6 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
             c->v->str->len = len;
             add_global_const(c);
             writer.add(OpCode::op_pushc, global_const_index - 1);
-            return;
         }
         else {
             if (p.first == info->in_stack) {
@@ -776,9 +765,15 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
             }
             else {
                 // upvalue
-                writer.add(OpCode::op_pushu, p.second);
+                int i = 0;
+                for (; i < info->upvalue->upvalues->size(); ++i) {
+                    UpValueDesc *upv = info->upvalue->upvalues->at(i);
+                    if (is_same_id(upv->name, upv->name_len, id, len)) break; 
+                }
+                writer.add(OpCode::op_pushu, i);
             }
         }
+        delete opera->op->id_oper;
         break;
     }
     case OpType::num:
@@ -789,11 +784,14 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         c->v->val = opera->op->number_oper->val;
         add_global_const(c);
         writer.add(OpCode::op_pushc, global_const_index - 1);
+        delete opera->op->number_oper;
         break;
     }
     case OpType::boolean:
     {
-        writer.add(OpCode::op_load_bool, 0);
+        Boolean *b = opera->op->boolean_oper;
+        writer.add(OpCode::op_load_bool, b->val ? 1 : 0);
+        delete opera->op->boolean_oper;
         break;
     }
     case OpType::nil:
@@ -811,6 +809,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         c->v->str->len = opera->op->string_oper->raw_len;
         add_global_const(c);
         writer.add(OpCode::op_pushc, global_const_index - 1);
+        delete opera->op->string_oper;
         break;
     }
     
@@ -821,7 +820,10 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         for (auto &it : *arr->fields) {
             visit_operation(it, info, writer);
             writer.add(OpCode::op_array_set, 0);
+            delete it;
         }
+        delete arr->fields;
+        delete arr;
         break;
     }
     case OpType::table:
@@ -832,40 +834,49 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
             visit_operation_exp(it->v, info, writer);
             visit_operation_exp(it->k, info, writer);
             writer.add(OpCode::op_table_set, 0);
+            delete it;
         }
+        delete tb->members;
+        delete tb;
         break;
     }
     case OpType::assign:
     {
         AssignmentExpression *assign = opera->op->assgnment_oper;
         visit_assign(assign, info, writer);
+        delete assign;
         break;
     }
     case OpType::index:
     {
         IndexExpression *index = opera->op->index_oper;
         visit_index(index, info, writer);
+        delete index;
         break;
     }
     case OpType::op:
     {
         OperationExpression *oper = opera->op->op_oper;
         visit_operation_exp(oper, info, writer);
+        delete oper;
         break;
     }
     case OpType::call:
     {
         visit_call(opera->op->call_oper, info, writer);
+        delete opera->op->call_oper;
         break;
     }
     case OpType::function_declear:
     {
         visit_function_decl(opera->op->fun_oper, info, writer);
+        delete opera->op->fun_oper;
         break;
     }
     default:
         break;
     }
+    delete opera->op;
 }
 
 static void write_function(ofstream &out, FuncInfo *info)
@@ -982,5 +993,6 @@ void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
         visit_statement(it.second->statements, fileFuncInfo, writer);
         fileFuncInfo->to_pc = writer.get_pc();
         write_to_bin_file(writer, fileFuncInfo);
+        delete it.second;
     }
 }

@@ -118,7 +118,7 @@ private:
     string _name;
 };
 
-class Array : public Value
+class ArrayVal : public Value
 {
 public:
 	virtual ValueType get_type()const;
@@ -127,8 +127,8 @@ public:
     virtual Value * copy();
     vector<Value *> * member();
     Value * get(int i);
-    void add(Value *);
-    Array * operator +(const Array *rhs);  // +
+    void add_item(Value *);
+    ArrayVal * operator +(const ArrayVal *rhs);  // +
     void remove(int i);
     bool set(int i, Value *val);
     void set_name(const string &name);
@@ -234,7 +234,7 @@ public:
 
     bool isC = false;
     C_Function cfun = NULL;
-
+    
 private:
     vector<FunctionVal *> *subFuncs = NULL;                  // 子函数
     string *_filename = NULL;

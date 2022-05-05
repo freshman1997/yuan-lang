@@ -33,11 +33,6 @@ const char * TokenReader::get_file_name() const
     return filename;
 }
 
-void TokenReader::set_file_handle(FILE *fd)
-{
-    this->file = fd;
-}
-
 void TokenReader::add_token(Token &token)
 {
     tokens.push_back(token);
@@ -114,17 +109,18 @@ static char * read_all_the_file(const char *filename, TokenReader &reader)
     }
 
     buf[length] = '\0';
-    reader.set_file_handle(fd);
     reader.set_sz(length);
 	reader.set_file_name(filename);
+
+	fclose(fd);
 
 	return buf;
 }
 
 static bool is_keyword(const Token& tok) {
 	static const char* kw[] = {
-	  "return", "if", "else", "for", "while", "do", "fn", "local",
-	  "switch", "case", "default", "break", "continue", "require", "to", "goto", "in", "nil"
+	  "return", "if", "else", "for", "while", "do", "fn", "local", "false", "true", 
+	  "break", "continue", "require", "in", "nil"
 	};
 
 	static unordered_set<string> s;

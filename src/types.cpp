@@ -145,7 +145,10 @@ void String::set_name(const string &name)
 
 Value * String::get(int i)
 {
-    return NULL;
+    if (i < 0 || i >= this->_val.size()) return NULL;
+    Byte *ch = new Byte;
+    ch->_val = (unsigned char)this->_val[i];
+    return ch;
 }
 
 void String::set(int i, Value *val)
@@ -167,43 +170,43 @@ Value * String::copy()
     return s;
 }
 
-ValueType Array::get_type() const {return ValueType::t_array;}
-std::string Array::name() const {return _name;}
-std::size_t Array::hash() const {return 0;}
-vector<Value *> * Array::member(){return &this->members;}
-Value * Array::get(int i){return this->members[i];}
-void Array::add(Value *val){this->members.push_back(val);}
-Array * Array::operator +(const Array *rhs)
+ValueType ArrayVal::get_type() const {return ValueType::t_array;}
+std::string ArrayVal::name() const {return _name;}
+std::size_t ArrayVal::hash() const {return 0;}
+vector<Value *> * ArrayVal::member(){return &this->members;}
+Value * ArrayVal::get(int i){return this->members[i];}
+void ArrayVal::add_item(Value *val){this->members.push_back(val);}
+
+ArrayVal * ArrayVal::operator +(const ArrayVal *rhs)
 {
     return NULL;
 }
 
-void Array::remove(int i)
+void ArrayVal::remove(int i)
 {
     if (members.size() <= i) return;
     this->members.erase(members.begin() + i);
 }
-bool Array::set(int i, Value *val) 
+bool ArrayVal::set(int i, Value *val) 
 {
     if (members.size() <= i) return false;
     delete members[i];
     members[i] = val;
     return true;
 }
-void Array::set_name(const string &name)
+void ArrayVal::set_name(const string &name)
 {
     this->_name = std::move(name);
 }
 
-Value * Array::copy()
+Value * ArrayVal::copy()
 {
-    Array *arr = new Array;
+    ArrayVal *arr = new ArrayVal;
     for (auto &it : *this->member()) {
-        arr->add(it->copy());
+        arr->add_item(it->copy());
     }
     return arr;
 }
-
 
 ValueType TableVal::get_type() const {return ValueType::t_table;}
 std::string TableVal::name() const {return _name;}

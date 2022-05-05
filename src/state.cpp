@@ -15,7 +15,7 @@ Value * State::pop()
 
 void State::push(Value *val)
 {
-     this->stack->push(val);
+    this->stack->push(val);
 }
 
 VM * State::get_vm()
@@ -78,6 +78,7 @@ void State::pushc(int i)
         push(val->copy());
     else 
         push(val);
+
 }
 
 void State::pushl(int i)
@@ -153,6 +154,7 @@ void State::set_cur(FunctionVal *fun)
 
 void State::end_call()
 {
+    clearTempData();
     this->calls->pop_back();
     if (!this->calls->empty())
         cur = calls->back();
@@ -168,6 +170,20 @@ int State::cur_calls()
     return calls->size();
 }
 
+void State::clearTempData()
+{
+    Value *ret = NULL;
+    if (cur->nreturn) ret = pop();
+    int start = cur->param_stack;
+    int end = stack->get_size();
+    if (start != end) { // 仍然有未出栈的
+        for (int i = start; i < end; ++i) {
+            Value *val = pop();
+            if (val->ref_count <= 0) delete val;
+        }
+    }
+    if (ret) push(ret);
+}
 
 static void read_function(FunctionVal *funChunk, ifstream &in)
 {
@@ -312,7 +328,7 @@ static TableVal * init_env(VM *vm)
 
 void State::run()
 {
-    FunctionVal *entry = get_by_file_name("D:/code/src/vs/yuan-lang/hello.b");
+    FunctionVal *entry = get_by_file_name("D:/code/test/cpp/yuan-lang/hello.b");
     if (!entry) {
         cout << "not found !!" << endl;
         exit(0);

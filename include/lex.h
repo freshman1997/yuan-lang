@@ -44,7 +44,6 @@ public:
 
     const char * get_file_name() const;
     void add_token(Token &token);
-    void set_file_handle(FILE *fd);
     int _sz() const;
     void set_sz(int sz);
     void set_file_name(const char *fn);
@@ -53,11 +52,10 @@ public:
     char * get_content();
 
 private:
-    const char *filename;
-    FILE *file;                 // 当前文件
-    int sz;                     // 文件内容大小
+    const char *filename = NULL;
+    int sz = 0;                     // 文件内容大小
     int idx = 0;
-    char *content;
+    char *content = NULL;
     vector<Token> tokens;
 };
 

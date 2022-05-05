@@ -77,8 +77,6 @@ static int get_operator_type(TokenReader *reader)
 		symbol_map["=="] = '=' + '=';
 		symbol_map["!="] = '!' + '=';
 
-		symbol_map[".."] = '.' + '.';
-
 		symbol_map["."] = '.';
 	}
 
@@ -418,7 +416,7 @@ static Operation * parse_primary(TokenReader *reader)
 						reader->consume();
 						break;
 					}
-					if (reader->peek().type != TokenType::num || reader->peek().type != TokenType::str) {
+					if (!(reader->peek().type == TokenType::num || reader->peek().type == TokenType::str)) {
 						error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "only support number and string as table key!!!", __LINE__);
 					}
 
@@ -573,7 +571,7 @@ static AssignmentExpression * parse_assignment(TokenReader *reader)
 	if (reader->peek().type == TokenType::sym && str_equal(reader->peek().from, "=", 1)) {
 		reader->consume();
 		const Token &val = reader->peek();
-		if ( (val.type == TokenType::keyword && str_equal(val.from, "require", 7)) || val.type == TokenType::iden || val.type == TokenType::num || val.type == TokenType::str || val.type == TokenType::sym) {
+		if ( (val.type == TokenType::keyword && str_equal(val.from, "require", 7) || str_equal(val.from, "false", 5) || str_equal(val.from, "true", 4)) || val.type == TokenType::iden || val.type == TokenType::num || val.type == TokenType::str || val.type == TokenType::sym) {
 			OperationExpression *oper = parse_operator(reader);
 			if (!oper) {
 				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
@@ -1229,15 +1227,6 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool brea
 				breakStatement->type = ExpressionType::continue_statement;
 				statements->push_back(breakStatement);
 				reader->consume();
-			}
-			else if (str_equal(reader->peek().from, "default", 7)) {
-
-			}
-			else if (str_equal(reader->peek().from, "switch", 6)) {
-
-			}
-			else if (str_equal(reader->peek().from, "case", 4)) {
-
 			}
 			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			break;

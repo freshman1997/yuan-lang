@@ -3,6 +3,7 @@
 #include "stack.h"
 #include "state.h"
 #include "types.h"
+#include "yuan.h"
 
 /*
     每个作用域都需要包含一个表，用来记录变量，这样子就不用记录变量的名字了，运行再根据取得的值计算
@@ -133,14 +134,12 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
                     String *str = new String;
                     str->value()->append(*static_cast<String*>(val2)->value()).append(to_string((int)static_cast<Number*>(val1)->value()));
                     state->push(str);
-                    //delete val2;
                 }
                 else if (val1->get_type() == ValueType::t_number && val2->get_type() == ValueType::t_string)
                 {
                     String *str = new String;
                     str->value()->append(*static_cast<String*>(val2)->value()).append(to_string(static_cast<Number*>(val1)->value()));
                     state->push(str);
-                    //delete val1;
                 }
             }
             else panic("can not do this operation!");
@@ -186,7 +185,7 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
             }
             case ValueType::t_array:
             {
-                len->set_val(static_cast<Array *>(val)->member()->size());
+                len->set_val(static_cast<ArrayVal *>(val)->member()->size());
                 break;
             }
             case ValueType::t_table:
@@ -208,25 +207,27 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
             }
             Number *num = static_cast<Number *>(val);
             num->set_val(-num->value());
+            state->push(num);
             break;
         }
         case 3:     // ++
         {
             if (val->get_type() != ValueType::t_number) {
-                panic("minus operator can not do on not numberic type!");
+                panic("add add operator can not do on not numberic type!");
             }
             Number *num = static_cast<Number *>(val);
             num->set_val(num->value() + 1);
+            state->push(num);
             break;
         }
         case 4:     // --
         {
             if (val->get_type() != ValueType::t_number) {
-                panic("minus operator can not do on not numberic type!");
+                panic("sub sub operator can not do on not numberic type!");
             }
             Number *num = static_cast<Number *>(val);
             num->set_val(num->value() - 1);
-            //cout << "val: " << num->value() << endl;
+            state->push(num);
             break;
         }
         default:
@@ -284,23 +285,6 @@ static void compair(OpCode op)
     state->push(b);
 }
 
-static void open_func()
-{
-    // 初始化 局部变量表和 upvalue 表 ref + 1
-    // 保存现场
-    
-}
-
-static void close_func()
-{
-
-}
-
-static void call_function(int type, int param)
-{
-
-}
-
 static void string_concat()
 {
     Value *val1 = state->pop();
@@ -337,8 +321,11 @@ static void do_call(Value *val)
     if (fun->from_pc < 0 || fun->to_pc > file_main_fun->to_pc) {
         panic("fatal error, invalid instructions");
     }
-    fun->param_stack = state->get_stack_size();
+    fun->param_stack = state->get_stack_size() - fun->nparam;
     fun->ncalls++;
+    if (fun->ncalls >= MAX_RECURSE_NUM) {
+        panic("stack overflow");
+    }
     // 执行完，栈中应该有对应的返回值
     do_execute(*file_main_fun->chunk->fun_body_ops, fun->from_pc, fun->to_pc);
     fun->ncalls--;
@@ -513,7 +500,25 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         case OpCode::op_storeu:
             assign(2, param + 1);
             break;
-
+        
+        // 在环境中找
+        case OpCode::op_get_env:
+        {
+            Value *val = state->pop();
+            if (val->get_type() != ValueType::t_string) {
+                panic("envirenment param only support string key!!");
+            }
+            String *key = dynamic_cast<String *>(val);
+            if (!key) {
+                panic("internal fatal error");
+            }
+            Value *envParam = find_env_param(key, state->get_cur());
+            if (!envParam) {
+                panic("no such envirenment parameter!!");
+            }
+            state->push(envParam);
+            break;
+        }
         
         case OpCode::op_test:
         {
@@ -546,38 +551,107 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
 
         case OpCode::op_array_new:
         {
-
+            ArrayVal *arr = new ArrayVal();
+            state->push(arr);
             break;
         }
         case OpCode::op_array_set:
         {
-            
+            Value *item = state->pop();
+            ArrayVal *arr = dynamic_cast<ArrayVal *>(state->pop());
+            if (!arr) {
+                panic("array init fail");
+            }
+            arr->add_item(item);
+            state->push(arr);
             break;
         }
         case OpCode::op_table_new:
         {
-            
+            state->push(new TableVal);
             break;
         }
         case OpCode::op_table_set:
         {
-            
+            Value *val = state->pop();
+            Value *key = state->pop();
+            TableVal *tb = dynamic_cast<TableVal *>(state->pop());
+            if (!tb) {
+                panic("table init fail");
+            }
+            bool ret = tb->set(key, val);
+            if (!ret) {
+                panic("attempt to set table fail");
+            }
+            state->push(tb);
             break;
         }
 
         case OpCode::op_index:
         {
+            Value *key = state->pop();
             Value *val = state->pop();
             if (val->get_type() == ValueType::t_string) {
-
+                if (key->get_type() != ValueType::t_number) {
+                    panic("indexing string variable error");
+                }
+                Number *num = dynamic_cast<Number *>(key);
+                if (!num) {
+                    panic("no numberic variable found");
+                }
+                int v1 = (int)num->value();
+                int v2 = (int)ceil(num->value());
+                if (v1 != v2) {
+                    panic("only interger can index string variable!");
+                }
+                String *str = dynamic_cast<String *>(val);
+                if (!str) {
+                    panic("not a string variable!");
+                }
+                Value *idata = str->get(v1);
+                if (!idata) {
+                    panic("indexing overflow");
+                }
+                state->push(idata);
             }
             else if (val->get_type() == ValueType::t_table) {
-
+                if (!(key->get_type() == ValueType::t_number || key->get_type() == ValueType::t_string)) {
+                    panic("indexing table variable error");
+                }
+                TableVal *tb = dynamic_cast<TableVal *>(val);
+                if (!tb) {
+                    panic("not a table variable!");
+                }
+                Value *v = tb->get(key);
+                if (!v) {
+                    panic("table does not exits such data");
+                }
+                state->push(v);
             }
             else if (val->get_type() == ValueType::t_array){
-
+                if (key->get_type() != ValueType::t_number) {
+                    panic("indexing array variable error");
+                }
+                Number *num = dynamic_cast<Number *>(key);
+                if (!num) {
+                    panic("not a numberic variable!");
+                }
+                ArrayVal *arr = dynamic_cast<ArrayVal *>(val);
+                if (!arr) {
+                    panic("not a array variable!");
+                }
+                int v1 = (int)num->value();
+                int v2 = (int)ceil(num->value());
+                if (v1 != v2) {
+                    panic("only interger can index string variable!");
+                }
+                Value *v = arr->get(v1);
+                if(!v) {
+                    panic("indexing overflow!");
+                }
+                state->push(v);
             }
-            else panic("index operator only support array or table data!!!");
+            else panic("can not index such data!!!");
             break;
         }
         
@@ -590,13 +664,6 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 panic("init subfunction fail");
             }
             state->push(subfun);
-            break;
-        }
-        case OpCode::op_get_fun_param:
-        {
-            FunctionVal *cur = state->get_cur();
-            // 内层函数访问外层函数掉参数？
-
             break;
         }
         case OpCode::op_call:
@@ -629,7 +696,12 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 if (!cfun->isC) {
                     panic("not C function!!!");
                 }
+                cfun->ncalls++;
+                if (cfun->ncalls >= MAX_RECURSE_NUM) {
+                    panic("stack overflow");
+                }
                 cfun->cfun(state);  // call c function
+                cfun->ncalls--;
             }
             else {
                 Value *val = state->getu(param + 1);
@@ -644,10 +716,22 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
 
         case OpCode::op_return:
         {
-            
-            break;
+            return;  // do nothing
         }
 
+        case OpCode::op_load_bool:
+        {
+            Boolean *b = new Boolean;
+            if (param) b->set(true);
+            else b->set(false);
+            state->push(b);
+            break;
+        }
+        case ::OpCode::op_load_nil:
+        {
+            state->push(new Nil);
+            break;
+        }
         default:
             panic("unsupport operation !!!");
             break;

@@ -39,6 +39,7 @@ public:
     void run();
     int get_stack_size();
     int cur_calls();
+    void clearTempData();
 
 private:
     FunctionVal *cur = NULL;
