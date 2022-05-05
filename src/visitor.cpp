@@ -324,7 +324,7 @@ static void visit_if(IfExpression *ifExp, FuncInfo *info, CodeWriter &writer)
     for (auto it = ifExp->if_statements->rbegin(); it != ifExp->if_statements->rend(); ++it) {
         if (i > 0) {
             next = writer.get_pc();
-            writer.set(last, OpCode::op_jump, next);
+            writer.set(last, OpCode::op_jump, next - 1);
             last = -1;
         }
         if ((*it)->condition) {
@@ -333,7 +333,7 @@ static void visit_if(IfExpression *ifExp, FuncInfo *info, CodeWriter &writer)
             // if else if else if else 跳到下一个条件
             last = writer.get_pc();
             writer.add(OpCode::op_jump, 0); // false 跳到下一个块
-            writer.add(OpCode::op_jump, writer.get_pc() - 1); // true 执行块
+            writer.add(OpCode::op_jump, writer.get_pc()); // true 执行块
         }
         visit_statement((*it)->body, info, writer);
         jends.push_back(writer.get_pc());
@@ -771,11 +771,27 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
             else {
                 // upvalue
                 int i = 0;
+                bool found = false;
                 for (; i < info->upvalue->upvalues->size(); ++i) {
                     UpValueDesc *upv = info->upvalue->upvalues->at(i);
-                    if (is_same_id(upv->name, upv->name_len, id, len)) break; 
+                    if (is_same_id(upv->name, upv->name_len, id, len)){
+                        found = true;
+                        break; 
+                    }
                 }
-                writer.add(OpCode::op_pushu, i);
+                if (found) writer.add(OpCode::op_pushu, i);
+                else {
+                    UpValueDesc *up = new UpValueDesc;
+                    up->name = id;
+                    up->name_len = len;
+                    up->index = info->nupval;
+                    up->stack_index = p.second;
+                    up->stack_lv = p.first;
+                    up->index = info->nupval;
+                    info->upvalue->upvalues->push_back(up);
+                    writer.add(OpCode::op_pushu, info->nupval);
+                    info->nupval++;
+                }
             }
         }
         delete opera->op->id_oper;

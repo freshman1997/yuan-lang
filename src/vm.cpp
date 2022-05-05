@@ -283,6 +283,8 @@ static void compair(OpCode op)
         panic("can not compair by type array or table!");
     }
     state->push(b);
+    check_variable_liveness(lhs);
+    check_variable_liveness(rhs);
 }
 
 static void string_concat()
