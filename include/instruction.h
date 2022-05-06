@@ -20,7 +20,6 @@ enum class OpCode
     op_bin_or,          // |
     op_bin_xor,         // ^
     op_bin_and,         // &
-    op_bin_not,         // ~
     op_bin_lm,          // <<
     op_bin_rm,          // >> 
     op_bin_xor_eq,      // ^=
@@ -45,6 +44,7 @@ enum class OpCode
     op_unary_sub,       // 前置 - 负号
     op_add_add,         // ++
     op_sub_sub,         // --
+    op_bin_not,         // ~
 
     op_test,            // 
 
@@ -67,24 +67,19 @@ enum class OpCode
     op_for_in,          // for in
     op_call,            // call
     op_call_upv,        // call upvalue
-    op_call_env,        // 
-    op_tail_call,       // return func(1, 2, 3)
     op_return,          // return 参数为返回的个数，后续再pusht结果进栈
 
     op_get_env,         // 查找内置表、变量、函数
 
     op_enter_func,      // {
-    op_leave_func,      // }
 
     op_set_self,        // 如果是模块，需要self
 
     op_table_new,       // a = {}
-    //op_table_del,       // a["name"] = nil
     op_table_set,       // a["name"] = "tomcat"
 
     op_array_new,       // a = []
     op_array_set,       // a[1] = 100,      // 这个可以设置多个键值对，用于
-    //op_array_del,       // a = nil
 
     op_index,           // a["name"], arr[1] a.b
 

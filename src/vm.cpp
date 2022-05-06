@@ -47,10 +47,15 @@ static void assign(int type, int i)
         if (i < 0 || gVars->size() <= i) {
             panic("fatal error");
         }
+        if (gVars->at(i)) {
+            gVars->at(i)->ref_count--;
+            check_variable_liveness(gVars->at(i));
+        }
         // 基础类型应该拷贝
         if (is_basic_type(val)) gVars->at(i) = val->copy();
         else gVars->at(i) = val;
         gVars->at(i)->ref_count++;
+        
     }
     else if (type == 1) {
         // 从局部变量表里面拿，然后赋值
@@ -83,6 +88,10 @@ static void assign(int type, int i)
             }
             vector<Value *> *locVars = tar->chunk->local_variables;
             if (locVars->size() <= index) panic("finding upvalue unexpected!!");
+            if (locVars->at(index)) {
+                locVars->at(index)->ref_count--;
+                check_variable_liveness(locVars->at(index));
+            }
             if (is_basic_type(val)) locVars->at(index) = val->copy();
             else locVars->at(index) = val;
             locVars->at(index)->ref_count++;
@@ -92,7 +101,7 @@ static void assign(int type, int i)
     check_variable_liveness(val);
 }
 
-static void operate(int type, int op) // type 用于区分是一元还是二元
+static void operate(int type, int op, int unaryPush) // type 用于区分是一元还是二元
 {
     if (type == 0) {
         static vector<int> opers;
@@ -109,25 +118,227 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
         }
         // 入栈是第一个先入，出栈是第二个先出
         if (isnum(val1, val2)) {
-            Number *ret = new Number;
+            Number *num1 = dynamic_cast<Number *>(val1);
+            Number *num2 = dynamic_cast<Number *>(val2);
             switch (op)
             {
-            case 0: ret->set_val(add(val2, val1)); break;
-            case 1: ret->set_val(sub(val2, val1)); break;
-            case 2: ret->set_val(mul(val2, val1)); break;
-            case 3: ret->set_val(div(val2, val1)); break;
-            case 4: ret->set_val(mod(val2, val1)); break;
-            default:
+            case 0: { 
+                Number *ret = new Number;
+                ret->set_val(add(val2, val1)); 
+                state->push(ret);
                 break;
             }
-            state->push(ret);
-            // free 
+            case 1: {
+                Number *ret = new Number;
+                ret->set_val(sub(val2, val1)); 
+                state->push(ret);
+                break;
+            }
+            case 2: {
+                Number *ret = new Number;
+                ret->set_val(mul(val2, val1)); 
+                state->push(ret);
+                break;
+            }
+            case 3: {
+                Number *ret = new Number;
+                ret->set_val(div(val2, val1)); 
+                break;
+            }
+            case 4: {
+                Number *ret = new Number;
+                ret->set_val(mod(val2, val1)); 
+                break;
+            }
+            case 5: {   // +=
+                num2->set_val(num2->value() + num1->value());
+                break;
+            }
+            case 6: {   // -=
+                num2->set_val(num2->value() - num1->value());
+                break;
+            }
+            case 7: {   // *=
+                num2->set_val(num2->value() * num1->value());
+                break;
+            }
+            case 8: {   // /=
+                num2->set_val(num2->value() / num1->value());
+                break;
+            }
+            case 9: {   // %=
+                Number *ret = new Number;
+                int v1 = (int)num1->value();
+                int v2 = (int)ceil(num1->value());
+                if (v1 != v2) {
+                    cout << "warning: mod operator needs integer number!" << endl;
+                }
+                v1 = (int)num2->value();
+                v2 = (int)ceil(num2->value());
+                if (v1 != v2) {
+                    cout << "warning: mod operator needs integer number!" << endl;
+                }
+                ret->set_val((int)num2->value() % (int)num1->value());
+                state->push(ret);
+                break;
+            }
+            case 10: {
+                Number *ret = new Number;
+                int v1 = (int)num1->value();
+                int v2 = (int)ceil(num1->value());
+                if (v1 != v2) {
+                    cout << "warning: binary or operator needs integer number!" << endl;
+                }
+                v1 = (int)num2->value();
+                v2 = (int)ceil(num2->value());
+                if (v1 != v2) {
+                    cout << "warning: binary or operator needs integer number!" << endl;
+                }
+                ret->set_val((int)num2->value() | (int)num1->value());
+                state->push(ret);
+                break;
+            }
+            case 11: {
+                Number *ret = new Number;
+                int v1 = (int)num1->value();
+                int v2 = (int)ceil(num1->value());
+                if (v1 != v2) {
+                    cout << "warning: binary xor operator needs integer number!" << endl;
+                }
+                v1 = (int)num2->value();
+                v2 = (int)ceil(num2->value());
+                if (v1 != v2) {
+                    cout << "warning: binary xor operator needs integer number!" << endl;
+                }
+                ret->set_val((int)num2->value() ^ (int)num1->value());
+                break;
+            }
+            case 12: {
+                Number *ret = new Number;
+                int v1 = (int)num1->value();
+                int v2 = (int)ceil(num1->value());
+                if (v1 != v2) {
+                    cout << "warning: binary and operator needs integer number!" << endl;
+                }
+                v1 = (int)num2->value();
+                v2 = (int)ceil(num2->value());
+                if (v1 != v2) {
+                    cout << "warning: binary and operator needs integer number!" << endl;
+                }
+                num2->set_val((int)num2->value() & (int)num1->value());
+                break;
+            }
+            case 13 : {
+                Number *ret = new Number;
+                int v1 = (int)num1->value();
+                int v2 = (int)ceil(num1->value());
+                if (v1 != v2) {
+                    cout << "warning: binary left move operator needs integer number!" << endl;
+                }
+                v1 = (int)num2->value();
+                v2 = (int)ceil(num2->value());
+                if (v1 != v2) {
+                    cout << "warning: binary left move operator needs integer number!" << endl;
+                }
+                ret->set_val((int)num2->value() << (int)num1->value());
+                break;
+            }
+            case 14 : {
+                Number *ret = new Number;
+                int v1 = (int)num1->value();
+                int v2 = (int)ceil(num1->value());
+                if (v1 != v2) {
+                    cout << "warning: binary right move operator needs integer number!" << endl;
+                }
+                v1 = (int)num2->value();
+                v2 = (int)ceil(num2->value());
+                if (v1 != v2) {
+                    cout << "warning: binary right move operator needs integer number!" << endl;
+                }
+                ret->set_val((int)num2->value() >> (int)num1->value());
+                break;
+            }
+            case 15: {
+                int v1 = (int)num1->value();
+                int v2 = (int)ceil(num1->value());
+                if (v1 != v2) {
+                    cout << "warning: binary xor eq operator needs integer number!" << endl;
+                }
+                v1 = (int)num2->value();
+                v2 = (int)ceil(num2->value());
+                if (v1 != v2) {
+                    cout << "warning: binary xor eq operator needs integer number!" << endl;
+                }
+                num2->set_val((int)num2->value() ^ (int)num1->value());
+                break;
+            }
+            case 16: {
+                int v1 = (int)num1->value();
+                int v2 = (int)ceil(num1->value());
+                if (v1 != v2) {
+                    cout << "warning: binary and eq operator needs integer number!" << endl;
+                }
+                v1 = (int)num2->value();
+                v2 = (int)ceil(num2->value());
+                if (v1 != v2) {
+                    cout << "warning: binary and eq operator needs integer number!" << endl;
+                }
+                num2->set_val((int)num2->value() & (int)num1->value());
+                break;
+            }
+            case 17: {
+                int v1 = (int)num1->value();
+                int v2 = (int)ceil(num1->value());
+                if (v1 != v2) {
+                    cout << "warning: binary or eq operator needs integer number!" << endl;
+                }
+                v1 = (int)num2->value();
+                v2 = (int)ceil(num2->value());
+                if (v1 != v2) {
+                    cout << "warning: binary or eq operator needs integer number!" << endl;
+                }
+                num2->set_val((int)num2->value() | (int)num1->value());
+                break;
+            }
+            case 18: {
+                int v1 = (int)num1->value();
+                int v2 = (int)ceil(num1->value());
+                if (v1 != v2) {
+                    cout << "warning: binary left move eq operator needs integer number!" << endl;
+                }
+                v1 = (int)num2->value();
+                v2 = (int)ceil(num2->value());
+                if (v1 != v2) {
+                    cout << "warning: binary left move eq operator needs integer number!" << endl;
+                }
+                num2->set_val((int)num2->value() << (int)num1->value());
+                break;
+            }
+            case 19: {
+                int v1 = (int)num1->value();
+                int v2 = (int)ceil(num1->value());
+                if (v1 != v2) {
+                    cout << "warning: binary right move eq operator needs integer number!" << endl;
+                }
+                v1 = (int)num2->value();
+                v2 = (int)ceil(num2->value());
+                if (v1 != v2) {
+                    cout << "warning: binary right move eq operator needs integer number!" << endl;
+                }
+                num2->set_val((int)num2->value() >> (int)num1->value());
+                break;
+            }
+            default:
+                panic("invalid operator no!");
+                break;
+            }
         }
         else {
             if (op == 0) {
                 if (val1->get_type() == ValueType::t_string && val2->get_type() == ValueType::t_string) {
-                    static_cast<String*>(val2)->value()->append(*static_cast<String*>(val1)->value());
-                    state->push(val2);
+                    String *str = new String;
+                    str->value()->append(*static_cast<String*>(val2)->value()).append(*static_cast<String*>(val1)->value());
+                    state->push(str);
                 }
                 else if (val1->get_type() == ValueType::t_string && val2->get_type() == ValueType::t_number)
                 {
@@ -207,7 +418,7 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
             }
             Number *num = static_cast<Number *>(val);
             num->set_val(-num->value());
-            state->push(num);
+            if (unaryPush) state->push(num);
             break;
         }
         case 3:     // ++
@@ -217,7 +428,7 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
             }
             Number *num = static_cast<Number *>(val);
             num->set_val(num->value() + 1);
-            state->push(num);
+            if (unaryPush) state->push(num);
             break;
         }
         case 4:     // --
@@ -227,7 +438,21 @@ static void operate(int type, int op) // type 用于区分是一元还是二元
             }
             Number *num = static_cast<Number *>(val);
             num->set_val(num->value() - 1);
-            state->push(num);
+            if (unaryPush) state->push(num);
+            break;
+        }
+        case 5: {
+            if (val->get_type() != ValueType::t_number) {
+                panic("sub sub operator can not do on not numberic type!");
+            }
+            Number *num = static_cast<Number *>(val);
+            int v1 = (int)num->value();
+            int v2 = (int)ceil(num->value());
+            if (v1 != v2) {
+                cout << "";
+            }
+            num->set_val(~(int)num->value());
+            if (unaryPush) state->push(num);
             break;
         }
         default:
@@ -348,67 +573,23 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         case OpCode::op_div: 
         case OpCode::op_mod: 
         case OpCode::op_add_eq: 
-        case OpCode::op_sub_eq: {
-            operate(0, int(op));
-            break;
-        }
-
-        case OpCode::op_mul_eq: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_div_eq: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_mod_eq: {
-            operate(0, 0);
-            break;
-        }
-        
-        /* 逻辑运算符 */
-        case OpCode::op_bin_or: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_bin_xor: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_bin_and: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_bin_not: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_bin_lm: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_bin_rm: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_bin_xor_eq: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_bin_and_eq: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_bin_or_eq: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_bin_lme: {
-            operate(0, 0);
-            break;
-        }
-        case OpCode::op_bin_rme: {
-            operate(0, 0);
+        case OpCode::op_sub_eq:
+        case OpCode::op_mul_eq:
+        case OpCode::op_div_eq:
+        case OpCode::op_mod_eq:
+         /* 逻辑运算符 */
+        case OpCode::op_bin_or:
+        case OpCode::op_bin_xor:
+        case OpCode::op_bin_and:
+        case OpCode::op_bin_lm:
+        case OpCode::op_bin_rm:
+        case OpCode::op_bin_xor_eq:
+        case OpCode::op_bin_and_eq:
+        case OpCode::op_bin_or_eq:
+        case OpCode::op_bin_lme:
+        case OpCode::op_bin_rme:
+        {
+            operate(0, int(op), 0);
             break;
         }
         
@@ -448,32 +629,32 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
 
         /* 一元运算符  从栈中弹出一个 */
         case OpCode::op_not: {
-            operate(1, 0);
+            operate(1, 0, param);
             break;
         }
         case OpCode::op_len: {
-            operate(1, 1);
+            operate(1, 1, param);
             break;
         }
         case OpCode::op_unary_sub: {
-            operate(1, 2);
+            operate(1, 2, param);
             break;
         }
         case OpCode::op_add_add: {
-            operate(1, 3);
+            operate(1, 3, param);
             break;
         }
         case OpCode::op_sub_sub: {
-            operate(1, 4);
+            operate(1, 4, param);
+            break;
+        }
+        case OpCode::op_bin_not:
+        {
+            operate(1, 5, param);
             break;
         }
 
 
-        case OpCode::op_concat: {
-            operate(1, 0);
-            break;
-        }
-        
         /*    入栈相关   */
         case OpCode::op_pushc:{
             state->pushc(param);
@@ -575,9 +756,10 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         }
         case OpCode::op_table_set:
         {
-            Value *val = state->pop();
             Value *key = state->pop();
-            TableVal *tb = dynamic_cast<TableVal *>(state->pop());
+            Value *val = state->pop();
+            Value * p = state->pop();
+            TableVal *tb = dynamic_cast<TableVal *>(p);
             if (!tb) {
                 panic("table init fail");
             }

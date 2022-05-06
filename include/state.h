@@ -40,8 +40,10 @@ public:
     int get_stack_size();
     int cur_calls();
     void clearTempData();
+    bool tryClearOpenedFuns(FunctionVal *fun);
 
 private:
+    vector<FunctionVal *> *openedFuns = NULL;
     FunctionVal *cur = NULL;
     vector<FunctionVal *> *calls = NULL;
     unordered_map<string, FunctionVal *> *files = NULL;

@@ -371,7 +371,7 @@ vector<int> * FunctionVal::get_pcs()
 FunctionVal * FunctionVal::get_subfun(int i)
 {
     if (i < 0 || i >= subFuncs->size()) return NULL;
-    return this->subFuncs->at(i);
+    return static_cast<FunctionVal *>(this->subFuncs->at(i)->copy());
 }
 
 vector<FunctionVal *> * FunctionVal::get_subfuns()
@@ -384,10 +384,8 @@ Value * FunctionVal::copy()
     FunctionVal *val = new FunctionVal;
     val->chunk = new FunctionChunk;
     *val->chunk = *this->chunk;
+    val->chunk->local_variables = new vector<Value *>(this->chunk->local_variables->size(), NULL);
     *val = *this;
-    val->chunk->local_variables = new vector<Value *>;
-    *val->chunk->local_variables = *this->chunk->local_variables;       // local variable must copy
-    val->set_subfuns(this->get_subfuns());
     return val;
 }
 

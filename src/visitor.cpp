@@ -1,4 +1,5 @@
 ﻿
+#include <map>
 #include <vector>
 #include <unordered_map>
 #include <cstdlib>
@@ -6,7 +7,6 @@
 
 #include "parser.h"
 #include "visitor.h"
-#include "codegen.h"
 #include "yuan.h"
 
 using namespace std;
@@ -65,7 +65,6 @@ struct Const
     {
         double val;
         ConstString *str = NULL;
-        bool b;
     };
     value *v = NULL;
 };
@@ -79,6 +78,8 @@ static unordered_map<int, Const*> global_const;     // 常量表 编号，值
 static int global_const_index = 0;
 static int global_var_index = 0;
 
+static int annoy = 0;
+
 static void init()
 {
     global_subFuncInfos.clear();
@@ -86,34 +87,6 @@ static void init()
     global_const.clear();
     global_const_index = 0;
     global_var_index = 0;
-}
-
-static void add_global_const(Const *c)
-{
-    if (c->type == VariableType::t_number) {
-        global_const[global_const_index] = c;
-    }
-    else if (c->type == VariableType::t_string) {
-        static string t;
-        t.clear();
-        for(int i = 0; i < c->v->str->len; ++i) {
-            t.push_back(c->v->str->str[i]);
-        }
-        global_const[global_const_index] = c;
-    }
-    global_const_index++;
-}
-
-static UpValueDesc * init_global_upvlaue()
-{
-    UpValueDesc *env_upvlaue = new UpValueDesc;
-    env_upvlaue->name = "_ENV";
-    env_upvlaue->name_len = 4;
-    env_upvlaue->upvalues = new vector<UpValueDesc *>;
-    env_upvlaue->upvalues->push_back(new UpValueDesc);
-    env_upvlaue->upvalues->back()->name = "print";
-    env_upvlaue->upvalues->back()->name_len = 5;
-    return env_upvlaue;
 }
 
 static bool is_same_id(char *s1, int len1, char *s2, int len2)
@@ -125,6 +98,47 @@ static bool is_same_id(char *s1, int len1, char *s2, int len2)
         i++;
     }
     return true;
+}
+
+static int add_global_const(double val, char *str, int len, VariableType type)
+{
+    int index = -1;
+    if (type == VariableType::t_number) {
+        for (auto &it : global_const) {
+            if (it.second->type == VariableType::t_number && val == it.second->v->val) {
+                index = it.first;
+                break;
+            }
+        }
+        if (index < 0) {
+            Const *c = new Const;
+            c->type = VariableType::t_number;
+            c->v = new Const::value;
+            c->v->val = val;
+            global_const[global_const_index] = c;
+            index = global_const_index++;
+        }
+    }
+    else if (type == VariableType::t_string) {
+        for (auto &it : global_const) {
+            if (it.second->type == VariableType::t_string && is_same_id(str, len, it.second->v->str->str, it.second->v->str->len)) {
+                index = it.first;
+                break;
+            }
+        }
+        if (index < 0) {
+            Const *c = new Const;
+            c->type = VariableType::t_string;
+            c->v = new Const::value;
+            c->v = new Const::value;
+            c->v->str = new ConstString;
+            c->v->str->str = str;
+            c->v->str->len = len;
+            global_const[global_const_index] = c;
+            index = global_const_index++;
+        }
+    }
+    return index;
 }
 
 static bool has_identifier(FuncInfo *info, char *name, int len, pair<int, int> &p) // p 为 <在函数栈中的位置，第几个变量>
@@ -190,6 +204,7 @@ static void syntax_error(const char *msg)
     exit(0);
 }
 static int stack_lv = 0;
+static int needPush = 0;
 static map<int, vector<int>> breaks;
 static map<int, vector<int>> continues;
 
@@ -210,7 +225,7 @@ static void visit_operation_exp(OperationExpression *operExp, FuncInfo *info, Co
     case OperatorType::op_not:
     {
         visit_operation(operExp->left, info, writer);
-        writer.add(OpCode::op_add_add, 0);
+        writer.add(OpCode::op_not, 0);
         break;
     }
     case OperatorType::op_len:
@@ -222,19 +237,25 @@ static void visit_operation_exp(OperationExpression *operExp, FuncInfo *info, Co
     case OperatorType::op_unary_sub:
     {
         visit_operation(operExp->left, info, writer);
-        writer.add(OpCode::op_unary_sub, 0);
+        writer.add(OpCode::op_unary_sub, needPush);
         break;
     }
     case OperatorType::op_add_add:
     {
         visit_operation(operExp->left, info, writer);
-        writer.add(OpCode::op_add_add, 0);
+        writer.add(OpCode::op_add_add, needPush);
         break;
     }
     case OperatorType::op_sub_sub:
     {
         visit_operation(operExp->left, info, writer);
-        writer.add(OpCode::op_sub_sub, 0);
+        writer.add(OpCode::op_sub_sub, needPush);
+        break;
+    }
+    case OperatorType::op_bin_not:
+    {
+        visit_operation(operExp->left, info, writer);
+        writer.add(OpCode::op_bin_not, needPush);
         break;
     }
     default:
@@ -246,9 +267,11 @@ static void visit_operation_exp(OperationExpression *operExp, FuncInfo *info, Co
             syntax_error("illegal type found");
         }
 
+        needPush = 1;
         visit_operation(operExp->left, info, writer);
         visit_operation(operExp->right, info, writer);
         writer.add((OpCode)operExp->op_type, 0);
+        needPush = 0;
         break;
     }
     
@@ -328,7 +351,9 @@ static void visit_if(IfExpression *ifExp, FuncInfo *info, CodeWriter &writer)
             last = -1;
         }
         if ((*it)->condition) {
+            needPush = 1;
             visit_operation_exp((*it)->condition, info, writer);
+            needPush = 0;
             writer.add(OpCode::op_test, 0);
             // if else if else if else 跳到下一个条件
             last = writer.get_pc();
@@ -365,7 +390,9 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
         int cond = -1;
         if (forExp->second_statement) {
             cond = writer.get_pc();
+            needPush = 1;
             visit_operation_exp(forExp->second_statement, info, writer);
+            needPush = 0;
             writer.add(OpCode::op_test, 0);
             writer.add(OpCode::op_jump, 0); // 跳出循环体或进入循环体
             breaks[stack_lv].push_back(writer.get_pc() - 1);
@@ -425,7 +452,9 @@ static void visit_while(WhileExpression *whileExp, FuncInfo *info, CodeWriter &w
 {
     ++stack_lv;
     int start = writer.get_pc() - 1;
+    needPush = 1;
     visit_operation_exp(whileExp->condition, info, writer);
+    needPush = 0;
     writer.add(OpCode::op_test, 0);
     writer.add(OpCode::op_jump, 0);
     int out = writer.get_pc();
@@ -448,7 +477,9 @@ static void visit_do_while(DoWhileExpression *doWhileExp, FuncInfo *info, CodeWr
     ++stack_lv;
     int start = writer.get_pc() - 1; // for jump back
     visit_statement(doWhileExp->body, info, writer);
+    needPush = 1;
     visit_operation_exp(doWhileExp->condition, info, writer);
+    needPush = 0;
     writer.add(OpCode::op_test, 0);
     int out = writer.get_pc();
     writer.add(OpCode::op_jump, 0); // 测试失败执行
@@ -495,9 +526,6 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
     int gVarid = is_global_var(name, len);
     if (gVarid >= 0) {
         // 参数  fun(fun(12, 2), 3);
-        for (auto &it : *call->parameters) {
-            visit_operation(it, info, writer);
-        }
         writer.add(OpCode::op_call, -gVarid - 1);
         return;
     }
@@ -505,15 +533,7 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
     if (!hasId) {
         // 看在不在 env 中
         // 添加到全局常量里面，运行时去env中找，找不到再crash
-        Const *c = new Const;
-        c->type = VariableType::t_string;
-        c->v = new Const::value;
-        c->v = new Const::value;
-        c->v->str = new ConstString;
-        c->v->str->str = name;
-        c->v->str->len = len;
-        add_global_const(c);
-        writer.add(OpCode::op_call_upv, -(global_const_index - 1) - 1);
+        writer.add(OpCode::op_call_upv, -add_global_const(0, name, len, VariableType::t_string) - 1);
         return;
     }
     
@@ -589,6 +609,9 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
             FuncInfoItem item;
             item.varIndex = global_var_index;
             global_vars[global_var_index] = item;
+            writer.add(OpCode::op_enter_func, info->subFuncInfos->size());
+            writer.add(OpCode::op_storeg, global_var_index);
+            writer.add(OpCode::op_pushg, global_var_index);
         }
         global_var_index++;
     }
@@ -646,14 +669,7 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
     else {
         pair<int, int> p;
         if (!has_identifier(info, id, len, p)) {
-            Const *c = new Const;
-            c->type = VariableType::t_string;
-            c->v = new Const::value;
-            c->v->str = new ConstString;
-            c->v->str->str = id;
-            c->v->str->len = len;
-            add_global_const(c);
-            writer.add(OpCode::op_pushc, global_const_index - 1);
+            writer.add(OpCode::op_pushc, add_global_const(0, id, len, VariableType::t_string));
             writer.add(OpCode::op_get_env, 0);
         }
         else if (p.first == info->in_stack) {
@@ -754,15 +770,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         pair<int, int> p;
         if (!has_identifier(info, id, len, p)) {
             // 未发现的先添加的到全局字符串常量表中
-            Const *c = new Const;
-            c->type = VariableType::t_string;
-            c->v = new Const::value;
-            c->v = new Const::value;
-            c->v->str = new ConstString;
-            c->v->str->str = id;
-            c->v->str->len = len;
-            add_global_const(c);
-            writer.add(OpCode::op_pushc, global_const_index - 1);
+            writer.add(OpCode::op_pushc, add_global_const(0, id, len, VariableType::t_string));
         }
         else {
             if (p.first == info->in_stack) {
@@ -799,12 +807,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
     }
     case OpType::num:
     {
-        Const *c = new Const;
-        c->type = VariableType::t_number;
-        c->v = new Const::value;
-        c->v->val = opera->op->number_oper->val;
-        add_global_const(c);
-        writer.add(OpCode::op_pushc, global_const_index - 1);
+        writer.add(OpCode::op_pushc,  add_global_const(opera->op->number_oper->val, NULL, 0, VariableType::t_number));
         delete opera->op->number_oper;
         break;
     }
@@ -822,14 +825,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
     }
     case OpType::str:
     {
-        Const *c = new Const;
-        c->type = VariableType::t_string;
-        c->v = new Const::value;
-        c->v->str = new ConstString;
-        c->v->str->str = opera->op->string_oper->raw;
-        c->v->str->len = opera->op->string_oper->raw_len;
-        add_global_const(c);
-        writer.add(OpCode::op_pushc, global_const_index - 1);
+        writer.add(OpCode::op_pushc, add_global_const(0, opera->op->string_oper->raw, opera->op->string_oper->raw_len, VariableType::t_string));
         delete opera->op->string_oper;
         break;
     }
@@ -1006,7 +1002,6 @@ void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
         fileFuncInfo->items = new vector<FuncInfoItem *>;
         fileFuncInfo->upvalue = new UpValueDesc;
         fileFuncInfo->upvalue->upvalues = new vector<UpValueDesc *>;
-        //fileFuncInfo->upvalue->upvalues->push_back(init_global_upvlaue());
         fileFuncInfo->func_name = "main";
         fileFuncInfo->name_len = 4;
         fileFuncInfo->in_stack = 0;

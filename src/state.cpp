@@ -28,6 +28,7 @@ State::State(size_t sz)
     this->stack = new VmStack(sz);
     this->files = new unordered_map<string, FunctionVal *>;
     this->calls = new vector<FunctionVal *>;
+    this->openedFuns = new vector<FunctionVal *>;
     this->vm = new VM;
     if (!this->stack) {
         cout << "initial fail!" << endl;
@@ -152,12 +153,48 @@ void State::set_cur(FunctionVal *fun)
     this->calls->push_back(fun);
 }
 
+bool State::tryClearOpenedFuns(FunctionVal *fun)
+{
+    bool hasUse = false;
+    for (auto &it : *fun->chunk->local_variables) {
+        if (it->ref_count > 1) {
+            hasUse = true;
+            break;
+        }
+    }
+    if (!hasUse) {
+        for (auto &it : *fun->chunk->local_variables) {
+            if (it) {
+                it->ref_count--;
+                if (it->ref_count == 0) delete it;
+            }
+        }
+        delete fun->chunk->local_variables;
+        delete fun->chunk;
+        delete fun;
+        return true;
+    }
+    return false;
+}
+
 void State::end_call()
 {
     clearTempData();
-    this->calls->pop_back();
-    if (!this->calls->empty())
-        cur = calls->back();
+    if (!tryClearOpenedFuns(cur)) openedFuns->push_back(cur);
+
+    if (!openedFuns->empty()) openedFuns->pop_back();
+
+    if (!this->calls->empty()){
+        calls->pop_back();
+        // 最后退出的是main chunk
+        if (!calls->empty()) cur = calls->back();
+    }
+
+    for (auto it = openedFuns->begin(); it != openedFuns->end(); ) {
+        bool ret = this->tryClearOpenedFuns(*it);
+        if (ret) it = openedFuns->erase(it);
+        else ++it;
+    }
 }
 
 int State::get_stack_size()
@@ -328,7 +365,7 @@ static TableVal * init_env(VM *vm)
 
 void State::run()
 {
-    FunctionVal *entry = get_by_file_name("D:/code/src/vs/yuan-lang/hello.b");
+    FunctionVal *entry = get_by_file_name("D:/code/test/cpp/yuan-lang/hello.b");
     if (!entry) {
         cout << "not found !!" << endl;
         exit(0);

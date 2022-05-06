@@ -1,11 +1,16 @@
 local a = 100
+-100
 
-fn do_sth()
+for (i = 0; i < 100; ++i) {
+    print("cur: " + i)
+}
+
+local fn do_sth()
 {
     if (a > 100) {
         print("hello")
     } 
-    else if (a != 100) {
+    else if (a == 100) {
         print("80")
     }
     else if (a == 50) {
@@ -15,7 +20,7 @@ fn do_sth()
 
     local fn hello()
     {
-        print("hello world!!!")
+        return "你好世界!!!" + "hello world"
     }
 
     return hello
@@ -23,4 +28,11 @@ fn do_sth()
 
 fun = do_sth()
 
-fun()
+
+
+local tb = {"name": fn(name) {
+    print("welcome " + name)
+},100 : 20}
+
+tbfun = tb["name"]
+tbfun(fun())
