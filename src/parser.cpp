@@ -9,12 +9,29 @@ static OperatorType getbinopr (int op) {
     case '*': return OperatorType::op_mul;
     case '/': return OperatorType::op_div;
     case '%': return OperatorType::op_mod;
-    case '.' + '.': return OperatorType::op_concat;
     case '!' + '=': return OperatorType::op_ne;
     case '=' + '=': return OperatorType::op_equal;
     case '<': return OperatorType::op_lt;
 	case '>': return OperatorType::op_gt;
 	case '.': return OperatorType::op_dot;
+	case '+' + '=': return OperatorType::op_add_eq;
+	case '-' + '=': return OperatorType::op_sub_eq;
+	case '*' + '=': return OperatorType::op_mul_eq;
+	case '/' + '=': return OperatorType::op_div_eq;
+	case '%' + '=': return OperatorType::op_mod_eq;
+	case '&' + '&': return OperatorType::op_and;
+	case '|' + '|': return OperatorType::op_or;
+	case '&': return OperatorType::op_bin_and;
+	case '|': return OperatorType::op_bin_or;
+	case '&' + '=': return OperatorType::op_bin_and_eq;
+	case '|' + '=': return OperatorType::op_bin_or_eq;
+	case '<' + '<': return OperatorType::op_bin_lm;
+	case ('>' + '>' + 1): return OperatorType::op_bin_rm;
+	case '<' + '<' + '=': return OperatorType::op_bin_lme;
+	case '>' + '>' + '=' + 1: return OperatorType::op_bin_rme;
+	case '^' + 1: return OperatorType::op_bin_xor;
+	case '^' + '=': return OperatorType::op_bin_xor_eq;
+
     default: return OperatorType::op_none;
   }
 }
@@ -41,6 +58,7 @@ static OperatorType getunopr (int op) {
     case '#': return OperatorType::op_len;
 	case '+' + '+': return OperatorType::op_add_add;
 	case '-' + '-': return OperatorType::op_sub_sub;
+	case '~':return OperatorType::op_bin_not;
     default: return OperatorType::op_none;
   }
 }
@@ -61,14 +79,28 @@ static int get_operator_type(TokenReader *reader)
 		symbol_map["*"] = '*';
 		symbol_map["/"] = '/';
 		symbol_map["%"] = '%';
+
+		symbol_map["+="] = '+' + '=';
+		symbol_map["-="] = '-' + '=';
+		symbol_map["*="] = '*' + '=';
+		symbol_map["/="] = '/' + '=';
+		symbol_map["%="] = '%' + '=';
 		
 		symbol_map["&&"] = '&' + '&';
 		symbol_map["||"] = '|' + '|';
-		symbol_map[">>"] = '>' + '>';
+		symbol_map[">>"] = '>' + '>' + 1;
 		symbol_map["<<"] = '<' + '<';
+
+		symbol_map[">>="] = '>' + '>' + '=' + 1;
+		symbol_map["<<="] = '<' + '<' + '=';
 
 		symbol_map["|"] = '|';
 		symbol_map["&"] = '&';
+		symbol_map["^"] = '^' + 1;
+
+		symbol_map["|="] = '|' + '=';
+		symbol_map["&="] = '&' + '=';
+		symbol_map["^="] = '^' + '=';
 
 		symbol_map[">"] = '>';
 		symbol_map["<"] = '<';
@@ -1140,19 +1172,19 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool brea
 		{
 			reader->consume();
 			if (reader->peek().type == TokenType::sym) 	{
-				if (*reader->peek().from == '(') {
+				if (*reader->peek().from == '(' && reader->peek().len == 1) {
 					reader->unread();
 					build_call(statements, reader);
 				}
-				else if (*reader->peek().from == '[') {
+				else if (*reader->peek().from == '[' && reader->peek().len == 1) {
 					reader->unread();
 					build_operation(statements, reader);
 				}
-				else if (*reader->peek().from == '=') {
+				else if (*reader->peek().from == '=' && reader->peek().len == 1) {
 					reader->unread();
 					build_assign(statements, reader);
 				}
-				else if (*reader->peek().from == '.') {
+				else if (*reader->peek().from == '.' && reader->peek().len == 1) {
 					// aa.bb.cc() ?
 					// 如果发现前面都未定义，则认为在env中
 					// 4种情况要处理，1、aa.bb.cc = 100, 2、aa.bb.vv(), 3、aa.bb.cc[100].dd[qq].ff
@@ -1163,7 +1195,10 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool brea
 					reader->unread();
 					build_operation(statements, reader);
 				}
-				else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
+				else {
+					reader->unread();
+					build_operation(statements, reader);
+				}
 			}
 			else {
 				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);

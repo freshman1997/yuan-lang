@@ -182,7 +182,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 state->push(ret);
                 break;
             }
-            case 10: {
+            case 10: {  // |
                 Number *ret = new Number;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
@@ -198,7 +198,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 state->push(ret);
                 break;
             }
-            case 11: {
+            case 11: {  // ^ 
                 Number *ret = new Number;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
@@ -211,9 +211,10 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                     cout << "warning: binary xor operator needs integer number!" << endl;
                 }
                 ret->set_val((int)num2->value() ^ (int)num1->value());
+                state->push(ret);
                 break;
             }
-            case 12: {
+            case 12: {  // & 
                 Number *ret = new Number;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
@@ -225,10 +226,11 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 if (v1 != v2) {
                     cout << "warning: binary and operator needs integer number!" << endl;
                 }
-                num2->set_val((int)num2->value() & (int)num1->value());
+                ret->set_val((int)num2->value() & (int)num1->value());
+                state->push(ret);
                 break;
             }
-            case 13 : {
+            case 14 : {
                 Number *ret = new Number;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
@@ -241,9 +243,10 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                     cout << "warning: binary left move operator needs integer number!" << endl;
                 }
                 ret->set_val((int)num2->value() << (int)num1->value());
+                state->push(ret);
                 break;
             }
-            case 14 : {
+            case 15 : {
                 Number *ret = new Number;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
@@ -256,9 +259,10 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                     cout << "warning: binary right move operator needs integer number!" << endl;
                 }
                 ret->set_val((int)num2->value() >> (int)num1->value());
+                state->push(ret);
                 break;
             }
-            case 15: {
+            case 16: {
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
                 if (v1 != v2) {
@@ -272,7 +276,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 num2->set_val((int)num2->value() ^ (int)num1->value());
                 break;
             }
-            case 16: {
+            case 17: {
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
                 if (v1 != v2) {
@@ -286,7 +290,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 num2->set_val((int)num2->value() & (int)num1->value());
                 break;
             }
-            case 17: {
+            case 18: {
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
                 if (v1 != v2) {
@@ -300,7 +304,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 num2->set_val((int)num2->value() | (int)num1->value());
                 break;
             }
-            case 18: {
+            case 19: {
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
                 if (v1 != v2) {
@@ -314,7 +318,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 num2->set_val((int)num2->value() << (int)num1->value());
                 break;
             }
-            case 19: {
+            case 20: {
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
                 if (v1 != v2) {

@@ -67,10 +67,7 @@ enum class OperatorType
     op_sub_sub,     // --
 
     op_in,          // in 用在 for 循环
-    op_concat,      // ..
     op_dot,         // .
-
-    op_substr,      // : 
 
     op_none,        
 };

@@ -130,7 +130,8 @@ static bool is_keyword(const Token& tok) {
 			s.insert(kw[i]);
 	}
 	char* p = tok.from;
-	string t;
+	static string t;
+	t.clear();
 	int i = 0;
 	for (; i < tok.len; ++i) t.push_back(p[i]);
 	return s.count(t);
@@ -151,7 +152,7 @@ static int read_punct(char* p)
 	static const char* kw[] = {
 	  "<<=", ">>=", "...", "==", "!=", "<=", ">=", "+=", "..",
 	  "-=", "*=", "/=", "++", "--", "%=", "&=", "|=", "^=", "&&",
-	  "||", "<<", ">>", ":", "``", "(", ")", "{", "}", "[", "]", ";",
+	  "||", "<<", ">>", "``",
 	};
 
 	for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
@@ -251,6 +252,7 @@ static void add_token(TokenReader &reader, char *from, int len, TokenType type, 
 		memcpy(num, from, len);
 		num[len] = '\0';
 		t.val = atof(num);
+		delete[] num;
 	}
     reader.add_token(t);
 }

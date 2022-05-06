@@ -1,3 +1,7 @@
+test = 10
+test >>= 100
+print(test)
+
 local a = 100
 -100
 
@@ -36,3 +40,5 @@ local tb = {"name": fn(name) {
 
 tbfun = tb["name"]
 tbfun(fun())
+
+

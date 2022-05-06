@@ -20,6 +20,7 @@ enum class OpCode
     op_bin_or,          // |
     op_bin_xor,         // ^
     op_bin_and,         // &
+    op_bin_not,         // ~
     op_bin_lm,          // <<
     op_bin_rm,          // >> 
     op_bin_xor_eq,      // ^=
@@ -44,7 +45,6 @@ enum class OpCode
     op_unary_sub,       // 前置 - 负号
     op_add_add,         // ++
     op_sub_sub,         // --
-    op_bin_not,         // ~
 
     op_test,            // 
 

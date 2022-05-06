@@ -365,7 +365,7 @@ static TableVal * init_env(VM *vm)
 
 void State::run()
 {
-    FunctionVal *entry = get_by_file_name("D:/code/test/cpp/yuan-lang/hello.b");
+    FunctionVal *entry = get_by_file_name("D:/code/src/vs/yuan-lang/hello.b");
     if (!entry) {
         cout << "not found !!" << endl;
         exit(0);
