@@ -38,7 +38,14 @@ local tb = {"name": fn(name) {
     print("welcome " + name)
 },100 : 20}
 
-tbfun = tb["name"]
-tbfun(fun())
+tb["name"](fun())
+
+
+arr = [1, 2, "hello world", tb, fn(){
+    print("array inner method")
+}]
+
+arr[4]()
+
 
 

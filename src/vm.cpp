@@ -104,13 +104,6 @@ static void assign(int type, int i)
 static void operate(int type, int op, int unaryPush) // type 用于区分是一元还是二元
 {
     if (type == 0) {
-        static vector<int> opers;
-        if (opers.empty()) {
-            // + - * / % && || < > <= >= == != >> << | & ! ~ 
-            for(int i = 0; i < 20; ++i) {
-                opers.push_back(i);
-            }
-        }
         Value *val1 = state->pop();
         Value *val2 = state->pop();
         if (val1->get_type() == ValueType::t_null || val2->get_type() == ValueType::t_null) {
@@ -356,6 +349,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                     str->value()->append(*static_cast<String*>(val2)->value()).append(to_string(static_cast<Number*>(val1)->value()));
                     state->push(str);
                 }
+                else panic("add operator not support this type");
             }
             else panic("can not do this operation!");
         }
@@ -900,7 +894,20 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             }
             break;
         }
-
+        case OpCode::op_call_t:     // 直接调用入栈的函数
+        {
+            Value *val = state->get(param);
+            if (!val || val->get_type() != ValueType::t_function) {
+                panic("no function found");
+            }
+            FunctionVal *fun = dynamic_cast<FunctionVal *>(val);
+            if (!fun || fun->nparam != -param) {
+                panic("call error, function parameter amount not match!!!");
+            }
+            do_call(val);
+            state->pop();   // 把栈里面的函数出栈
+            break;
+        }
 
         case OpCode::op_return:
         {

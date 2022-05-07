@@ -67,6 +67,7 @@ enum class OpCode
     op_for_in,          // for in
     op_call,            // call
     op_call_upv,        // call upvalue
+    op_call_t,          // call temp val []()
     op_return,          // return 参数为返回的个数，后续再pusht结果进栈
 
     op_get_env,         // 查找内置表、变量、函数

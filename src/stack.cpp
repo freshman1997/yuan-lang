@@ -23,7 +23,7 @@ Value * VmStack::pop()
 
 Value * VmStack::get(int i)
 {
-    if (this->_stack.size() < i) return new Nil;
+    if (i < 0 || this->_stack.size() <= i) return new Nil;
     return this->_stack[i];
 }
 

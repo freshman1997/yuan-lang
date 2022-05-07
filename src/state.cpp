@@ -127,6 +127,16 @@ Value * State::getu(int i)
     }
 }
 
+Value * State::get(int pos)
+{
+    if (pos >= stack->get_size()) return NULL;
+    if (pos < 0) {
+        pos = stack->get_size() + pos - 1;
+    }
+    return stack->get(pos);
+}
+
+
 Value * State::get_subfun(int i)
 {
     if (!cur->chunk->upvals->at(0)) cur->chunk->upvals->at(0) = cur->pre->chunk->upvals->at(0);
@@ -365,7 +375,7 @@ static TableVal * init_env(VM *vm)
 
 void State::run()
 {
-    FunctionVal *entry = get_by_file_name("D:/code/src/vs/yuan-lang/hello.b");
+    FunctionVal *entry = get_by_file_name("D:/code/test/cpp/yuan-lang/hello.b");
     if (!entry) {
         cout << "not found !!" << endl;
         exit(0);

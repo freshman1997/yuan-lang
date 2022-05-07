@@ -91,7 +91,7 @@ static void init()
 
 static bool is_same_id(char *s1, int len1, char *s2, int len2)
 {
-    if (len1 != len2) return false;
+    if (len1 != len2 || !s1 || !s2) return false;
     int i = 0;
     while (i < len1) {
         if (s1[i] != s2[i]) return false;
@@ -504,9 +504,16 @@ static void visit_return(ReturnExpression *retExp, FuncInfo *info, CodeWriter &w
     writer.add(OpCode::op_return, 0);
 }
 
+static int fromIndex = 0;
 static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
 {
-    int pc = writer.get_pc();
+    if (!call->function_name) {
+        for (auto &it : *call->parameters) {
+            visit_operation(it, info, writer);
+        }
+        writer.add(OpCode::op_call_t, -fromIndex);
+        return;
+    }
     pair<int, int> p;
     char *name = call->function_name->name;
     int len = call->function_name->name_len;
@@ -656,33 +663,39 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
 
 static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writer)
 {
-    IdExpression *name = index->id;
-    char *id = name->name;
-    int len = name->name_len;
+    if (index->id) {
+        IdExpression *name = index->id;
+        char *id = name->name;
+        int len = name->name_len;
 
-    delete name;
-    int gVarid = is_global_var(id, len);
-    // [][][][][][]
-    if (gVarid >= 0) {
-        writer.add(OpCode::op_pushg, gVarid);
-    }
-    else {
-        pair<int, int> p;
-        if (!has_identifier(info, id, len, p)) {
-            writer.add(OpCode::op_pushc, add_global_const(0, id, len, VariableType::t_string));
-            writer.add(OpCode::op_get_env, 0);
-        }
-        else if (p.first == info->in_stack) {
-            writer.add(OpCode::op_pushl, p.second);
+        delete name;
+        int gVarid = is_global_var(id, len);
+        // [][][][][][]
+        if (gVarid >= 0) {
+            writer.add(OpCode::op_pushg, gVarid);
         }
         else {
-            // upvalue
-            writer.add(OpCode::op_pushu, p.second);
+            pair<int, int> p;
+            if (!has_identifier(info, id, len, p)) {
+                writer.add(OpCode::op_pushc, add_global_const(0, id, len, VariableType::t_string));
+                writer.add(OpCode::op_get_env, 0);
+            }
+            else if (p.first == info->in_stack) {
+                writer.add(OpCode::op_pushl, p.second);
+            }
+            else {
+                // upvalue
+                writer.add(OpCode::op_pushu, p.second);
+            }
         }
     }
+
     for (auto &it : *index->keys) {
+        bool isCall = it->left->type == OpType::call;
+        if (isCall) fromIndex = it->left->op->call_oper->parameters->size();
         visit_operation_exp(it, info, writer);
-        writer.add(OpCode::op_index, 0);
+        if (!isCall) 
+            writer.add(OpCode::op_index, 0);
         delete it;
     }
     delete index->keys;
