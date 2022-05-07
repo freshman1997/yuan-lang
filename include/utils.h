@@ -14,7 +14,8 @@ using namespace std;
 // 字符串是否相等
 inline bool str_equal(const char *s1, const char *s2, int n)
 {
-    if (n == -1) n = strlen(s2);
+    int len2 = strlen(s2);
+    if (len2 != n) return false;
     while(*(s1++) == *(s2++)) --n;
     return n == 0;
 }

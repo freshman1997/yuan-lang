@@ -68,6 +68,7 @@ enum class OperatorType
 
     op_in,          // in 用在 for 循环
     op_dot,         // .
+    op_varargs,     // ...
 
     op_none,        
 };
@@ -149,7 +150,7 @@ struct BodyStatment;
 struct Function
 {
     IdExpression *function_name = NULL;                // 函数名称
-    bool is_local = false;                              // 是否为 local 修饰
+    bool is_local = false;                             // 是否为 local 修饰
     vector<IdExpression *> *parameters = NULL;         // 参数
     vector<BodyStatment *> *body = NULL;               // 函数体
     IdExpression *module = NULL;                       // 所属模块

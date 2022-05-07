@@ -227,7 +227,6 @@ public:
     int nparam = 0;
     int nreturn = 0;
     int in_stack = 0;
-    bool varargs = false;
     int ncalls = 0;                                         // 调用自身的次数，也就是递归
     int param_stack = 0;
     FunctionChunk *chunk = NULL;

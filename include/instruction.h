@@ -65,9 +65,12 @@ enum class OpCode
 
     /* 操作表达式 */
     op_for_in,          // for in
+
+    /* 函数调用部分 */
     op_call,            // call
     op_call_upv,        // call upvalue
     op_call_t,          // call temp val []()
+    op_param_start,     // 函数调用参数开始时栈的位置
     op_return,          // return 参数为返回的个数，后续再pusht结果进栈
 
     op_get_env,         // 查找内置表、变量、函数

@@ -47,6 +47,7 @@ struct FuncInfo
     int from_pc = 0;
     int to_pc = 0;
     bool is_local = false;
+    bool isVarargs = false;
     Function *fun = NULL;
     FuncInfo *pre = NULL;
     UpValueDesc *upvalue = NULL;
@@ -527,6 +528,7 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
             syntax_error("funtion parameter amount not matched!");
         }
     }
+    writer.add(OpCode::op_param_start, 0);
     for (auto &it : *call->parameters) {
         visit_operation(it, info, writer);
     }
@@ -636,6 +638,11 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     // check parameter's name is same ?
     pair<int, int> p;
     for (auto &it : *fun->parameters) {
+        if (it == NULL) { // 可变参数
+            newFun->isVarargs = true;
+            newFun->actVars++;
+            break;
+        }
         int gVarid = is_global_var(it->name, it->name_len);
         if (has_identifier(info, it->name, it->name_len, p) || gVarid >= 0) {
             // error, 重名
@@ -648,7 +655,13 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
         newFun->items->push_back(item);
         newFun->actVars++;
     }
+
     int sz = fun->parameters->size() - 1;
+    if (newFun->isVarargs) {
+        fun->parameters->pop_back();
+        writer.add(OpCode::op_storel, sz); // 应该由外边把参数包装成数组传进来
+        --sz;
+    }
     for (auto it = fun->parameters->rbegin(); it != fun->parameters->rend(); ++it) {
         writer.add(OpCode::op_storel, sz--);
         delete *it;
@@ -772,6 +785,17 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
     {
         char *id = opera->op->id_oper->name;
         int len = opera->op->id_oper->name_len;
+        if (str_equal(id, "args", len)) {
+            if (info->isVarargs || str_equal(info->func_name, "main", 4)) {
+                writer.add(OpCode::op_pushl, info->nparam);
+            }
+            else {
+                syntax_error("only varargs function can use 'args' parameter!!!");
+            }
+            delete opera->op->id_oper;
+            return;
+        }
+
         int gVarid = is_global_var(id, len);
         if (gVarid >= 0) {
             writer.add(OpCode::op_pushg, gVarid);
@@ -912,7 +936,6 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
 static void write_function(ofstream &out, FuncInfo *info)
 {
     // 参数个数，返回个数，is varargs，local 变量个数，upvalue 个数，upvalue表，子函数个数，子函数表
-    char isVarargs = 0;
     out.write((char *)&info->name_len, sizeof(int));
     if (info->name_len) {
         out.write(info->func_name, info->name_len);
@@ -921,7 +944,7 @@ static void write_function(ofstream &out, FuncInfo *info)
 
     out.write((char *)&info->nparam, sizeof(int));
     out.write((char *)&info->nreturn, sizeof(int));
-    out.write((char *)&isVarargs, sizeof(char));
+    out.write((char *)&info->isVarargs, sizeof(char));
     out.write((char *)&info->actVars, sizeof(int));
 
     out.write((char *)&info->is_local, sizeof(char));
@@ -1022,6 +1045,7 @@ void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
         visit_statement(it.second->statements, fileFuncInfo, writer);
         fileFuncInfo->to_pc = writer.get_pc();
         write_to_bin_file(writer, fileFuncInfo);
+        delete[] it.second->reader->get_content();
         delete it.second;
     }
 }

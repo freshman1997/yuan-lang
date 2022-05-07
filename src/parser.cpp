@@ -214,7 +214,7 @@ static vector<Operation *> * parse_parameter(TokenReader *reader, char close, bo
 		}
 		else if (!oper){
 			// 函数
-			if (reader->peek().type == TokenType::keyword && reader->peek().len == 2 && str_equal(reader->peek().from, "fn", 2)) {
+			if (isArr && reader->peek().type == TokenType::keyword && reader->peek().len == 2 && str_equal(reader->peek().from, "fn", 2)) {
 				OperationExpression *op = new OperationExpression;
 				op->op_type = OperatorType::op_none;
 				op->left = new Operation;
@@ -223,6 +223,7 @@ static vector<Operation *> * parse_parameter(TokenReader *reader, char close, bo
 				op->left->op->fun_oper = parse_function_expression(reader, false);
 				oper = op;
 			}
+			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
 
 		if (!oper) {
@@ -1068,6 +1069,16 @@ static Function * parse_function_expression(TokenReader *reader, bool hasName)
 	fun->parameters = new vector<IdExpression *>;
 	while (reader->peek().type != TokenType::eof) {
 		if (reader->peek().type == TokenType::sym && *reader->peek().from == ')') break;
+		if (reader->peek().type == TokenType::sym && reader->peek().len == 3 && str_equal(reader->peek().from, "...", 3)) {
+			// 可变参数
+			fun->parameters->push_back(NULL);
+			reader->consume();
+			
+			if (reader->peek().type != TokenType::sym || *reader->peek().from != ')') {
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "varargs funcion parameter on support at the end of the parameters", __LINE__);
+			}
+			break;
+		}
 		if (reader->peek().type != TokenType::iden) {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid funcion parameter", __LINE__);
 		}
@@ -1341,6 +1352,7 @@ unordered_map<string, Chunck *> * parse(unordered_map<string, TokenReader *> &fi
 		Chunck *chunk = new Chunck;
 		chunk->statements = parse_expressions(it.second, false);
 		chunks->insert(std::make_pair(it.first, chunk));
+		chunk->reader = it.second;
 		cout << it.first << "\t OK" << endl;
 	}
 	return chunks;

@@ -1,3 +1,4 @@
+
 test = 10
 test >>= 100
 print(test)
@@ -5,7 +6,7 @@ print(test)
 local a = 100
 -100
 
-for (i = 0; i < 100; ++i) {
+for (i = 0; i < 5; ++i) {
     print("cur: " + i)
 }
 
@@ -22,7 +23,7 @@ local fn do_sth()
     }
     
 
-    local fn hello()
+    local fn hello(...)
     {
         return "你好世界!!!" + "hello world"
     }
@@ -48,4 +49,7 @@ arr = [1, 2, "hello world", tb, fn(){
 arr[4]()
 
 
+fn test_args(...) {
+    print("size: " + #args)
+}
 

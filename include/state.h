@@ -42,6 +42,8 @@ public:
     void clearTempData();
     bool tryClearOpenedFuns(FunctionVal *fun);
 
+    int param_start = 0;
+
 private:
     vector<FunctionVal *> *openedFuns = NULL;
     FunctionVal *cur = NULL;

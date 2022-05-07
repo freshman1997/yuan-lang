@@ -254,6 +254,7 @@ static void read_function(FunctionVal *funChunk, ifstream &in)
 
     char isVarargs = 0;
     in.read(&isVarargs, sizeof(char));
+    funChunk->chunk->is_varags = isVarargs;
 
     in.read((char *)&localVars, sizeof(int));
     funChunk->chunk->local_variables = new vector<Value *>(localVars, NULL);

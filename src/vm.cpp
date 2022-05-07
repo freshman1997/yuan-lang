@@ -351,7 +351,9 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 }
                 else panic("add operator not support this type");
             }
-            else panic("can not do this operation!");
+            else{
+                panic("can not do this operation!");
+            }
         }
         check_variable_liveness(val1);
         check_variable_liveness(val2);
@@ -495,11 +497,17 @@ static void compair(OpCode op)
         }
     }
     else if (lhs->get_type() == ValueType::t_string && rhs->get_type() == ValueType::t_string){
-
+        // 字符串对比
+        String *str1 = dynamic_cast<String*>(lhs);
+        String *str2 = dynamic_cast<String*>(rhs);
+        if (op == OpCode::op_equal) b->set(*str1->value() == *str2->value());
+        else {
+            cout << "warning: string operator only support ==" << endl;
+        }
     }
     else if (lhs->get_type() == ValueType::t_boolean && rhs->get_type() == ValueType::t_boolean){
-        if ((OpCode)op == OpCode::op_and) b->set(static_cast<Boolean *>(lhs)->value() && static_cast<Boolean *>(rhs)->value());
-        else if ((OpCode)op == OpCode::op_or) b->set(static_cast<Boolean *>(lhs)->value() || static_cast<Boolean *>(rhs)->value());
+        if (op == OpCode::op_and) b->set(static_cast<Boolean *>(lhs)->value() && static_cast<Boolean *>(rhs)->value());
+        else if (op == OpCode::op_or) b->set(static_cast<Boolean *>(lhs)->value() || static_cast<Boolean *>(rhs)->value());
         else panic("boolean not support such operator!");
     }
     else {
@@ -516,6 +524,24 @@ static void string_concat()
     Value *val2 = state->pop();
     // 右边的链接到左边
 
+}
+
+static void packVarargs(State *st, FunctionVal *fun)
+{
+    int nparam = fun->nparam;
+    int stSz = st->get_stack_size();
+    int paramStart = st->param_start;
+    int amount = stSz - nparam - paramStart + 1;
+    if (amount < 0) {
+        panic("vm internal error!!!");  // should not happen
+    }
+    fun->param_stack++;
+    ArrayVal *arr = new ArrayVal;
+    while (amount) {
+        arr->add_item(state->pop());
+    }
+    state->push(arr);
+    st->param_start = 0;
 }
 
 static Value * find_env_param(String *key, FunctionVal *cur)
@@ -550,6 +576,9 @@ static void do_call(Value *val)
     fun->ncalls++;
     if (fun->ncalls >= MAX_RECURSE_NUM) {
         panic("stack overflow");
+    }
+    if (fun->chunk->is_varags) {
+        packVarargs(state, fun);
     }
     // 执行完，栈中应该有对应的返回值
     do_execute(*file_main_fun->chunk->fun_body_ops, fun->from_pc, fun->to_pc);
@@ -842,10 +871,15 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         case OpCode::op_enter_func:
         {
             Value *subfun = state->get_subfun(param);
-            if (!subfun) {
+            if (!subfun || subfun->get_type() != ValueType::t_function) {
                 panic("init subfunction fail");
             }
             state->push(subfun);
+            break;
+        }
+        case OpCode::op_param_start: 
+        {
+            state->param_start = state->get_stack_size();
             break;
         }
         case OpCode::op_call:
@@ -902,7 +936,24 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             }
             FunctionVal *fun = dynamic_cast<FunctionVal *>(val);
             if (!fun || fun->nparam != -param) {
-                panic("call error, function parameter amount not match!!!");
+                if (!fun->chunk->is_varags)
+                    panic("call error, function parameter amount not match!!!");
+                else {
+                    if (fun->nparam > -param) {
+                        panic("call error, function parameter amount not match!!!");
+                    }
+                }
+            }
+            if (fun->chunk->is_varags) {
+                int nvarargs = -param - fun->nparam - 1; // 可变参数数量
+                if (nvarargs < 0) {
+                    panic("vm internal error!!!");  // should not happen
+                }
+                ArrayVal *arr = new ArrayVal;
+                while (nvarargs) {
+                    arr->add_item(state->pop());
+                }
+                state->push(arr);
             }
             do_call(val);
             state->pop();   // 把栈里面的函数出栈
