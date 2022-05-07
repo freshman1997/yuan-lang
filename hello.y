@@ -1,4 +1,15 @@
 
+
+fn test_args(...) {
+    print("size: " + #args)
+    for (i = 0; i < #args; ++i) {
+        print(args[i])
+    }
+}
+
+test_args(1, 2, 3)
+
+
 test = 10
 test >>= 100
 print(test)
@@ -49,9 +60,5 @@ arr = [1, 2, "hello world", tb, fn(){
 arr[4]()
 
 
-fn test_args(...) {
-    print("size: " + #args)
-}
 
-test_args(1, 2, 3)
 

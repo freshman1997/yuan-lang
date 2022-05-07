@@ -546,8 +546,10 @@ static void packVarargs(State *st, FunctionVal *fun)
     }
     if (fun->nreturn) fun->param_stack++; 
     ArrayVal *arr = new ArrayVal;
+    vector<Value *> *members = arr->member();
+    members->resize(amount);
     while (amount--) {
-        arr->add_item(state->pop());
+        members->at(amount) = state->pop();
     }
     state->push(arr);
     st->param_start = 0;
@@ -728,6 +730,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 panic("envirenment param only support string key!!");
             }
             String *key = dynamic_cast<String *>(val);
+            cout << "key: " << *key->value() << endl;
             if (!key) {
                 panic("internal fatal error");
             }

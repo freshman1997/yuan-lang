@@ -680,27 +680,36 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
         IdExpression *name = index->id;
         char *id = name->name;
         int len = name->name_len;
-
-        delete name;
-        int gVarid = is_global_var(id, len);
-        // [][][][][][]
-        if (gVarid >= 0) {
-            writer.add(OpCode::op_pushg, gVarid);
-        }
-        else {
-            pair<int, int> p;
-            if (!has_identifier(info, id, len, p)) {
-                writer.add(OpCode::op_pushc, add_global_const(0, id, len, VariableType::t_string));
-                writer.add(OpCode::op_get_env, 0);
-            }
-            else if (p.first == info->in_stack) {
-                writer.add(OpCode::op_pushl, p.second);
+        if (str_equal(id, "args", len)) {
+            if (info->isVarargs || str_equal(info->func_name, "main", 4)) {
+                writer.add(OpCode::op_pushl, info->nparam - 1);
             }
             else {
-                // upvalue
-                writer.add(OpCode::op_pushu, p.second);
+                syntax_error("only varargs function can use 'args' parameter!!!");
             }
         }
+        else {
+            int gVarid = is_global_var(id, len);
+            // [][][][][][]
+            if (gVarid >= 0) {
+                writer.add(OpCode::op_pushg, gVarid);
+            }
+            else {
+                pair<int, int> p;
+                if (!has_identifier(info, id, len, p)) {
+                    writer.add(OpCode::op_pushc, add_global_const(0, id, len, VariableType::t_string));
+                    writer.add(OpCode::op_get_env, 0);
+                }
+                else if (p.first == info->in_stack) {
+                    writer.add(OpCode::op_pushl, p.second);
+                }
+                else {
+                    // upvalue
+                    writer.add(OpCode::op_pushu, p.second);
+                }
+            }
+        }
+        delete name;
     }
 
     for (auto &it : *index->keys) {
