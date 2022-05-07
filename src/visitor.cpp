@@ -787,7 +787,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         int len = opera->op->id_oper->name_len;
         if (str_equal(id, "args", len)) {
             if (info->isVarargs || str_equal(info->func_name, "main", 4)) {
-                writer.add(OpCode::op_pushl, info->nparam);
+                writer.add(OpCode::op_pushl, info->nparam - 1);
             }
             else {
                 syntax_error("only varargs function can use 'args' parameter!!!");
@@ -1041,6 +1041,7 @@ void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
         fileFuncInfo->func_name = "main";
         fileFuncInfo->name_len = 4;
         fileFuncInfo->in_stack = 0;
+        fileFuncInfo->nparam = 1;       // 外部传入文件的参数，可变参数
         writer.set_file_name(it.first.c_str());
         visit_statement(it.second->statements, fileFuncInfo, writer);
         fileFuncInfo->to_pc = writer.get_pc();

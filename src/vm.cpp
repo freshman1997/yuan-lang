@@ -339,14 +339,23 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 }
                 else if (val1->get_type() == ValueType::t_string && val2->get_type() == ValueType::t_number)
                 {
+                    double v = dynamic_cast<Number *>(val2)->value();
+                    int v1 = (int)floor(v);
+                    int v2 = (int)ceil(v);
                     String *str = new String;
-                    str->value()->append(*static_cast<String*>(val2)->value()).append(to_string((int)static_cast<Number*>(val1)->value()));
+                    if (v1 == v2) str->value()->append(to_string(v1)).append(*static_cast<String*>(val2)->value());
+                    else str->value()->append(to_string(v)).append(*static_cast<String*>(val2)->value());
+                    
                     state->push(str);
                 }
                 else if (val1->get_type() == ValueType::t_number && val2->get_type() == ValueType::t_string)
                 {
                     String *str = new String;
-                    str->value()->append(*static_cast<String*>(val2)->value()).append(to_string(static_cast<Number*>(val1)->value()));
+                    double v = dynamic_cast<Number *>(val1)->value();
+                    int v1 = (int)floor(v);
+                    int v2 = (int)ceil(v);
+                    if (v1 == v2) str->value()->append(*static_cast<String*>(val2)->value()).append(to_string(v1));
+                    else str->value()->append(*static_cast<String*>(val2)->value()).append(to_string(v));
                     state->push(str);
                 }
                 else panic("add operator not support this type");
@@ -535,9 +544,9 @@ static void packVarargs(State *st, FunctionVal *fun)
     if (amount < 0) {
         panic("vm internal error!!!");  // should not happen
     }
-    fun->param_stack++;
+    if (fun->nreturn) fun->param_stack++; 
     ArrayVal *arr = new ArrayVal;
-    while (amount) {
+    while (amount--) {
         arr->add_item(state->pop());
     }
     state->push(arr);

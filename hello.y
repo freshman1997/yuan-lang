@@ -53,3 +53,5 @@ fn test_args(...) {
     print("size: " + #args)
 }
 
+test_args(1, 2, 3)
+
