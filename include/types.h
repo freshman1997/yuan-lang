@@ -146,6 +146,7 @@ public:
     virtual std::size_t hash() const;
     virtual Value * copy();
     TableVal();
+    ~TableVal();
     Value * get(Value *key);
     bool set(Value *key, Value *value);
     void remove(Value *key);
@@ -182,8 +183,8 @@ struct FunctionChunk
     vector<UpValue *> *upvals = NULL;                          // upvalue，函数为单位.
     vector<int> *fun_body_ops = NULL;                          // 函数体指令
     unordered_map<int, int> *line_info = NULL;                 // 行号信息，一个指令一个行号
-    unordered_map<string, int> *global_var_names_map;          // 全局对象名称对应的位置
-    unordered_map<string, int> *local_var_names_map;           // 局部对象名称对应的位置
+    unordered_map<string, int> *global_var_names_map = NULL;          // 全局对象名称对应的位置
+    unordered_map<string, int> *local_var_names_map = NULL;           // 局部对象名称对应的位置
 
     // 如果 require 了其他文件，则其他文件的 全局变量和常量都可以访问
 
@@ -196,6 +197,7 @@ class FunctionVal : public Value
 {
 public:
     FunctionVal();
+    ~FunctionVal();
 	virtual ValueType get_type() const;
 	virtual std::string name() const;
     virtual std::size_t hash() const;

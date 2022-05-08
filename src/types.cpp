@@ -215,6 +215,10 @@ TableVal::TableVal()
 {
     this->values = new unordered_map<int, std::pair<Value *, Value *>>;
 }
+TableVal::~TableVal()
+{
+    delete this->values;
+}
 
 Value * TableVal::get(Value *key)
 {
@@ -280,6 +284,42 @@ FunctionVal::FunctionVal()
     chunk = new FunctionChunk;
 }
 
+FunctionVal::~FunctionVal()
+{
+    if (this->chunk->_name && *this->chunk->_name == "main") {
+        for (auto &it : *chunk->const_datas) {
+            if (it) delete it;
+        }
+        for (auto &it : *chunk->global_vars) {
+            if (it) delete it;
+        }
+        delete chunk->const_datas;
+        delete chunk->global_vars;
+        delete chunk->fun_body_ops;
+        delete chunk->upvals->at(0);
+        
+        if (chunk->global_var_names_map) delete chunk->global_var_names_map;
+        if (chunk->local_var_names_map) delete chunk->local_var_names_map;
+    }
+    delete chunk->local_variables;
+    if (chunk->upvals) {
+        int i = 0;
+        for (auto &it : *chunk->upvals) {
+            if (i != 0 && it) {
+                if (it->val) delete it->val;
+                delete it;
+            }
+            i++;
+        }
+        delete chunk->upvals;
+    }
+    delete chunk;
+    for (auto &it : *this->subFuncs) {  
+        if (it) delete it;
+    }
+}
+
+
 ValueType FunctionVal::get_type() const {return ValueType::t_function;}
 std::string FunctionVal::name() const {return *chunk->_name;}
 std::size_t FunctionVal::hash() const {return 0;}
@@ -291,7 +331,7 @@ bool FunctionVal::isClosure() const
 void FunctionVal::set_name(const string &name)
 {
     if (!chunk->_name) chunk->_name = new string;
-    *chunk->_name = std::move(name);
+    *chunk->_name = name;
 }
 UpValue * FunctionVal::get_upvalue(int i)
 {

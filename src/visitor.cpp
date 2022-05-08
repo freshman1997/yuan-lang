@@ -260,11 +260,11 @@ static void visit_operation_exp(OperationExpression *operExp, FuncInfo *info, Co
         break;
     }
     default:
-        if (operExp->left->type == OpType::table || operExp->left->type == OpType::str) {
+        if (operExp->left->type == OpType::table) {
             // error
             syntax_error("illegal type found");
         }
-        if ( operExp->right && (operExp->right->type == OpType::table || operExp->right->type == OpType::str)) {
+        if ( operExp->right && (operExp->right->type == OpType::table)) {
             syntax_error("illegal type found");
         }
 

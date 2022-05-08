@@ -136,46 +136,16 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
             case 3: {
                 Number *ret = new Number;
                 ret->set_val(div(val2, val1)); 
+                state->push(ret);
                 break;
             }
             case 4: {
                 Number *ret = new Number;
                 ret->set_val(mod(val2, val1)); 
-                break;
-            }
-            case 5: {   // +=
-                num2->set_val(num2->value() + num1->value());
-                break;
-            }
-            case 6: {   // -=
-                num2->set_val(num2->value() - num1->value());
-                break;
-            }
-            case 7: {   // *=
-                num2->set_val(num2->value() * num1->value());
-                break;
-            }
-            case 8: {   // /=
-                num2->set_val(num2->value() / num1->value());
-                break;
-            }
-            case 9: {   // %=
-                Number *ret = new Number;
-                int v1 = (int)num1->value();
-                int v2 = (int)ceil(num1->value());
-                if (v1 != v2) {
-                    cout << "warning: mod operator needs integer number!" << endl;
-                }
-                v1 = (int)num2->value();
-                v2 = (int)ceil(num2->value());
-                if (v1 != v2) {
-                    cout << "warning: mod operator needs integer number!" << endl;
-                }
-                ret->set_val((int)num2->value() % (int)num1->value());
                 state->push(ret);
                 break;
             }
-            case 10: {  // |
+            case 5: {  // |
                 Number *ret = new Number;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
@@ -191,7 +161,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 state->push(ret);
                 break;
             }
-            case 11: {  // ^ 
+            case 6: {  // ^ 
                 Number *ret = new Number;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
@@ -207,7 +177,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 state->push(ret);
                 break;
             }
-            case 12: {  // & 
+            case 7: {  // & 
                 Number *ret = new Number;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
@@ -223,7 +193,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 state->push(ret);
                 break;
             }
-            case 14 : {
+            case 9 : { // >> 
                 Number *ret = new Number;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
@@ -239,7 +209,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 state->push(ret);
                 break;
             }
-            case 15 : {
+            case 10 : { // <<
                 Number *ret = new Number;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
@@ -253,76 +223,6 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
                 }
                 ret->set_val((int)num2->value() >> (int)num1->value());
                 state->push(ret);
-                break;
-            }
-            case 16: {
-                int v1 = (int)num1->value();
-                int v2 = (int)ceil(num1->value());
-                if (v1 != v2) {
-                    cout << "warning: binary xor eq operator needs integer number!" << endl;
-                }
-                v1 = (int)num2->value();
-                v2 = (int)ceil(num2->value());
-                if (v1 != v2) {
-                    cout << "warning: binary xor eq operator needs integer number!" << endl;
-                }
-                num2->set_val((int)num2->value() ^ (int)num1->value());
-                break;
-            }
-            case 17: {
-                int v1 = (int)num1->value();
-                int v2 = (int)ceil(num1->value());
-                if (v1 != v2) {
-                    cout << "warning: binary and eq operator needs integer number!" << endl;
-                }
-                v1 = (int)num2->value();
-                v2 = (int)ceil(num2->value());
-                if (v1 != v2) {
-                    cout << "warning: binary and eq operator needs integer number!" << endl;
-                }
-                num2->set_val((int)num2->value() & (int)num1->value());
-                break;
-            }
-            case 18: {
-                int v1 = (int)num1->value();
-                int v2 = (int)ceil(num1->value());
-                if (v1 != v2) {
-                    cout << "warning: binary or eq operator needs integer number!" << endl;
-                }
-                v1 = (int)num2->value();
-                v2 = (int)ceil(num2->value());
-                if (v1 != v2) {
-                    cout << "warning: binary or eq operator needs integer number!" << endl;
-                }
-                num2->set_val((int)num2->value() | (int)num1->value());
-                break;
-            }
-            case 19: {
-                int v1 = (int)num1->value();
-                int v2 = (int)ceil(num1->value());
-                if (v1 != v2) {
-                    cout << "warning: binary left move eq operator needs integer number!" << endl;
-                }
-                v1 = (int)num2->value();
-                v2 = (int)ceil(num2->value());
-                if (v1 != v2) {
-                    cout << "warning: binary left move eq operator needs integer number!" << endl;
-                }
-                num2->set_val((int)num2->value() << (int)num1->value());
-                break;
-            }
-            case 20: {
-                int v1 = (int)num1->value();
-                int v2 = (int)ceil(num1->value());
-                if (v1 != v2) {
-                    cout << "warning: binary right move eq operator needs integer number!" << endl;
-                }
-                v1 = (int)num2->value();
-                v2 = (int)ceil(num2->value());
-                if (v1 != v2) {
-                    cout << "warning: binary right move eq operator needs integer number!" << endl;
-                }
-                num2->set_val((int)num2->value() >> (int)num1->value());
                 break;
             }
             default:
@@ -475,9 +375,6 @@ static void compair(OpCode op)
 {
     Value *rhs = state->pop();
     Value *lhs = state->pop();
-    if (rhs->get_type() == ValueType::t_null || lhs->get_type() == ValueType::t_null) {
-        panic("compair operator must be positive");
-    }
     Boolean *b = new Boolean;
     if (lhs->get_type() == ValueType::t_number && rhs->get_type() == ValueType::t_number) {
         switch (op)
@@ -501,7 +398,7 @@ static void compair(OpCode op)
             b->set(static_cast<Number *>(lhs)->value() != static_cast<Number *>(rhs)->value());
             break;
         default:
-            panic("no number found!");
+            panic("not support this compair type!");
             break;
         }
     }
@@ -610,22 +507,12 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         case OpCode::op_mul: 
         case OpCode::op_div: 
         case OpCode::op_mod: 
-        case OpCode::op_add_eq: 
-        case OpCode::op_sub_eq:
-        case OpCode::op_mul_eq:
-        case OpCode::op_div_eq:
-        case OpCode::op_mod_eq:
          /* 逻辑运算符 */
         case OpCode::op_bin_or:
         case OpCode::op_bin_xor:
         case OpCode::op_bin_and:
         case OpCode::op_bin_lm:
         case OpCode::op_bin_rm:
-        case OpCode::op_bin_xor_eq:
-        case OpCode::op_bin_and_eq:
-        case OpCode::op_bin_or_eq:
-        case OpCode::op_bin_lme:
-        case OpCode::op_bin_rme:
         {
             operate(0, int(op), 0);
             break;

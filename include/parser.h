@@ -32,23 +32,12 @@ enum class OperatorType
     op_div,         // /
     op_mod,         // %
 
-    op_add_eq,      // +=
-    op_sub_eq,      // -=
-    op_mul_eq,      // *=
-    op_div_eq,      // /=
-    op_mod_eq,      // %= 
-    
     op_bin_or,      // |
     op_bin_xor,     // ^
     op_bin_and,     // &
     op_bin_not,      // ~
     op_bin_lm,      // <<
     op_bin_rm,      // >> 
-    op_bin_xor_eq,  // ^=
-    op_bin_and_eq,  // &=
-    op_bin_or_eq,   // |=
-    op_bin_lme,     // <<=
-    op_bin_rme,     // >>=
 
     op_equal,       // ==
     op_ne,          // !=
@@ -59,6 +48,7 @@ enum class OperatorType
     op_gt_eq,       // >=
     op_or,          // ||
     op_and,         // &&
+    op_dot,         // .
 
     op_not,         // !
     op_len,         // #
@@ -67,7 +57,6 @@ enum class OperatorType
     op_sub_sub,     // --
 
     op_in,          // in 用在 for 循环
-    op_dot,         // .
     op_varargs,     // ...
 
     op_none,        

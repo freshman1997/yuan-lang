@@ -1,5 +1,6 @@
-
-
+cal = 100 + 18 + 200 / 2 * 2 + 20 / 2
+print("cal: " + cal)
+/*
 fn test_args(...) {
     print("size: " + #args)
     for (i = 0; i < #args; ++i) {
@@ -23,14 +24,16 @@ for (i = 0; i < 5; ++i) {
 
 local fn do_sth()
 {
-    if (a > 100) {
+    local a1 = 90
+    a = 50
+    if (a == 50 && a1 == 90) {
         print("hello")
     } 
     else if (a == 100) {
         print("80")
     }
-    else if (a == 50) {
-        a = 50
+    else if (a > 100) {
+        print("a1 = " + a1 + ", a = " + a)
     }
     
 
@@ -59,6 +62,6 @@ arr = [1, 2, "hello world", tb, fn(){
 
 arr[4]()
 
-
+*/
 
 

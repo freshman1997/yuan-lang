@@ -10,11 +10,6 @@ enum class OpCode
     op_mul,             // *
     op_div,             // /
     op_mod,             // %
-    op_add_eq,          // +=
-    op_sub_eq,          // -=
-    op_mul_eq,          // *=
-    op_div_eq,          // /=
-    op_mod_eq,          // %= 
 
     /* 逻辑运算符 */
     op_bin_or,          // |
@@ -23,11 +18,6 @@ enum class OpCode
     op_bin_not,         // ~
     op_bin_lm,          // <<
     op_bin_rm,          // >> 
-    op_bin_xor_eq,      // ^=
-    op_bin_and_eq,      // &=
-    op_bin_or_eq,       // |=
-    op_bin_lme,         // <<=
-    op_bin_rme,         // >>=
 
     /* 比较，结果会入栈供 test 指令使用 */
     op_equal,           // ==

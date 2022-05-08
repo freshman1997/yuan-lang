@@ -14,24 +14,13 @@ static OperatorType getbinopr (int op) {
     case '<': return OperatorType::op_lt;
 	case '>': return OperatorType::op_gt;
 	case '.': return OperatorType::op_dot;
-	case '+' + '=': return OperatorType::op_add_eq;
-	case '-' + '=': return OperatorType::op_sub_eq;
-	case '*' + '=': return OperatorType::op_mul_eq;
-	case '/' + '=': return OperatorType::op_div_eq;
-	case '%' + '=': return OperatorType::op_mod_eq;
 	case '&' + '&': return OperatorType::op_and;
 	case '|' + '|': return OperatorType::op_or;
 	case '&': return OperatorType::op_bin_and;
 	case '|': return OperatorType::op_bin_or;
-	case '&' + '=': return OperatorType::op_bin_and_eq;
-	case '|' + '=': return OperatorType::op_bin_or_eq;
 	case '<' + '<': return OperatorType::op_bin_lm;
 	case ('>' + '>' + 1): return OperatorType::op_bin_rm;
-	case '<' + '<' + '=': return OperatorType::op_bin_lme;
-	case '>' + '>' + '=' + 1: return OperatorType::op_bin_rme;
 	case '^' + 1: return OperatorType::op_bin_xor;
-	case '^' + '=': return OperatorType::op_bin_xor_eq;
-
     default: return OperatorType::op_none;
   }
 }
@@ -40,13 +29,11 @@ static const struct {
   unsigned char left;  /* left priority for each binary operator */
   unsigned char right; /* right priority */
 } priority[] = {  /* ORDER OPR */
-   {6, 6}, {6, 6}, {7, 7}, {7, 7}, {7, 7},  /* `+' `-' `/' `%' */
-   {5, 4},                          /* .. */
-   {3, 3}, {3, 3}, {3, 3}, {3, 3}, {3, 3}, {3, 3}, {3, 3}, {3, 3},               /* !=, ==, <, >, <=, >=, &&, || */
-   {8, 8},	// .
-   {3, 2}, {3, 2}, {3, 2}, {3, 2}, {3, 2}, {3, 2},		// +=, -=, *=, /=, %=
-   {3, 3}, {3, 3}, {3, 3}, {3, 3},  /* order */
-   {2, 2}, {1, 1}                   /* logical (and/or) */
+   {6, 6}, {6, 6}, {7, 7}, {7, 7}, {7, 7},  			/* `+' `-' `/' `%' */
+   {3, 3}, {3, 3}, {3, 3}, {8, 8}, {3, 3}, {3, 3},		// |, ^, &, ~, <<, >>
+   {3, 3}, {3, 3}, 										/* ==, != */
+   {3, 3}, {3, 3}, {3, 3}, {3, 3}, {4, 4}, {4, 4},  	/* <, >, <=, >=, ||, && */
+   {8, 7} // .
 };
 
 #define UNARY_PRIORITY	8  /* priority for unary operators */
@@ -79,28 +66,15 @@ static int get_operator_type(TokenReader *reader)
 		symbol_map["*"] = '*';
 		symbol_map["/"] = '/';
 		symbol_map["%"] = '%';
-
-		symbol_map["+="] = '+' + '=';
-		symbol_map["-="] = '-' + '=';
-		symbol_map["*="] = '*' + '=';
-		symbol_map["/="] = '/' + '=';
-		symbol_map["%="] = '%' + '=';
 		
 		symbol_map["&&"] = '&' + '&';
 		symbol_map["||"] = '|' + '|';
 		symbol_map[">>"] = '>' + '>' + 1;
 		symbol_map["<<"] = '<' + '<';
 
-		symbol_map[">>="] = '>' + '>' + '=' + 1;
-		symbol_map["<<="] = '<' + '<' + '=';
-
 		symbol_map["|"] = '|';
 		symbol_map["&"] = '&';
 		symbol_map["^"] = '^' + 1;
-
-		symbol_map["|="] = '|' + '=';
-		symbol_map["&="] = '&' + '=';
-		symbol_map["^="] = '^' + '=';
 
 		symbol_map[">"] = '>';
 		symbol_map["<"] = '<';
@@ -168,9 +142,9 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 		}
 
 		OperatorType op = getbinopr(get_operator_type(reader));
-		if (op != OperatorType::op_none && priority[(int)op].left > 6) {
+		if (op != OperatorType::op_none && priority[(int)op].left > limit) {
 			reader->consume();
-			OperationExpression *exp = subexpr(reader, priority[(int)op].right);
+			OperationExpression *exp = subexpr(reader, priority[(int)op].left);
 			if (exp) {
 				node = new OperationExpression;
 				node->op_type = op;
@@ -180,21 +154,52 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 				child2->type = OpType::op;
 				node->right = child2;
 				node->left = child1 ? child1->left : NULL;
+				if (limit && limit < priority[(int)exp->op_type].left) {
+					// 全部解析出来
+					exp = node;
+					OperatorType pre = op;
+					op = getbinopr(get_operator_type(reader));
+					while (op != OperatorType::op_none && priority[(int)op].left == priority[(int)pre].left)
+					{
+						reader->consume();
+						OperationExpression *sub = subexpr(reader, priority[(int)op].left);
+						if (sub) {
+							node = new OperationExpression;
+							node->op_type = op;
+							Operation *left = new Operation;
+							left->op = new Operation::oper;
+							left->op->op_oper = exp;
+							left->type = OpType::op;
+							node->left = left;
+
+							Operation *right = new Operation;
+							right->op = new Operation::oper;
+							right->op->op_oper = sub;
+							right->type = OpType::op;
+							node->right = right;
+							exp = node;
+
+							pre = op;
+							op = getbinopr(get_operator_type(reader));
+						}
+						else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
+					}
+				}
 			}
 			else {
 				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
-		} else {
-			if (child1) node = child1;
-			else {
-				if (reader->peek().type != TokenType::keyword && !str_equal(reader->peek().from, "fn", 2)) {
-					node = new OperationExpression;
-					node->left = parse_primary(reader);
-					node->op_type = OperatorType::op_none;
-					if (!node->left) error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
-				}
+		} 
+
+		if (!node) node = child1;
+		/*else {
+			if (reader->peek().type != TokenType::keyword && !str_equal(reader->peek().from, "fn", 2)) {
+				node = new OperationExpression;
+				node->left = parse_primary(reader);
+				node->op_type = OperatorType::op_none;
+				if (!node->left) error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
-		}
+		}*/
 	}
 	return node;
 }
@@ -584,13 +589,14 @@ static Operation * parse_primary(TokenReader *reader)
 static OperationExpression * parse_operator(TokenReader *reader)
 {
 	OperationExpression *node = NULL;
+	OperatorType op = OperatorType::op_none;
 	OperationExpression *child1 = subexpr(reader, 0);
 	while (child1) {
 		// 到这里应该是操作符
 		OperatorType op = getbinopr(get_operator_type(reader));
 		if (op != OperatorType::op_none) {
 			reader->consume();
-			OperationExpression *child2 = subexpr(reader, 0);
+			OperationExpression *child2 = subexpr(reader, priority[(int)op].left);
 			if (child2) {
 				node = new OperationExpression;
 				node->op_type = op;
@@ -612,7 +618,9 @@ static OperationExpression * parse_operator(TokenReader *reader)
 			}
 		}
 		else {
-			if (child1) node = child1;
+			if (child1){
+				node = child1;
+			}
 			break; // 只有一个
 		}
 	}
@@ -657,7 +665,7 @@ static AssignmentExpression * parse_assignment(TokenReader *reader)
 	if (reader->peek().type == TokenType::sym && str_equal(reader->peek().from, "=", 1)) {
 		reader->consume();
 		const Token &val = reader->peek();
-		if ( (val.type == TokenType::keyword && str_equal(val.from, "require", 7) || str_equal(val.from, "false", 5) || str_equal(val.from, "true", 4)) || val.type == TokenType::iden || val.type == TokenType::num || val.type == TokenType::str || val.type == TokenType::sym) {
+		if ( (val.type == TokenType::keyword && str_equal(val.from, "require", 7) || str_equal(val.from, "false", 5) || str_equal(val.from, "true", 4) || str_equal(val.from, "nil", 3)) || val.type == TokenType::iden || val.type == TokenType::num || val.type == TokenType::str || val.type == TokenType::sym) {
 			OperationExpression *oper = parse_operator(reader);
 			if (!oper) {
 				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);

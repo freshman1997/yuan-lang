@@ -176,11 +176,9 @@ bool State::tryClearOpenedFuns(FunctionVal *fun)
         for (auto &it : *fun->chunk->local_variables) {
             if (it) {
                 it->ref_count--;
-                if (it->ref_count == 0) delete it;
+                if (it->ref_count <= 0) delete it;
             }
         }
-        delete fun->chunk->local_variables;
-        delete fun->chunk;
         delete fun;
         return true;
     }
@@ -191,8 +189,6 @@ void State::end_call()
 {
     clearTempData();
     if (!tryClearOpenedFuns(cur)) openedFuns->push_back(cur);
-
-    if (!openedFuns->empty()) openedFuns->pop_back();
 
     if (!this->calls->empty()){
         calls->pop_back();
@@ -376,7 +372,7 @@ static TableVal * init_env(VM *vm)
 
 void State::run()
 {
-    FunctionVal *entry = get_by_file_name("D:/code/test/cpp/yuan-lang/hello.b");
+    FunctionVal *entry = get_by_file_name("D:/code/src/vs/yuan-lang/hello.b");
     if (!entry) {
         cout << "not found !!" << endl;
         exit(0);

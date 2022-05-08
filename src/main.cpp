@@ -11,9 +11,9 @@ int main()
 {
     clock_t start = clock();
     TokenReader reader;
-    tokenize("D:/code/test/cpp/yuan-lang/hello.y", reader);
+    tokenize("D:/code/src/vs/yuan-lang/hello.y", reader);
     unordered_map<string, TokenReader *> files;
-    files["D:/code/test/cpp/yuan-lang/hello.y"] = &reader;
+    files["D:/code/src/vs/yuan-lang/hello.y"] = &reader;
     unordered_map<string, Chunck *> *chunks = parse(files);
     CodeWriter writer;
     visit(chunks, writer);
@@ -22,7 +22,7 @@ int main()
     start = clock();
     State *st = new State(100);
     VM *vm = st->get_vm();
-    st->load("D:/code/test/cpp/yuan-lang/hello.b");
+    st->load("D:/code/src/vs/yuan-lang/hello.b");
     st->run();
     end = clock();
     cout << "spent time: " << (end - start) / CLOCKS_PER_SEC << endl;
