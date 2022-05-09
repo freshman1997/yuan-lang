@@ -5,11 +5,13 @@ local tb = {"name": fn(name) {
     print("welcome " + name)
 },100 : 20}
 
+print("tb 100 :" + tb[100])
+
 tb["name"]("tomcat")
 
 // 这里的前置++会结合到上一条表达式里面了，所以需要放成后置
 tb[100]++
-print("tb[100] :" + tb[100])
+
 
 
 local test_tba = {100: 20}
@@ -74,7 +76,7 @@ for (k, v in tb) {
 
 
 
-print("tb 100:" + tb[100])
+print("tb[100] :" + tb[100])
 
 arr = [1, 2, "hello world", tb, fn(){
     print("array inner method")

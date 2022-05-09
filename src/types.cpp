@@ -222,6 +222,16 @@ TableVal::TableVal()
 }
 TableVal::~TableVal()
 {
+    for (auto &it : *this->values) {
+        if (it.second.first) {
+            --it.second.first->ref_count;
+            if (it.second.first->ref_count <= 0) delete it.second.first;
+        }
+        if (it.second.second) {
+            --it.second.second->ref_count;
+            if (it.second.second->ref_count <= 0) delete it.second.second;
+        }
+    }
     delete this->values;
 }
 
@@ -243,6 +253,8 @@ bool TableVal::set(Value *key, Value *value)
             if ((*values)[hash].first->ref_count <= 0)
                 delete (*values)[hash].first;
         }
+        key->ref_count++;
+        value->ref_count++;
         (*values)[hash] = std::make_pair(key, value);
         return true;
     }

@@ -917,6 +917,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                     ++i; 
                     state->push(it);
                     state->push(arr->get((int)it->value()));
+                    break;
                 }
                 else {
                     // jump out
@@ -931,6 +932,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                     unordered_map<int, std::pair<Value *, Value *>>::iterator cit = tb->get_iter((int)it->value());
                     state->push(cit->second.second);
                     state->push(cit->second.first);
+                    break;
                 }
                 else {
                     // jump out

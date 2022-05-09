@@ -454,9 +454,12 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
             else if (op == OpCode::op_pushl) {
                 writer.set(writer.get_pc() - 1, OpCode::op_storel, param);
             }
-            else {
+            else if (op == OpCode::op_pushu){
                 // upval
                 writer.set(writer.get_pc() - 1, OpCode::op_storeu, param);
+            }
+            else {
+                syntax_error("for in loop error, envirenment parameters are not allow !!!");
             }
         }
 
