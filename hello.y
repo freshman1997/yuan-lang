@@ -76,13 +76,22 @@ for (k, v in tb) {
 
 
 
+
+
+
 print("tb[100] :" + tb[100])
 
-arr = [1, 2, "hello world", tb, fn(){
-    print("array inner method")
-}]
+arr = [1, 2, 3, 4, 5]
 
-arr[4]()
+for (i = 0; i < #arr; ++i) {
+    print("normal for: " + arr[i])
+}
+
+
+for (i in arr) {
+    print("for in: " + i)
+}
+
 
 
 

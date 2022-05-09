@@ -672,6 +672,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 panic("array init fail");
             }
             arr->add_item(item);
+            item->ref_count++;
             state->push(arr);
             break;
         }
@@ -881,7 +882,6 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
 
         case OpCode::op_for_in: 
         {
-            cout << "for in 循环需要的参数数量：" << param << endl;
             Value *con = state->pop();  // 容器
             Value *iter = state->pop();
             if (iter->get_type() == ValueType::t_null || con->get_type() == ValueType::t_null) {
@@ -913,7 +913,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
 
             if (param == 1) {
                 ArrayVal *arr = static_cast<ArrayVal *>(con);
-                if (it->value() >= arr->size()) {
+                if (it->value() < arr->size()) {
                     ++i; 
                     state->push(it);
                     state->push(arr->get((int)it->value()));
