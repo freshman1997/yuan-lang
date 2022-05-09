@@ -1,6 +1,24 @@
+
+
+
+local tb = {"name": fn(name) {
+    print("welcome " + name)
+},100 : 20}
+
+tb["name"]("tomcat")
+
+// 这里的前置++会结合到上一条表达式里面了，所以需要放成后置
+tb[100]++
+print("tb[100] :" + tb[100])
+
+
+local test_tba = {100: 20}
+++test_tba[100]
+print(test_tba[100])
+
 cal = 100 + 18 + 200 / 2 * 2 + 20 / 2
 print("cal: " + cal)
-/*
+
 fn test_args(...) {
     print("size: " + #args)
     for (i = 0; i < #args; ++i) {
@@ -12,7 +30,7 @@ test_args(1, 2, 3)
 
 
 test = 10
-test >>= 100
+test = test >> 100
 print(test)
 
 local a = 100
@@ -26,7 +44,7 @@ local fn do_sth()
 {
     local a1 = 90
     a = 50
-    if (a == 50 && a1 == 90) {
+    if (a == 50 && a1 == 90 && 1 > 0) {
         print("hello")
     } 
     else if (a == 100) {
@@ -49,12 +67,14 @@ fun = do_sth()
 
 
 
-local tb = {"name": fn(name) {
-    print("welcome " + name)
-},100 : 20}
+local k = nil, v = nil
+for (k, v in tb) {
+    print("key: " + k)
+}
 
-tb["name"](fun())
 
+
+print("tb 100:" + tb[100])
 
 arr = [1, 2, "hello world", tb, fn(){
     print("array inner method")
@@ -62,6 +82,6 @@ arr = [1, 2, "hello world", tb, fn(){
 
 arr[4]()
 
-*/
+
 
 

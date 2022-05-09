@@ -32,7 +32,7 @@ static const struct {
    {6, 6}, {6, 6}, {7, 7}, {7, 7}, {7, 7},  			/* `+' `-' `/' `%' */
    {3, 3}, {3, 3}, {3, 3}, {8, 8}, {3, 3}, {3, 3},		// |, ^, &, ~, <<, >>
    {3, 3}, {3, 3}, 										/* ==, != */
-   {3, 3}, {3, 3}, {3, 3}, {3, 3}, {4, 4}, {4, 4},  	/* <, >, <=, >=, ||, && */
+   {3, 3}, {3, 3}, {3, 3}, {3, 3}, {2, 2}, {2, 2},  	/* <, >, <=, >=, ||, && */
    {8, 7} // .
 };
 
@@ -124,7 +124,7 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 			child1->op_type = uop;
 			child1->left = parse_primary(reader);
 		}
-		else if (reader->peek().type != TokenType::sym) {
+		else if (!child1) {
 			bool isIden = reader->peek().type == TokenType::iden;
 			Operation *oper = parse_primary(reader);
 			if (oper) {
@@ -346,7 +346,6 @@ static Function * parse_function_expression(TokenReader *reader, bool hasName);
 
 static Operation * parse_primary(TokenReader *reader)
 {
-	// prefixexp { `.' NAME | `[' exp `]' | `:' NAME funcargs | funcargs }
 	// id, number, string, array, table, function call, index, condition
 	// a = +100;
 	Operation *node = NULL;
@@ -376,6 +375,7 @@ static Operation * parse_primary(TokenReader *reader)
 			reader->consume();
 		}
 		else if (reader->peek().type == TokenType::iden) {
+			// id(), id[], id., id++, id+, id=, 
 			const Token &id_token = reader->get_and_read();
 			if (reader->peek().type == TokenType::sym) {
 				// ( . [ ：
@@ -979,13 +979,20 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 		reader->consume();
 	}
 	else {
+		if (forExp->first_statement->empty()) {
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for in statement", __LINE__);
+		}
+
+		for (auto &it : *forExp->first_statement) {
+			if (it->op_type != OperatorType::op_none || it->left->type != OpType::id) {
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for in statement", __LINE__);
+			}
+		}
 		forExp->type = ForExpType::for_in;
-		forExp->second_statement = new OperationExpression;
-		forExp->second_statement->op_type = OperatorType::op_in;
-		reader->consume();
 		if (reader->peek().type != TokenType::iden) {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 		}
+		
 		forExp->third_statement = new vector<OperationExpression *>;
 		OperationExpression *idOper = new OperationExpression;
 		idOper->left = new Operation;
@@ -996,6 +1003,8 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 		idOper->left->op->id_oper->name = reader->peek().from;
 		idOper->left->op->id_oper->name_len = reader->peek().len;
 		forExp->third_statement->push_back(idOper);
+		
+		reader->consume();
 		if (reader->peek().type != TokenType::sym || *reader->peek().from != ')') {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
 		}
@@ -1141,7 +1150,6 @@ static ReturnExpression *parse_return_statement(TokenReader *reader)
 static void build_call(vector<BodyStatment *> *statements, TokenReader *reader)
 {
 	CallExpression *call = parse_function_call(reader);
-	
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->call_exp = call;
@@ -1155,11 +1163,28 @@ static void build_assign(vector<BodyStatment *> *statements, TokenReader *reader
 	if (!ass) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
+	bool islocal = ass->id->is_local;
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->assign_exp = ass;
 	statement->type = ExpressionType::assignment_statement;
 	statements->push_back(statement);
+	while (reader->peek().type != TokenType::eof) {
+		if (reader->peek().type == TokenType::sym && *reader->peek().from == ',') {
+			reader->consume();
+			ass = parse_assignment(reader);
+			if (!ass) {
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
+			}
+			ass->id->is_local = islocal;
+			statement = new BodyStatment;
+			statement->body = new BodyStatment::body_expression;
+			statement->body->assign_exp = ass;
+			statement->type = ExpressionType::assignment_statement;
+			statements->push_back(statement);
+		}
+		else break;
+	}
 }
 
 static void build_function(vector<BodyStatment *> *statements, TokenReader *reader)

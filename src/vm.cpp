@@ -802,7 +802,8 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             // 负的是从全局的常量拿到键，再去环境中找，正的直接就是 upvalue 
             if (param < 0) {
                 String *key = dynamic_cast<String*>(state->getc(-param - 1));
-                if (!key) panic("unexpected!!!");
+                if (!key) 
+                    panic("unexpected!!!");
                 Value *v = find_env_param(key, state->get_cur());
                 if (!v) {
                     panic("not found function!!!");
@@ -872,11 +873,73 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             state->push(b);
             break;
         }
-        case ::OpCode::op_load_nil:
+        case OpCode::op_load_nil:
         {
             state->push(new Nil);
             break;
         }
+
+        case OpCode::op_for_in: 
+        {
+            cout << "for in 循环需要的参数数量：" << param << endl;
+            Value *con = state->pop();  // 容器
+            Value *iter = state->pop();
+            if (iter->get_type() == ValueType::t_null || con->get_type() == ValueType::t_null) {
+                panic("invalid for in loop, no table or array found");
+            }
+
+            Number *it = NULL;
+            if (iter->get_type() == ValueType::t_boolean) {
+                delete iter;
+                Number *num = new Number;
+                num->set_val(0);
+                it = num;
+            }
+            else {
+                if (iter->get_type() != ValueType::t_number) {
+                    panic("internal for in loop error!!!");
+                }
+                it = static_cast<Number *>(iter);
+                it->set_val(it->value() + 1);
+            }
+
+            if (!(param == 1 || param == 2) || !(con->get_type() == ValueType::t_array || con->get_type() == ValueType::t_table)) {
+                panic("for int loop just allow 1 param in array and 2 param in table");
+            }
+
+            if ((param == 2 && con->get_type() != ValueType::t_table) || (param == 1 && con->get_type() != ValueType::t_array)) {
+                panic("for int loop just allow 1 param in array and 2 param in table");
+            }
+
+            if (param == 1) {
+                ArrayVal *arr = static_cast<ArrayVal *>(con);
+                if (it->value() >= arr->size()) {
+                    ++i; 
+                    state->push(it);
+                    state->push(arr->get((int)it->value()));
+                }
+                else {
+                    // jump out
+                    delete it;
+                }
+            }
+            else {
+                TableVal *tb = static_cast<TableVal *>(con);
+                if (it->value() < tb->size()) {
+                    ++i;
+                    state->push(it);
+                    unordered_map<int, std::pair<Value *, Value *>>::iterator cit = tb->get_iter((int)it->value());
+                    state->push(cit->second.second);
+                    state->push(cit->second.first);
+                }
+                else {
+                    // jump out
+                    delete it;
+                }
+            }
+            break;
+        }
+
         default:
             panic("unsupport operation !!!");
             break;

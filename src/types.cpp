@@ -199,6 +199,11 @@ void ArrayVal::set_name(const string &name)
     this->_name = std::move(name);
 }
 
+int ArrayVal::size()
+{
+    return this->members.size();
+}
+
 Value * ArrayVal::copy()
 {
     ArrayVal *arr = new ArrayVal;
@@ -258,10 +263,19 @@ void TableVal::set_name(const string &name)
     _name = std::move(name);
 }
 
-double TableVal::size()
+int TableVal::size()
 {
     return this->values->size();
 }
+
+unordered_map<int, std::pair<Value *, Value *>>::iterator TableVal::get_iter(int i)
+{
+    auto it = this->values->begin();
+    while(i--) ++it;
+    if (it != this->values->end()) return it;
+    else return this->values->end();
+}
+
 
 const unordered_map<int, std::pair<Value *, Value *>> * TableVal::members()
 {
@@ -286,7 +300,7 @@ FunctionVal::FunctionVal()
 
 FunctionVal::~FunctionVal()
 {
-    if (this->chunk->_name && *this->chunk->_name == "main") {
+    if (this->isMain) {
         for (auto &it : *chunk->const_datas) {
             if (it) delete it;
         }
@@ -301,8 +315,10 @@ FunctionVal::~FunctionVal()
         if (chunk->global_var_names_map) delete chunk->global_var_names_map;
         if (chunk->local_var_names_map) delete chunk->local_var_names_map;
     }
+    
     delete chunk->local_variables;
-    if (chunk->upvals) {
+    if (this->upvOwner) {
+        if (this->chunk->_name) delete this->chunk->_name;
         int i = 0;
         for (auto &it : *chunk->upvals) {
             if (i != 0 && it) {
@@ -313,10 +329,10 @@ FunctionVal::~FunctionVal()
         }
         delete chunk->upvals;
     }
-    delete chunk;
     for (auto &it : *this->subFuncs) {  
         if (it) delete it;
     }
+    delete chunk;
 }
 
 
@@ -330,8 +346,8 @@ bool FunctionVal::isClosure() const
 
 void FunctionVal::set_name(const string &name)
 {
-    if (!chunk->_name) chunk->_name = new string;
-    *chunk->_name = name;
+    if (!chunk->_name) chunk->_name = new string(name);
+    else *chunk->_name = name;
 }
 UpValue * FunctionVal::get_upvalue(int i)
 {
@@ -411,7 +427,7 @@ vector<int> * FunctionVal::get_pcs()
 FunctionVal * FunctionVal::get_subfun(int i)
 {
     if (i < 0 || i >= subFuncs->size()) return NULL;
-    return static_cast<FunctionVal *>(this->subFuncs->at(i)->copy());
+    return static_cast<FunctionVal *>(this->subFuncs->at(i));
 }
 
 vector<FunctionVal *> * FunctionVal::get_subfuns()
@@ -422,10 +438,22 @@ vector<FunctionVal *> * FunctionVal::get_subfuns()
 Value * FunctionVal::copy()
 {
     FunctionVal *val = new FunctionVal;
-    val->chunk = new FunctionChunk;
     *val->chunk = *this->chunk;
     val->chunk->local_variables = new vector<Value *>(this->chunk->local_variables->size(), NULL);
-    *val = *this;
+    val->isMain = this->isMain;
+    val->pre = this->pre;
+    val->is_local = this->is_local;
+    val->from_pc = this->from_pc;
+    val->to_pc = this->to_pc;
+    val->nparam = this->nparam;
+    val->nreturn = this->nreturn;
+    val->in_stack = this->in_stack;
+    val->set_file_name(this->get_file_name()->c_str());
+    vector<FunctionVal *> *subfuns = new vector<FunctionVal *>;
+    for (auto &it : *this->subFuncs) {
+        subfuns->push_back(static_cast<FunctionVal *>(it->copy()));
+    }
+    val->set_subfuns(subfuns);
     return val;
 }
 

@@ -423,19 +423,46 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
         if (forExp->first_statement->empty()) {
             syntax_error("empty enum variable in for in loop");
         }
-        int start = writer.get_pc() + 1;
-        for (auto &it : *forExp->first_statement) {
-            visit_operation_exp(it, info, writer);
+        if (forExp->first_statement->size() > 2) {
+            syntax_error("too many variable in for in loop");
         }
-        writer.add(OpCode::op_for_in, forExp->first_statement->size()); 
+        
+        writer.add(OpCode::op_load_bool, 0);
+        int start = writer.get_pc() - 1;
         for (auto &it : *forExp->third_statement) {
+            if (it->op_type != OperatorType::op_none || it->left->type != OpType::id) {
+                syntax_error("for in loop just accept one table or array");
+            }
             visit_operation_exp(it, info, writer);
         }
+
+        writer.add(OpCode::op_for_in, forExp->first_statement->size());
         writer.add(OpCode::op_jump, 0);  // jump out
         int out = writer.get_pc() - 1;
+
+        for (auto &it : *forExp->first_statement) {
+            if (it->op_type != OperatorType::op_none) {
+                syntax_error("for in loop error");
+            }
+            visit_operation_exp(it, info, writer);
+            // 修改为 store 指令
+            OpCode op = (OpCode)((writer.get_instructions().back() << 24) >> 24);
+            int param = (writer.get_instructions().back() >> 8);
+            if (op == OpCode::op_pushg) {
+                writer.set(writer.get_pc() - 1, OpCode::op_storeg, param);
+            }
+            else if (op == OpCode::op_pushl) {
+                writer.set(writer.get_pc() - 1, OpCode::op_storel, param);
+            }
+            else {
+                // upval
+                writer.set(writer.get_pc() - 1, OpCode::op_storeu, param);
+            }
+        }
+
         // body
         visit_statement(forExp->body, info, writer);
-        writer.add(OpCode::op_jump, start - 1); // jump back
+        writer.add(OpCode::op_jump, start); // jump back
         writer.set(out, OpCode::op_jump, writer.get_pc() - 1);
         for (auto &it : continues[stack_lv]) {
             writer.set(it, OpCode::op_jump, start);
@@ -444,8 +471,8 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
             writer.set(it, OpCode::op_jump, writer.get_pc() - 1);
         }
     }
-    continues.clear();
-    breaks.clear();
+    continues.erase(stack_lv);
+    breaks.erase(stack_lv);
     --stack_lv;
 }
 
@@ -468,9 +495,9 @@ static void visit_while(WhileExpression *whileExp, FuncInfo *info, CodeWriter &w
     for (auto &it : breaks[stack_lv]) {
         writer.set(it, OpCode::op_jump, writer.get_pc() - 1);
     }
-    continues.clear();
-    breaks.clear();
-    ++stack_lv;
+    continues.erase(stack_lv);
+    breaks.erase(stack_lv);
+    --stack_lv;
 }
 
 static void visit_do_while(DoWhileExpression *doWhileExp, FuncInfo *info, CodeWriter &writer)
@@ -492,8 +519,8 @@ static void visit_do_while(DoWhileExpression *doWhileExp, FuncInfo *info, CodeWr
     for (auto &it : breaks[stack_lv]) {
         writer.set(it, OpCode::op_jump, writer.get_pc());
     }
-    continues.clear();
-    breaks.clear();
+    continues.erase(stack_lv);
+    breaks.erase(stack_lv);
     --stack_lv;
 }
 

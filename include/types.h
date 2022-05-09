@@ -132,6 +132,7 @@ public:
     void remove(int i);
     bool set(int i, Value *val);
     void set_name(const string &name);
+    int size();
 
 private:
     vector<Value *> members;
@@ -151,7 +152,8 @@ public:
     bool set(Value *key, Value *value);
     void remove(Value *key);
     void set_name(const string &name);
-    double size();
+    int size();
+    unordered_map<int, std::pair<Value *, Value *>>::iterator get_iter(int i);
     const unordered_map<int, std::pair<Value *, Value *>> * members();
 
 private:
@@ -175,7 +177,6 @@ struct FunctionChunk
     int from_line;                                             // 开始行号
     int to_line;                                               // 结束行号
     bool is_varags = false;                                    // 是否为可变参数
-    const char *filename = NULL;                               // 文件名
     string *_name = NULL;                                      // 函数名
     vector<Value *> *const_datas = NULL;                       // 常量池
     vector<Value *> *global_vars = NULL;                       // 全局变量，文件为单位
@@ -215,7 +216,6 @@ public:
     void set_file_name(const char *);
     string * get_file_name();
 
-    FunctionVal *pre = NULL;
     void set_chunk(FunctionChunk *c);
     void set_subfuns(vector<FunctionVal *> *subFuncs);
     vector<int> * get_pcs();
@@ -223,6 +223,8 @@ public:
     FunctionVal * get_subfun(int i);
     vector<FunctionVal *> * get_subfuns();
 
+    bool isMain = false;
+    FunctionVal *pre = NULL;
     bool is_local = false;
     int from_pc = 0;
     int to_pc = 0;
@@ -232,6 +234,8 @@ public:
     int ncalls = 0;                                         // 调用自身的次数，也就是递归
     int param_stack = 0;
     FunctionChunk *chunk = NULL;
+
+    bool upvOwner = false;
 
     bool isC = false;
     C_Function cfun = NULL;

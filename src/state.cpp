@@ -140,7 +140,7 @@ Value * State::get(int pos)
 Value * State::get_subfun(int i)
 {
     if (!cur->chunk->upvals->at(0)) cur->chunk->upvals->at(0) = cur->pre->chunk->upvals->at(0);
-    FunctionVal *subfun = cur->get_subfun(i);
+    FunctionVal *subfun = dynamic_cast<FunctionVal *>(cur->get_subfun(i)->copy());
     if (!subfun->chunk->upvals->at(0)) subfun->chunk->upvals->at(0) = subfun->pre->chunk->upvals->at(0);
     return subfun;
 }
@@ -161,6 +161,7 @@ void State::set_cur(FunctionVal *fun)
 {
     this->cur = fun;
     this->calls->push_back(fun);
+    cur->ref_count++;
 }
 
 bool State::tryClearOpenedFuns(FunctionVal *fun)
@@ -179,7 +180,7 @@ bool State::tryClearOpenedFuns(FunctionVal *fun)
                 if (it->ref_count <= 0) delete it;
             }
         }
-        delete fun;
+        if (fun->ref_count <= 0) delete fun;
         return true;
     }
     return false;
@@ -189,17 +190,23 @@ void State::end_call()
 {
     clearTempData();
     if (!tryClearOpenedFuns(cur)) openedFuns->push_back(cur);
-
+    
     if (!this->calls->empty()){
         calls->pop_back();
         // 最后退出的是main chunk
         if (!calls->empty()) cur = calls->back();
     }
-
     for (auto it = openedFuns->begin(); it != openedFuns->end(); ) {
         bool ret = this->tryClearOpenedFuns(*it);
         if (ret) it = openedFuns->erase(it);
         else ++it;
+    }
+    if (calls->empty()) {
+        delete openedFuns;
+        delete calls;
+        delete vm;
+        delete stack;
+        delete cur;
     }
 }
 
@@ -268,6 +275,7 @@ static void read_function(FunctionVal *funChunk, ifstream &in)
     int nupvalue = 0;
     in.read((char *)&nupvalue, sizeof(int));
     funChunk->add_upvalue(NULL); // env
+    funChunk->upvOwner = true;
     
     for (int i = 0; i < nupvalue; i++) {
         UpValue *upv = new UpValue;
@@ -355,6 +363,7 @@ void State::load(const char *file_name)
         opcodes->push_back(code);
     }
     mainChunk->fun_body_ops = opcodes;
+    mainFun->isMain = true;
 
     read_function(mainFun, in);
 
@@ -372,7 +381,7 @@ static TableVal * init_env(VM *vm)
 
 void State::run()
 {
-    FunctionVal *entry = get_by_file_name("D:/code/src/vs/yuan-lang/hello.b");
+    FunctionVal *entry = get_by_file_name("D:/code/test/cpp/yuan-lang/hello.b");
     if (!entry) {
         cout << "not found !!" << endl;
         exit(0);
