@@ -277,9 +277,9 @@ enum class ForExpType
 
 struct ForExpression
 {
-    ForExpType type;
+    ForExpType type;    // condition or in 
     vector<OperationExpression *> *first_statement = NULL;
-    OperationExpression *second_statement = NULL;          // condition or in 
+    OperationExpression *second_statement = NULL;          
     vector<OperationExpression *> *third_statement = NULL;
 
     vector<BodyStatment *> *body = NULL;
@@ -292,6 +292,7 @@ struct CallExpression
 {
     IdExpression *function_name = NULL;
     vector<Operation *> *parameters = NULL;
+    bool is_require = false;
     int from;
     int to;
 };

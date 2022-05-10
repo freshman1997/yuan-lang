@@ -1,13 +1,25 @@
 
+local mtb = require("module")
+
+mtb.say_hello()
+mtb.say_hello_world()
 
 
 local tb = {"name": fn(name) {
     print("welcome " + name)
 },100 : 20}
 
+// 这里不管加不加 local 默认都是 local
+local fn tb:func()
+{
+    print("module")
+}
+
 print("tb 100 :" + tb[100])
 
 tb["name"]("tomcat")
+
+tb.func()
 
 // 这里的前置++会结合到上一条表达式里面了，所以需要放成后置
 tb[100]++
@@ -93,6 +105,9 @@ for (i in arr) {
 }
 
 
+// require 只执行一遍文件，可以所有的全局变量，return的表可以当作模块使用，可以return任何类型的数据，执行到return就会返回掉，不执行下面的指令 
+// do_file 执行文件
+// local aa = require("文件", ..., args);   aa.doas() doas 会去 aa 变量里面找key
 
-
+return tb
 

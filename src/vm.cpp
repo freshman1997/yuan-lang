@@ -451,7 +451,11 @@ static void packVarargs(State *st, FunctionVal *fun)
     state->push(arr);
     st->param_start = 0;
 }
-
+/*
+    如，print就会找这里，
+    os.open(file, mod)  这里首先会找 os 这个变量，如果已经被声明则会使用已声明的，否则使用环境中的
+    二者冲突可以 用别名取代， 如 local env = _ENV(os)
+*/
 static Value * find_env_param(String *key, FunctionVal *cur)
 {
     if (!cur->chunk->upvals || cur->chunk->upvals->empty()) return NULL;
@@ -464,6 +468,19 @@ static Value * find_env_param(String *key, FunctionVal *cur)
         }
     }
     return NULL;
+}
+
+static Value * fetch_file_global_variables(String *file, int i)
+{
+    FunctionVal *fileChunk = state->get_by_file_name(file->value()->c_str());
+    if (!fileChunk) {
+        panic("no module found!");
+    }
+    Value *val = fileChunk->get_global_var(i);
+    if (!val) {
+        panic("no such varibale!");
+    }
+    return val;
 }
 
 static void do_execute(const std::vector<int> &pcs, int from, int to);
@@ -713,7 +730,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 int v1 = (int)num->value();
                 int v2 = (int)ceil(num->value());
                 if (v1 != v2) {
-                    panic("only interger can index string variable!");
+                    panic("only interger can index float variable!");
                 }
                 String *str = dynamic_cast<String *>(val);
                 if (!str) {
@@ -754,11 +771,11 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 int v1 = (int)num->value();
                 int v2 = (int)ceil(num->value());
                 if (v1 != v2) {
-                    panic("only interger can index string variable!");
+                    panic("only interger can index array variable!");
                 }
                 Value *v = arr->get(v1);
                 if(!v) {
-                    panic("indexing overflow!");
+                    panic("indexing out of array!");
                 }
                 state->push(v);
             }
@@ -952,14 +969,46 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
 static int print(State* st)
 {
     Value *val = st->pop();
-    if (val->get_type() == ValueType::t_string) {
+    switch (val->get_type())
+    {
+    case ValueType::t_string:
         cout << *static_cast<String *>(val)->value() << endl;
-    }
-    else if (val->get_type() == ValueType::t_number) {
+        break;
+    case ValueType::t_number:
         cout << static_cast<Number *>(val)->value() << endl;
+        break;
+    case ValueType::t_boolean:
+        break;
+    case ValueType::t_null:
+        break;
+    case ValueType::t_array:
+        break;
+    case ValueType::t_table:
+        break;
+    case ValueType::t_function:
+        break;
+    case ValueType::t_byte:
+        break;
+    default:
+        panic("unexpected!");
+        break;
     }
     check_variable_liveness(val);
-    return 0;
+    return 1;
+}
+
+static int require(State* st)
+{
+    String *path = dynamic_cast<String*>(st->pop());
+    if (!path) {
+        panic("no correct key found!");
+    }
+    string filepath = "D:/code/test/cpp/yuan-lang/" + *path->value() + ".y";
+    bool ret = st->require(filepath.c_str(), NULL);
+    if (!ret) {
+        panic("require module fail");
+    }
+    return 1;
 }
 
 void VM::load_lib(TableVal *tb)
@@ -967,9 +1016,20 @@ void VM::load_lib(TableVal *tb)
     String *key = new String;
     key->set_val("print");
     FunctionVal *p = new FunctionVal;
+    p->nreturn = 0;
+    p->nparam = 1;
     p->isC = true;
     p->cfun = print;
     tb->set(key, p);
+
+    String *req = new String;
+    req->set_val("require");
+    FunctionVal *r = new FunctionVal;
+    r->nreturn = 0;
+    r->nparam = 1;
+    r->isC = true;
+    r->cfun = require;
+    tb->set(req, r);
 }
 
 void VM::execute(const std::vector<int> &pcs, State *_state, int argc, char **argv)

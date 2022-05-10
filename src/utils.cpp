@@ -3,10 +3,9 @@
 
 #include <cstdarg>
 
-static void verror_at(const char *filename, char *input, int line_no,
-                      char *loc, char *fmt, va_list ap) {
+static void verror_at(const char *filename, char *input, int line_no, char *loc, char *fmt, va_list ap) {
     // Find a line containing `loc`.
-	line_no += 1;
+	  line_no += 1;
     char *line = loc;
     while (input < line && line[-1] != '\n')
       line--;
@@ -34,4 +33,22 @@ void error_tok(const Token &tok, const char *filename, char * content, char *fmt
     va_start(ap, fmt);
     verror_at(filename, content, tok.row, tok.from, fmt, ap);
     exit(1);
+}
+
+static string _cwd;
+
+void to_cwd(const char *exe)
+{
+    int len = strlen(exe) - 1;
+    while (!(exe[len] == '/' || exe[len] == '\\')){
+       --len;
+    }
+    for (int i = 0; i < len; i++) {
+        _cwd.push_back(exe[i]);
+    }
+}
+
+string getcwd()
+{
+    return _cwd;
 }

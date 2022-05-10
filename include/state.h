@@ -13,6 +13,8 @@ class FunctionVal;
 class State
 {
 public:
+    int param_start = 0;
+
     Value * pop();
     void push(Value *val);
     void pushg(int i);
@@ -29,22 +31,25 @@ public:
     
     Value * get(int pos);
     VM * get_vm();
-    void load(const char *start_file_name);
     State() = delete;
     State(size_t sz);
     FunctionVal * get_by_file_name(const char *);
     FunctionVal * get_cur();
     void set_cur(FunctionVal *fun);
     void end_call();
-    void run();
+    
     int get_stack_size();
     int cur_calls();
     void clearTempData();
     bool tryClearOpenedFuns(FunctionVal *fun);
 
-    int param_start = 0;
+    
+    FunctionVal * run(const char *, TableVal *args);
+    bool require(const char *file, TableVal *args);
 
 private:
+    void load(const char *start_file_name);
+
     vector<FunctionVal *> *openedFuns = NULL;
     FunctionVal *cur = NULL;
     vector<FunctionVal *> *calls = NULL;

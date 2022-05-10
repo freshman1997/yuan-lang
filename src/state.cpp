@@ -1,7 +1,8 @@
-#include <fstream>
+﻿#include <fstream>
 
 #include "state.h"
 #include "types.h"
+#include "yuan.h"
 
 static bool is_basic_type(Value *val)
 {
@@ -130,7 +131,7 @@ Value * State::getu(int i)
 Value * State::get(int pos)
 {
     if (pos >= stack->get_size()) return NULL;
-    if (pos < 0) {
+    if (pos <= 0) {
         pos = stack->get_size() + pos - 1;
     }
     return stack->get(pos);
@@ -379,16 +380,46 @@ static TableVal * init_env(VM *vm)
     return tb;
 }
 
-void State::run()
+static bool get_target_bin_file_name(const char* origin, string &target)
 {
-    FunctionVal *entry = get_by_file_name("D:/code/src/vs/yuan-lang/hello.b");
+    int i = strlen(origin) - 1;
+    while (origin[i] != '.' && i > 0) --i;
+    if (i == 0) {
+        cout << "not yuan script file!" << endl;
+        return false;
+    }
+
+    for (int j = 0; j <= i; ++j) {
+        target.push_back(origin[j]);
+    }
+    target.push_back('b');
+    return true;
+}
+
+bool State::require(const char *file, TableVal *args)
+{
+    // 先不考虑容错，require 失败直接 crash 
+    compile(file);
+    string targetFile;
+    if (!get_target_bin_file_name(file, targetFile)) return false;
+    FunctionVal *fileChunk = run(file, args);
+    // 这里执行完，返回到初始进入的地方    
+    return true;
+}
+
+FunctionVal * State::run(const char *entryFile, TableVal *args)
+{
+    string targetFile;
+    if (!get_target_bin_file_name(entryFile, targetFile)) return NULL;
+    FunctionVal *entry = get_by_file_name(targetFile.c_str());
     if (!entry) {
-        cout << "not found !!" << endl;
-        exit(0);
+        cout << "entry not found !!" << endl;
+        return NULL;
     }
 
     // 入参？
 
+    entry->chunk->local_variables->at(0) = args;
     entry->chunk->upvals->at(0) = new UpValue;
     entry->chunk->upvals->at(0)->val = init_env(this->get_vm());
     entry->ncalls++;
@@ -396,4 +427,5 @@ void State::run()
     vm->execute(*entry->get_pcs(), this, 0, NULL);
     end_call();
     entry->ncalls--;
+    return entry;
 }

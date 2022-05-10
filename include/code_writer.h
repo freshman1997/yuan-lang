@@ -9,58 +9,18 @@ using namespace std;
 class CodeWriter
 {
 public:
-    void set_file_name(const char *file_name)
-    {
-        this->file_name = file_name;
-        pc = 0;
-    }
-    const char * get_file_name()
-    {
-        return file_name;
-    }
+    void set_file_name(const char *file_name);
+   
+    const char * get_file_name();
 
-    void add(OpCode op, int param)
-    {
-        // 8 位指令，24位操作数
-        int code = param << 8 | int(op);
-        instructions.push_back(code);
-        pc++;
-    }
+    void add(OpCode op, int param);
 
-    void set(int i, OpCode op, int param) 
-    {
-        int code = param << 8 | int(op);
-        if (i >= instructions.size()) {
-            return;
-        }
-        instructions[i] = code;
-    }
+    void set(int i, OpCode op, int param);
+   
+    int get_pc();
 
-    int get_pc()
-    {
-        return pc;
-    }
-
-    void flush_proto()
-    {
-
-    }
-
-    void flush_const()
-    {
-
-    }
-
-    void flush_upvals()
-    {
-        
-    }
-
-    vector<int> & get_instructions()
-    {
-        return instructions;
-    }
-
+    vector<int> & get_instructions();
+    
 private:
     vector<int> instructions;
     const char *file_name = NULL;

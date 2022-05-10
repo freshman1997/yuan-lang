@@ -34,4 +34,7 @@ inline void error(const char *msg, const char *s)
 struct Token;
 void error_tok(const Token &tok, const char *filename, char * content, char *fmt, ...);
 
+void to_cwd(const char *exe);
+string getcwd();
+
 #endif

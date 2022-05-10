@@ -6,7 +6,7 @@
 #include <fstream>
 
 #include "parser.h"
-#include "visitor.h"
+#include "codegen.h"
 #include "yuan.h"
 
 using namespace std;
@@ -283,13 +283,34 @@ static void visit_operation_exp(OperationExpression *operExp, FuncInfo *info, Co
 
 static void visit_assign(AssignmentExpression *assign, FuncInfo *info, CodeWriter &writer)
 {
+    if (assign->module) {
+        int gVarid = is_global_var(assign->module->name, assign->module->name_len);
+        if (gVarid >= 0) {
+            writer.add(OpCode::op_pushg, gVarid);
+        }
+        else {
+            pair<int, int> p;
+            if (has_identifier(info, assign->module->name, assign->module->name_len, p)) {
+                if (p.first == info->in_stack) writer.add(OpCode::op_pushl, p.second);
+                else writer.add(OpCode::op_pushu, p.second);
+            }
+            else syntax_error("unkown table variable");
+        }
+    }
     visit_operation_exp(assign->assign, info, writer);
     IdExpression *name = assign->id;
     char *id = name->name;
     int len = name->name_len;
     int gVarid = is_global_var(id, len);
-    if (gVarid >= 0) {
+    if (gVarid >= 0 && !assign->module) {
         writer.add(OpCode::op_storeg, gVarid);
+        return;
+    }
+
+    if (assign->module) {
+        writer.add(OpCode::op_pushc, add_global_const(0, id, len, VariableType::t_string));
+        delete name;
+        delete assign->module;
         return;
     }
 
@@ -338,6 +359,7 @@ static void visit_assign(AssignmentExpression *assign, FuncInfo *info, CodeWrite
             global_var_index++;
         }
     }
+    delete name;
 }
 
 static void visit_if(IfExpression *ifExp, FuncInfo *info, CodeWriter &writer)
@@ -591,6 +613,7 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
         info->upvalue->upvalues->push_back(up);
         info->nupval++;
 
+        // TODO 后面想想怎么优化，如何不用每次都赋值一次
         writer.add(OpCode::op_pushu, p.second);
         writer.add(OpCode::op_storeu, p.second);
         writer.add(OpCode::op_call_upv, p.second);
@@ -619,6 +642,7 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     newFun->pre = info;
     newFun->fun = fun;
     newFun->is_local = fun->is_local;
+
     if (fun->is_local) {
         if (!info->subFuncInfos) {
             info->subFuncInfos = new vector<FuncInfo *>;
@@ -661,6 +685,26 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     if (fun->is_local) writer.add(OpCode::op_storel, info->actVars - 1);
     else writer.add(OpCode::op_storeg, global_var_index - 1);
 
+    if (fun->module) {
+        int gVarid = is_global_var(fun->module->name, fun->module->name_len);
+        if (gVarid >= 0) writer.add(OpCode::op_pushg, gVarid);
+        else {
+            pair<int, int> p;
+            if (has_identifier(info, fun->module->name, fun->module->name_len, p)) {
+                if (p.first == info->in_stack) writer.add(OpCode::op_pushl, p.second);
+                else writer.add(OpCode::op_pushu, p.second);
+            }
+            else syntax_error("unkown table variable");
+        }
+
+        // key value
+        writer.add(OpCode::op_pushl, info->actVars - 1);
+        writer.add(OpCode::op_pushc, add_global_const(0, fun->function_name->name, fun->function_name->name_len, VariableType::t_string));
+        
+        // set table
+        writer.add(OpCode::op_table_set, 0);
+    }
+
     newFun->nparam = fun->parameters->size();
     int enter = writer.get_pc();
     writer.add(OpCode::op_jump, 0);
@@ -676,7 +720,7 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
         int gVarid = is_global_var(it->name, it->name_len);
         if (has_identifier(info, it->name, it->name_len, p) || gVarid >= 0) {
             // error, 重名
-            syntax_error("unkown identifier");
+            syntax_error("redeclare identifier");
         }
         FuncInfoItem *item = new FuncInfoItem;
         item->name = it->name;
@@ -743,11 +787,20 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
     }
 
     for (auto &it : *index->keys) {
-        bool isCall = it->left->type == OpType::call;
-        if (isCall) fromIndex = it->left->op->call_oper->parameters->size();
-        visit_operation_exp(it, info, writer);
-        if (!isCall) 
+        if (it->left->type != OpType::call) {
+            visit_operation_exp(it, info, writer);
             writer.add(OpCode::op_index, 0);
+        }
+        else {
+            fromIndex = it->left->op->call_oper->parameters->size();
+            if (it->left->op->call_oper->function_name) {
+                writer.add(OpCode::op_pushc, add_global_const(0, it->left->op->call_oper->function_name->name, it->left->op->call_oper->function_name->name_len, VariableType::t_string));
+                writer.add(OpCode::op_index, 0);
+                delete it->left->op->call_oper->function_name;
+                it->left->op->call_oper->function_name = NULL;
+            }
+            visit_operation_exp(it, info, writer);
+        }
         delete it;
     }
     delete index->keys;

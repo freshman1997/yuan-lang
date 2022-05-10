@@ -257,24 +257,24 @@ static vector<Operation *> * parse_parameter(TokenReader *reader, char close, bo
 
 static CallExpression * parse_function_call(TokenReader *reader)
 {
-	bool isRequire = false;
-	if (reader->peek().type == TokenType::keyword) {
-		if (!str_equal(reader->peek().from, "require", 7)) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid require statement", __LINE__);
-		}
-		isRequire = true;
-	}
-	
 	CallExpression *call = new CallExpression;
 	if (reader->peek().type != TokenType::sym && *reader->peek().from != '(') {
-		if (!isRequire && reader->peek().type != TokenType::iden) {
-			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
+		if (reader->peek().type == TokenType::keyword) {
+			if (!str_equal(reader->peek().from, "require", 7)) {
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid require statement!", __LINE__);
+			}
+		}
+		else {
+			if (reader->peek().type != TokenType::iden) {
+				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid call statement", __LINE__);
+			}
 		}
 		call->function_name = new IdExpression;
 		call->function_name->name = reader->peek().from;
 		call->function_name->name_len = reader->peek().len;
 		reader->consume(); // consume function name
 	}
+
 	if (reader->peek().type != TokenType::sym || *reader->peek().from != '(') {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "function call need ( to start", __LINE__);
 	}
@@ -413,6 +413,7 @@ static Operation * parse_primary(TokenReader *reader)
 				}
 				case ':':	
 				{
+					
 					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 					break;
 				}
@@ -549,14 +550,14 @@ static Operation * parse_primary(TokenReader *reader)
 			else if (!(*(reader->peek().from) != ']' || *(reader->peek().from) != '}' || *(reader->peek().from) != ')')) {
 				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
+			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
 		else if (reader->peek().type == TokenType::keyword) {
 			if (str_equal(reader->peek().from, "require", 7)) {
 				CallExpression *call = parse_function_call(reader);
-				if (!call || call->parameters->size() != 1 || call->parameters->front()->type != OpType::str) {
+				if (!call || call->parameters->size() > 2 || call->parameters->front()->type != OpType::str) {
 					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 				}
-				reader->unread();
 				node = new Operation;
 				node->op = new Operation::oper;
 				node->type = OpType::call;
@@ -654,7 +655,10 @@ static AssignmentExpression * parse_assignment(TokenReader *reader)
 	else reader->unread();
 
 	AssignmentExpression *as = new AssignmentExpression;
-	if (module) as->module = module;
+	if (module) {
+		isLocal = true;
+		as->module = module;
+	}
 	as->id = new IdExpression;
 	as->id->is_local = isLocal;
 
@@ -1003,7 +1007,7 @@ static ForExpression * parse_for_expression(TokenReader *reader)
 		idOper->left->op->id_oper->name = reader->peek().from;
 		idOper->left->op->id_oper->name_len = reader->peek().len;
 		forExp->third_statement->push_back(idOper);
-		
+
 		reader->consume();
 		if (reader->peek().type != TokenType::sym || *reader->peek().from != ')') {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid for statement", __LINE__);
@@ -1042,7 +1046,7 @@ static Function * parse_function_expression(TokenReader *reader, bool hasName)
 	reader->consume();
 
 	if (hasName) {
-		// 下划线开头先不考虑
+		// identifier 的合法性由词法分析那边保证
 		if (reader->peek().type != TokenType::iden) {
 			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid funcion name", __LINE__);
 		}
@@ -1050,6 +1054,10 @@ static Function * parse_function_expression(TokenReader *reader, bool hasName)
 	}
 	IdExpression *moduleName = NULL;
 	if (reader->peek().type == TokenType::sym && *reader->peek().from == ':') {
+		isLocal = true;
+		if (!hasName) {	 // 模块定义的函数必须是 local 的
+			error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid module declaration!", __LINE__);
+		}
 		reader->unread();
 		moduleName = new IdExpression;
 		moduleName->name = reader->peek().from;
@@ -1065,7 +1073,7 @@ static Function * parse_function_expression(TokenReader *reader, bool hasName)
 	if (moduleName) fun->module = moduleName;
 
 	if (hasName) {
-		reader->unread();
+		if (!moduleName) reader->unread();
 		IdExpression *funcName = new IdExpression;
 		funcName->name = reader->peek().from;
 		funcName->name_len = reader->peek().len;

@@ -67,7 +67,7 @@ enum class OpCode
 
     op_enter_func,      // {
 
-    op_set_self,        // 如果是模块，需要self
+    op_self,            // 如果是模块，需要self
 
     op_table_new,       // a = {}
     op_table_set,       // a["name"] = "tomcat"

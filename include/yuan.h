@@ -13,4 +13,11 @@
 
 #define MAX_RECURSE_NUM     200                   // 最大递归次数
 
+
+
+void compile(const char *file);
+
+int compile_dir(const char *dir);
+
+
 #endif
