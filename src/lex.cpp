@@ -121,7 +121,7 @@ static char * read_all_the_file(const char *filename, TokenReader &reader)
 static bool is_keyword(const Token& tok) {
 	static const char* kw[] = {
 	  "return", "if", "else", "for", "while", "do", "fn", "local", "false", "true", 
-	  "break", "continue", "require", "in", "nil"
+	  "break", "continue", "require", "in", "nil", "self"
 	};
 
 	static unordered_set<string> s;
@@ -151,9 +151,7 @@ static int read_ident(char* s)
 static int read_punct(char* p) 
 {
 	static const char* kw[] = {
-	  "<<=", ">>=", "...", "==", "!=", "<=", ">=", "+=",
-	  "-=", "*=", "/=", "++", "--", "%=", "&=", "|=", "^=", "&&",
-	  "||", "<<", ">>", "``",
+	  "...", "==", "!=", "<=", ">=", "++", "--", "&&", "||", "<<", ">>", "``",
 	};
 
 	for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)

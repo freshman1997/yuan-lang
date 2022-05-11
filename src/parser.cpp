@@ -21,6 +21,8 @@ static OperatorType getbinopr (int op) {
 	case '<' + '<': return OperatorType::op_bin_lm;
 	case ('>' + '>' + 1): return OperatorType::op_bin_rm;
 	case '^' + 1: return OperatorType::op_bin_xor;
+	case '<' + '=': return OperatorType::op_lt_eq;
+	case '>' + '=': return OperatorType::op_gt_eq;
     default: return OperatorType::op_none;
   }
 }
@@ -153,7 +155,13 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 				child2->op->op_oper = exp;
 				child2->type = OpType::op;
 				node->right = child2;
-				node->left = child1 ? child1->left : NULL;
+
+				Operation *left = new Operation;
+				left->op = new Operation::oper;
+				left->op->op_oper = child1;
+				left->type = OpType::op;
+				node->left = left;
+
 				if (limit && limit < priority[(int)exp->op_type].left) {
 					// 全部解析出来
 					exp = node;
@@ -635,7 +643,7 @@ static AssignmentExpression * parse_assignment(TokenReader *reader)
 		isLocal = true;
 		reader->consume();
 	}
-	if (reader->peek().type != TokenType::iden) {
+	if (!(reader->peek().type == TokenType::iden || (reader->peek().type == TokenType::sym && str_equal(reader->peek().from, "=", 1)))) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid assign statement", __LINE__);
 	}
 	
@@ -659,13 +667,15 @@ static AssignmentExpression * parse_assignment(TokenReader *reader)
 		isLocal = true;
 		as->module = module;
 	}
-	as->id = new IdExpression;
-	as->id->is_local = isLocal;
 
-	as->id->name = reader->peek().from;
-	as->id->name_len = reader->peek().len;
+	if (!(reader->peek().type == TokenType::sym && str_equal(reader->peek().from, "=", 1))) {
+		as->id = new IdExpression;
+		as->id->is_local = isLocal;
+		as->id->name = reader->peek().from;
+		as->id->name_len = reader->peek().len;
+		reader->consume();
+	}
 	
-	reader->consume();
 	if (reader->peek().type == TokenType::sym && str_equal(reader->peek().from, "=", 1)) {
 		reader->consume();
 		const Token &val = reader->peek();
@@ -1171,7 +1181,8 @@ static void build_assign(vector<BodyStatment *> *statements, TokenReader *reader
 	if (!ass) {
 		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 	}
-	bool islocal = ass->id->is_local;
+	bool islocal = false;
+	if (ass->id) islocal = ass->id->is_local;
 	BodyStatment *statement = new BodyStatment;
 	statement->body = new BodyStatment::body_expression;
 	statement->body->assign_exp = ass;
@@ -1319,6 +1330,10 @@ static vector<BodyStatment *> * parse_expressions(TokenReader *reader, bool brea
 			} 
 			else if(reader->peek().len == 2 && (str_equal(reader->peek().from, "++", 2) || str_equal(reader->peek().from, "--", 2))) {	// 下面为 前置 ++， --
 				build_operation(statements, reader);
+			}
+			else if (reader->peek().len == 1 && *reader->peek().from == '=')
+			{
+				build_assign(statements, reader);
 			}
 			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			break;

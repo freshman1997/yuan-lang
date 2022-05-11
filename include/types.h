@@ -47,7 +47,7 @@ public:
 
 static bool is_value_equal(const Value *lhs, const Value *rhs);
 
-class Nil : public Value
+class NilVal : public Value
 {
 public:
 	virtual ValueType get_type() const;
@@ -56,7 +56,7 @@ public:
     virtual Value * copy();
 };
 
-class Boolean : public Value
+class BooleanVal : public Value
 {
 public:
 	virtual ValueType get_type() const;
@@ -72,7 +72,7 @@ private:
     string _name;
 };
 
-class Number : public Value
+class NumberVal : public Value
 {
 public:
 	virtual ValueType get_type() const;
@@ -88,7 +88,7 @@ private:
     string _name;
 };
 
-class Byte : public Value
+class ByteVal : public Value
 {
 public:
 	virtual ValueType get_type() const;
@@ -98,7 +98,7 @@ public:
     unsigned char _val;
 };
 
-class String : public Value
+class StringVal : public Value
 {
 public:
 	virtual ValueType get_type() const;
@@ -157,14 +157,14 @@ public:
     const unordered_map<int, std::pair<Value *, Value *>> * members();
 
 private:
-    // 只能 string, number 作为 key
+    // 只能 StringVal, NumberVal 作为 key
     unordered_map<int, std::pair<Value *, Value *>> *values = NULL;
     string _name = "";
 };
 
 struct UpValue
 {
-    string name;
+    StringVal name;
     int in_stack;           //   在函数栈中的位置
     int upval_index;        //   upvalue 中的位置
     int index;              //   在父作用域中的位置（local）

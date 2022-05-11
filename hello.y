@@ -1,3 +1,68 @@
+local fn quicksort(arr1, l, r) {
+    if (l < r) {
+        local key = arr1[(l + r) / 2]
+        i = l, j = r
+        while (i <= j) {
+            while (arr1[i] < key) {
+                i++
+            }
+            
+            while (arr1[j] > key) {
+                j--
+            }
+
+            if (i <= j) {
+                // 这里左边要是表达式才能正确修改数组的值，否则只是拷贝，不会被修改
+                local t = arr1[i]
+                arr1[i] = arr1[j]
+                arr1[j] = t
+                i++
+                j--
+            }
+        }
+        if (l < j) {
+            quicksort(arr1, l, j)
+        }
+        if (r > j) {
+            quicksort(arr1, i, r)
+        }
+    }
+}
+
+local arr1 = [3, 1, 4, 2, 6, 5]
+
+quicksort(arr1, 0, #arr1 - 1)
+
+str = "["
+for (i = 0; i < #arr1; ++i) {
+    str = str + arr1[i]
+    if (i < #arr1 - 1) {
+        str = str + ", "
+    }
+}
+str = str + "]"
+print(str)
+
+
+local fn fib(n) {
+    if (n == 0) {
+        return 1
+    }
+    if (n == 1) {
+        return 1
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+
+print("fib result: " + fib(5))
+
+fn test_args(...) {
+    print("size: " + #args)
+    for (i = 0; i < #args; ++i) {
+        print("args: " + args[i])
+    }
+}
+test_args(1, 2, 3)
 
 local mtb = require("module")
 
@@ -33,14 +98,7 @@ print(test_tba[100])
 cal = 100 + 18 + 200 / 2 * 2 + 20 / 2
 print("cal: " + cal)
 
-fn test_args(...) {
-    print("size: " + #args)
-    for (i = 0; i < #args; ++i) {
-        print(args[i])
-    }
-}
 
-test_args(1, 2, 3)
 
 
 test = 10
@@ -108,6 +166,8 @@ for (i in arr) {
 // require 只执行一遍文件，可以所有的全局变量，return的表可以当作模块使用，可以return任何类型的数据，执行到return就会返回掉，不执行下面的指令 
 // do_file 执行文件
 // local aa = require("文件", ..., args);   aa.doas() doas 会去 aa 变量里面找key
+
+
 
 return tb
 

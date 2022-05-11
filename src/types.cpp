@@ -1,177 +1,178 @@
 #include "types.h"
 
-ValueType Nil::get_type() const
+ValueType NilVal::get_type() const
 {
     return ValueType::t_null;
 }
 
-string Nil::name() const
+string NilVal::name() const
 {
     return "";
 }
 
-size_t Nil::hash() const
+size_t NilVal::hash() const
 {
     return 0;
 }
 
-Value * Nil::copy()
+Value * NilVal::copy()
 {
-    return new Nil;
+    return new NilVal;
 }
 
-ValueType Boolean::get_type() const
+ValueType BooleanVal::get_type() const
 {
     return ValueType::t_boolean;
 }
 
-std::string Boolean::name() const
+std::string BooleanVal::name() const
 {
     return _name;
 }
-void Boolean::set_name(const string &name)
+void BooleanVal::set_name(const string &name)
 {
     this->_name = std::move(name);
 }
-std::size_t Boolean::hash() const
+std::size_t BooleanVal::hash() const
 {
     return 0;
 }
 
-void Boolean::set(bool val)
+void BooleanVal::set(bool val)
 {
     this->_val = val;
 }
 
-bool Boolean::value() const
+bool BooleanVal::value() const
 {
     return _val;
 }
 
-Value * Boolean::copy()
+Value * BooleanVal::copy()
 {
-    Boolean *b = new Boolean;
+    BooleanVal *b = new BooleanVal;
     b->set(this->_val);
     return b;
 }
 
-ValueType Number::get_type() const
+ValueType NumberVal::get_type() const
 {
     return ValueType::t_number;
 }
 
-std::string Number::name() const
+std::string NumberVal::name() const
 {
     return _name;
 }
-std::size_t Number::hash() const
+std::size_t NumberVal::hash() const
 {
     return size_t(std::hash<double>()(_val));
 }
-double Number::value() const
+double NumberVal::value() const
 {
     return _val;
 }
-void Number::set_name(const string &name)
+void NumberVal::set_name(const string &name)
 {
     this->_name = std::move(name);
 }
 
-void Number::set_val(double val)
+void NumberVal::set_val(double val)
 {
     this->_val = val;
 }
 
-Value * Number::copy()
+Value * NumberVal::copy()
 {
-    Number *b = new Number;
+    NumberVal *b = new NumberVal;
     b->set_val(this->_val);
     return b;
 }
 
-ValueType Byte::get_type() const
+ValueType ByteVal::get_type() const
 {
     return ValueType::t_byte;
 }
-std::string Byte::name() const
+std::string ByteVal::name() const
 {
     return "";
 }
 
-std::size_t Byte::hash() const
+std::size_t ByteVal::hash() const
 {
     return 0;
 }
 
-Value * Byte::copy()
+Value * ByteVal::copy()
 {
-    Byte *b = new Byte;
+    ByteVal *b = new ByteVal;
     b->_val = this->_val;
     return b;
 }
 
-ValueType String::get_type() const
+ValueType StringVal::get_type() const
 {
     return ValueType::t_string;
 }
-std::string String::name() const
+std::string StringVal::name() const
 {
     return _name;
 }
-std::size_t String::hash() const
+std::size_t StringVal::hash() const
 {
     return std::hash<string>()(_val);
 }
-string * String::value() 
+
+string * StringVal::value() 
 {
     return &this->_val;
 }
 
-void String::set_val(const string &v)
+void StringVal::set_val(const string &v)
 {
     this->_val = v;
 }
 
-void String::set_val(const char *k)
+void StringVal::set_val(const char *k)
 {
     this->_val = k;
 }
 
 
-void String::set_name(const string &name)
+void StringVal::set_name(const string &name)
 {
     this->_name = std::move(name);
 }
 
-Value * String::get(int i)
+Value * StringVal::get(int i)
 {
     if (i < 0 || i >= this->_val.size()) return NULL;
-    Byte *ch = new Byte;
+    ByteVal *ch = new ByteVal;
     ch->_val = (unsigned char)this->_val[i];
     return ch;
 }
 
-void String::set(int i, Value *val)
+void StringVal::set(int i, Value *val)
 {
     if (i >= _val.size()) return;
-    _val[i] = (static_cast<Byte *>(val))->_val;
+    _val[i] = (static_cast<ByteVal *>(val))->_val;
 }
 
-void String::push(char c)
+void StringVal::push(char c)
 {
     _val.push_back(c);
 }
 
-Value * String::copy()
+Value * StringVal::copy()
 {
-    String *s = new String;
+    StringVal *s = new StringVal;
     s->_name = this->_name;
-    s->set_val(*s->value());
+    s->set_val(*this->value());
     return s;
 }
 
 ValueType ArrayVal::get_type() const {return ValueType::t_array;}
-std::string ArrayVal::name() const {return _name;}
+std::string ArrayVal::name() const { return _name;}
 std::size_t ArrayVal::hash() const {return 0;}
 vector<Value *> * ArrayVal::member(){return &this->members;}
 Value * ArrayVal::get(int i){return this->members[i];}
@@ -196,7 +197,7 @@ bool ArrayVal::set(int i, Value *val)
 }
 void ArrayVal::set_name(const string &name)
 {
-    this->_name = std::move(name);
+    this->_name = name;
 }
 
 int ArrayVal::size()
@@ -451,7 +452,19 @@ Value * FunctionVal::copy()
 {
     FunctionVal *val = new FunctionVal;
     *val->chunk = *this->chunk;
+    val->ncalls = this->ncalls;
     val->chunk->local_variables = new vector<Value *>(this->chunk->local_variables->size(), NULL);
+    for (auto &it : *this->chunk->local_variables) {
+        if (it){
+            if ((it->get_type() == ValueType::t_boolean || it->get_type() == ValueType::t_null || it->get_type() == ValueType::t_number 
+            || it->get_type() == ValueType::t_byte || it->get_type() == ValueType::t_function)) {
+                val->chunk->local_variables->push_back(it->copy());
+            }
+            else {
+                val->chunk->local_variables->push_back(it);
+            }
+        }
+    }
     val->isMain = this->isMain;
     val->pre = this->pre;
     val->is_local = this->is_local;

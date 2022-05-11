@@ -9,11 +9,11 @@
     每个作用域都需要包含一个表，用来记录变量，这样子就不用记录变量的名字了，运行再根据取得的值计算
 */
 #define isnum(a, b) (a->get_type() == ValueType::t_number && b->get_type() == ValueType::t_number)
-#define add(v1, v2) ((static_cast<Number *>(v1))->value() + (static_cast<Number *>(v2))->value())
-#define sub(v1, v2) ((static_cast<Number *>(v1))->value() - (static_cast<Number *>(v2))->value())
-#define mul(v1, v2) ((static_cast<Number *>(v1))->value() * (static_cast<Number *>(v2))->value())
-#define div(v1, v2) ((static_cast<Number *>(v1))->value() / (static_cast<Number *>(v2))->value())
-#define mod(v1, v2) (int((static_cast<Number *>(v1))->value()) % int((static_cast<Number *>(v2))->value()))
+#define add(v1, v2) ((static_cast<NumberVal *>(v1))->value() + (static_cast<NumberVal *>(v2))->value())
+#define sub(v1, v2) ((static_cast<NumberVal *>(v1))->value() - (static_cast<NumberVal *>(v2))->value())
+#define mul(v1, v2) ((static_cast<NumberVal *>(v1))->value() * (static_cast<NumberVal *>(v2))->value())
+#define div(v1, v2) ((static_cast<NumberVal *>(v1))->value() / (static_cast<NumberVal *>(v2))->value())
+#define mod(v1, v2) (int((static_cast<NumberVal *>(v1))->value()) % int((static_cast<NumberVal *>(v2))->value()))
 
 static State *state = NULL;
 
@@ -55,7 +55,6 @@ static void assign(int type, int i)
         if (is_basic_type(val)) gVars->at(i) = val->copy();
         else gVars->at(i) = val;
         gVars->at(i)->ref_count++;
-        
     }
     else if (type == 1) {
         // 从局部变量表里面拿，然后赋值
@@ -111,115 +110,115 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
         }
         // 入栈是第一个先入，出栈是第二个先出
         if (isnum(val1, val2)) {
-            Number *num1 = dynamic_cast<Number *>(val1);
-            Number *num2 = dynamic_cast<Number *>(val2);
+            NumberVal *num1 = dynamic_cast<NumberVal *>(val1);
+            NumberVal *num2 = dynamic_cast<NumberVal *>(val2);
             switch (op)
             {
             case 0: { 
-                Number *ret = new Number;
+                NumberVal *ret = new NumberVal;
                 ret->set_val(add(val2, val1)); 
                 state->push(ret);
                 break;
             }
             case 1: {
-                Number *ret = new Number;
+                NumberVal *ret = new NumberVal;
                 ret->set_val(sub(val2, val1)); 
                 state->push(ret);
                 break;
             }
             case 2: {
-                Number *ret = new Number;
+                NumberVal *ret = new NumberVal;
                 ret->set_val(mul(val2, val1)); 
                 state->push(ret);
                 break;
             }
             case 3: {
-                Number *ret = new Number;
+                NumberVal *ret = new NumberVal;
                 ret->set_val(div(val2, val1)); 
                 state->push(ret);
                 break;
             }
             case 4: {
-                Number *ret = new Number;
+                NumberVal *ret = new NumberVal;
                 ret->set_val(mod(val2, val1)); 
                 state->push(ret);
                 break;
             }
             case 5: {  // |
-                Number *ret = new Number;
+                NumberVal *ret = new NumberVal;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
                 if (v1 != v2) {
-                    cout << "warning: binary or operator needs integer number!" << endl;
+                    cout << "warning: binary or operator needs integer NumberVal!" << endl;
                 }
                 v1 = (int)num2->value();
                 v2 = (int)ceil(num2->value());
                 if (v1 != v2) {
-                    cout << "warning: binary or operator needs integer number!" << endl;
+                    cout << "warning: binary or operator needs integer NumberVal!" << endl;
                 }
                 ret->set_val((int)num2->value() | (int)num1->value());
                 state->push(ret);
                 break;
             }
             case 6: {  // ^ 
-                Number *ret = new Number;
+                NumberVal *ret = new NumberVal;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
                 if (v1 != v2) {
-                    cout << "warning: binary xor operator needs integer number!" << endl;
+                    cout << "warning: binary xor operator needs integer NumberVal!" << endl;
                 }
                 v1 = (int)num2->value();
                 v2 = (int)ceil(num2->value());
                 if (v1 != v2) {
-                    cout << "warning: binary xor operator needs integer number!" << endl;
+                    cout << "warning: binary xor operator needs integer NumberVal!" << endl;
                 }
                 ret->set_val((int)num2->value() ^ (int)num1->value());
                 state->push(ret);
                 break;
             }
             case 7: {  // & 
-                Number *ret = new Number;
+                NumberVal *ret = new NumberVal;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
                 if (v1 != v2) {
-                    cout << "warning: binary and operator needs integer number!" << endl;
+                    cout << "warning: binary and operator needs integer NumberVal!" << endl;
                 }
                 v1 = (int)num2->value();
                 v2 = (int)ceil(num2->value());
                 if (v1 != v2) {
-                    cout << "warning: binary and operator needs integer number!" << endl;
+                    cout << "warning: binary and operator needs integer NumberVal!" << endl;
                 }
                 ret->set_val((int)num2->value() & (int)num1->value());
                 state->push(ret);
                 break;
             }
             case 9 : { // >> 
-                Number *ret = new Number;
+                NumberVal *ret = new NumberVal;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
                 if (v1 != v2) {
-                    cout << "warning: binary left move operator needs integer number!" << endl;
+                    cout << "warning: binary left move operator needs integer NumberVal!" << endl;
                 }
                 v1 = (int)num2->value();
                 v2 = (int)ceil(num2->value());
                 if (v1 != v2) {
-                    cout << "warning: binary left move operator needs integer number!" << endl;
+                    cout << "warning: binary left move operator needs integer NumberVal!" << endl;
                 }
                 ret->set_val((int)num2->value() << (int)num1->value());
                 state->push(ret);
                 break;
             }
             case 10 : { // <<
-                Number *ret = new Number;
+                NumberVal *ret = new NumberVal;
                 int v1 = (int)num1->value();
                 int v2 = (int)ceil(num1->value());
                 if (v1 != v2) {
-                    cout << "warning: binary right move operator needs integer number!" << endl;
+                    cout << "warning: binary right move operator needs integer NumberVal!" << endl;
                 }
                 v1 = (int)num2->value();
                 v2 = (int)ceil(num2->value());
                 if (v1 != v2) {
-                    cout << "warning: binary right move operator needs integer number!" << endl;
+                    cout << "warning: binary right move operator needs integer NumberVal!" << endl;
                 }
                 ret->set_val((int)num2->value() >> (int)num1->value());
                 state->push(ret);
@@ -233,29 +232,29 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
         else {
             if (op == 0) {
                 if (val1->get_type() == ValueType::t_string && val2->get_type() == ValueType::t_string) {
-                    String *str = new String;
-                    str->value()->append(*static_cast<String*>(val2)->value()).append(*static_cast<String*>(val1)->value());
+                    StringVal *str = new StringVal;
+                    str->value()->append(*static_cast<StringVal*>(val2)->value()).append(*static_cast<StringVal*>(val1)->value());
                     state->push(str);
                 }
                 else if (val1->get_type() == ValueType::t_string && val2->get_type() == ValueType::t_number)
                 {
-                    double v = dynamic_cast<Number *>(val2)->value();
+                    double v = dynamic_cast<NumberVal *>(val2)->value();
                     int v1 = (int)floor(v);
                     int v2 = (int)ceil(v);
-                    String *str = new String;
-                    if (v1 == v2) str->value()->append(to_string(v1)).append(*static_cast<String*>(val2)->value());
-                    else str->value()->append(to_string(v)).append(*static_cast<String*>(val2)->value());
+                    StringVal *str = new StringVal;
+                    if (v1 == v2) str->value()->append(to_string(v1)).append(*static_cast<StringVal*>(val2)->value());
+                    else str->value()->append(to_string(v)).append(*static_cast<StringVal*>(val2)->value());
                     
                     state->push(str);
                 }
                 else if (val1->get_type() == ValueType::t_number && val2->get_type() == ValueType::t_string)
                 {
-                    String *str = new String;
-                    double v = dynamic_cast<Number *>(val1)->value();
+                    StringVal *str = new StringVal;
+                    double v = dynamic_cast<NumberVal *>(val1)->value();
                     int v1 = (int)floor(v);
                     int v2 = (int)ceil(v);
-                    if (v1 == v2) str->value()->append(*static_cast<String*>(val2)->value()).append(to_string(v1));
-                    else str->value()->append(*static_cast<String*>(val2)->value()).append(to_string(v));
+                    if (v1 == v2) str->value()->append(*static_cast<StringVal*>(val2)->value()).append(to_string(v1));
+                    else str->value()->append(*static_cast<StringVal*>(val2)->value()).append(to_string(v));
                     state->push(str);
                 }
                 else panic("add operator not support this type");
@@ -277,12 +276,12 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
         case 0:     // not
         {
             // 0 为 false 
-            Boolean *b = new Boolean;
+            BooleanVal *b = new BooleanVal;
             if (val->get_type() == ValueType::t_null) {
                 b->set(true);
             }
             else if (val->get_type() == ValueType::t_number) {
-                Number *num = static_cast<Number *>(val);
+                NumberVal *num = static_cast<NumberVal *>(val);
                 if (num->value() != 0) b->set(false);
                 else b->set(true);
             }
@@ -295,12 +294,12 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
             if (is_basic_type(val) || ValueType::t_function == val->get_type()) {
                 panic("len operator can only use in sequence data");
             }
-            Number *len = new Number;
+            NumberVal *len = new NumberVal;
             switch (val->get_type())
             {
             case ValueType::t_string:
             {
-                len->set_val(static_cast<String *>(val)->value()->size());
+                len->set_val(static_cast<StringVal *>(val)->value()->size());
                 break;
             }
             case ValueType::t_array:
@@ -325,7 +324,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
             if (val->get_type() != ValueType::t_number) {
                 panic("minus operator can not do on not numberic type!");
             }
-            Number *num = static_cast<Number *>(val);
+            NumberVal *num = static_cast<NumberVal *>(val);
             num->set_val(-num->value());
             if (unaryPush) state->push(num);
             break;
@@ -335,7 +334,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
             if (val->get_type() != ValueType::t_number) {
                 panic("add add operator can not do on not numberic type!");
             }
-            Number *num = static_cast<Number *>(val);
+            NumberVal *num = static_cast<NumberVal *>(val);
             num->set_val(num->value() + 1);
             if (unaryPush) state->push(num);
             break;
@@ -345,7 +344,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
             if (val->get_type() != ValueType::t_number) {
                 panic("sub sub operator can not do on not numberic type!");
             }
-            Number *num = static_cast<Number *>(val);
+            NumberVal *num = static_cast<NumberVal *>(val);
             num->set_val(num->value() - 1);
             if (unaryPush) state->push(num);
             break;
@@ -354,7 +353,7 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
             if (val->get_type() != ValueType::t_number) {
                 panic("sub sub operator can not do on not numberic type!");
             }
-            Number *num = static_cast<Number *>(val);
+            NumberVal *num = static_cast<NumberVal *>(val);
             int v1 = (int)num->value();
             int v2 = (int)ceil(num->value());
             if (v1 != v2) {
@@ -375,27 +374,27 @@ static void compair(OpCode op)
 {
     Value *rhs = state->pop();
     Value *lhs = state->pop();
-    Boolean *b = new Boolean;
+    BooleanVal *b = new BooleanVal;
     if (lhs->get_type() == ValueType::t_number && rhs->get_type() == ValueType::t_number) {
         switch (op)
         {
         case OpCode::op_gt:
-            b->set(static_cast<Number *>(lhs)->value() > static_cast<Number *>(rhs)->value());
+            b->set(static_cast<NumberVal *>(lhs)->value() > static_cast<NumberVal *>(rhs)->value());
             break;
         case OpCode::op_lt:
-            b->set(static_cast<Number *>(lhs)->value() < static_cast<Number *>(rhs)->value());
+            b->set(static_cast<NumberVal *>(lhs)->value() < static_cast<NumberVal *>(rhs)->value());
             break;
         case OpCode::op_gt_eq:
-            b->set(static_cast<Number *>(lhs)->value() >= static_cast<Number *>(rhs)->value());
+            b->set(static_cast<NumberVal *>(lhs)->value() >= static_cast<NumberVal *>(rhs)->value());
             break;
         case OpCode::op_lt_eq:
-            b->set(static_cast<Number *>(lhs)->value() <= static_cast<Number *>(rhs)->value());
+            b->set(static_cast<NumberVal *>(lhs)->value() <= static_cast<NumberVal *>(rhs)->value());
             break;
         case OpCode::op_equal:
-            b->set(static_cast<Number *>(lhs)->value() == static_cast<Number *>(rhs)->value());
+            b->set(static_cast<NumberVal *>(lhs)->value() == static_cast<NumberVal *>(rhs)->value());
             break;
         case OpCode::op_not_equal:
-            b->set(static_cast<Number *>(lhs)->value() != static_cast<Number *>(rhs)->value());
+            b->set(static_cast<NumberVal *>(lhs)->value() != static_cast<NumberVal *>(rhs)->value());
             break;
         default:
             panic("not support this compair type!");
@@ -404,17 +403,17 @@ static void compair(OpCode op)
     }
     else if (lhs->get_type() == ValueType::t_string && rhs->get_type() == ValueType::t_string){
         // 字符串对比
-        String *str1 = dynamic_cast<String*>(lhs);
-        String *str2 = dynamic_cast<String*>(rhs);
+        StringVal *str1 = dynamic_cast<StringVal*>(lhs);
+        StringVal *str2 = dynamic_cast<StringVal*>(rhs);
         if (op == OpCode::op_equal) b->set(*str1->value() == *str2->value());
         else {
             cout << "warning: string operator only support ==" << endl;
         }
     }
     else if (lhs->get_type() == ValueType::t_boolean && rhs->get_type() == ValueType::t_boolean){
-        if (op == OpCode::op_and) b->set(static_cast<Boolean *>(lhs)->value() && static_cast<Boolean *>(rhs)->value());
-        else if (op == OpCode::op_or) b->set(static_cast<Boolean *>(lhs)->value() || static_cast<Boolean *>(rhs)->value());
-        else panic("boolean not support such operator!");
+        if (op == OpCode::op_and) b->set(static_cast<BooleanVal *>(lhs)->value() && static_cast<BooleanVal *>(rhs)->value());
+        else if (op == OpCode::op_or) b->set(static_cast<BooleanVal *>(lhs)->value() || static_cast<BooleanVal *>(rhs)->value());
+        else panic("BooleanVal not support such operator!");
     }
     else {
         panic("can not compair by type array or table!");
@@ -456,21 +455,21 @@ static void packVarargs(State *st, FunctionVal *fun)
     os.open(file, mod)  这里首先会找 os 这个变量，如果已经被声明则会使用已声明的，否则使用环境中的
     二者冲突可以 用别名取代， 如 local env = _ENV(os)
 */
-static Value * find_env_param(String *key, FunctionVal *cur)
+static Value * find_env_param(StringVal *key, FunctionVal *cur)
 {
     if (!cur->chunk->upvals || cur->chunk->upvals->empty()) return NULL;
     TableVal *envTb = dynamic_cast<TableVal *>(cur->chunk->upvals->at(0)->val);
     if (!envTb) return NULL;
     for (auto &it : *envTb->members()) {
         Value *k = it.second.first;
-        if (k->get_type() == ValueType::t_string && static_cast<String *>(k)->hash() == key->hash()) {
+        if (k->get_type() == ValueType::t_string && static_cast<StringVal *>(k)->hash() == key->hash()) {
             return it.second.second;
         }
     }
     return NULL;
 }
 
-static Value * fetch_file_global_variables(String *file, int i)
+static Value * fetch_file_global_variables(StringVal *file, int i)
 {
     FunctionVal *fileChunk = state->get_by_file_name(file->value()->c_str());
     if (!fileChunk) {
@@ -633,7 +632,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             if (val->get_type() != ValueType::t_string) {
                 panic("envirenment param only support string key!!");
             }
-            String *key = dynamic_cast<String *>(val);
+            StringVal *key = dynamic_cast<StringVal *>(val);
             cout << "key: " << *key->value() << endl;
             if (!key) {
                 panic("internal fatal error");
@@ -650,16 +649,16 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         {
             Value *cond = state->pop();
             if (cond->get_type() == ValueType::t_number) {
-                if (static_cast<Number *>(cond)->value())
+                if (static_cast<NumberVal *>(cond)->value())
                     ++i;   // to jump op
                 
                 check_variable_liveness(cond);
                 break;
             }
             if (cond->get_type() != ValueType::t_boolean) {
-                panic("no boolean variable found");
+                panic("no BooleanVal variable found");
             }
-            if (static_cast<Boolean *>(cond)->value()) {
+            if (static_cast<BooleanVal *>(cond)->value()) {
                 ++i;   // to jump op 
             }
             check_variable_liveness(cond);
@@ -723,7 +722,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 if (key->get_type() != ValueType::t_number) {
                     panic("indexing string variable error");
                 }
-                Number *num = dynamic_cast<Number *>(key);
+                NumberVal *num = dynamic_cast<NumberVal *>(key);
                 if (!num) {
                     panic("no numberic variable found");
                 }
@@ -732,7 +731,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 if (v1 != v2) {
                     panic("only interger can index float variable!");
                 }
-                String *str = dynamic_cast<String *>(val);
+                StringVal *str = dynamic_cast<StringVal *>(val);
                 if (!str) {
                     panic("not a string variable!");
                 }
@@ -760,7 +759,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 if (key->get_type() != ValueType::t_number) {
                     panic("indexing array variable error");
                 }
-                Number *num = dynamic_cast<Number *>(key);
+                NumberVal *num = dynamic_cast<NumberVal *>(key);
                 if (!num) {
                     panic("not a numberic variable!");
                 }
@@ -771,12 +770,13 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 int v1 = (int)num->value();
                 int v2 = (int)ceil(num->value());
                 if (v1 != v2) {
-                    panic("only interger can index array variable!");
+                    v1 = v2;
+                    //panic("only interger can index array variable!");
                 }
-                Value *v = arr->get(v1);
-                if(!v) {
+                if (v1 < 0 || v1 >= arr->size()) {
                     panic("indexing out of array!");
                 }
+                Value *v = arr->get(v1);
                 state->push(v);
             }
             else panic("can not index such data!!!");
@@ -819,7 +819,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         {
             // 负的是从全局的常量拿到键，再去环境中找，正的直接就是 upvalue 
             if (param < 0) {
-                String *key = dynamic_cast<String*>(state->getc(-param - 1));
+                StringVal *key = dynamic_cast<StringVal*>(state->getc(-param - 1));
                 if (!key) 
                     panic("unexpected!!!");
                 Value *v = find_env_param(key, state->get_cur());
@@ -842,7 +842,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 if (!val || val->get_type() != ValueType::t_function) {
                     panic("not a function upvalue");
                 }
-                do_call(val);
+                do_call(val->copy());
             }
             break;
         }
@@ -885,7 +885,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
 
         case OpCode::op_load_bool:
         {
-            Boolean *b = new Boolean;
+            BooleanVal *b = new BooleanVal;
             if (param) b->set(true);
             else b->set(false);
             state->push(b);
@@ -893,7 +893,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         }
         case OpCode::op_load_nil:
         {
-            state->push(new Nil);
+            state->push(new NilVal);
             break;
         }
 
@@ -905,10 +905,10 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 panic("invalid for in loop, no table or array found");
             }
 
-            Number *it = NULL;
+            NumberVal *it = NULL;
             if (iter->get_type() == ValueType::t_boolean) {
                 delete iter;
-                Number *num = new Number;
+                NumberVal *num = new NumberVal;
                 num->set_val(0);
                 it = num;
             }
@@ -916,7 +916,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 if (iter->get_type() != ValueType::t_number) {
                     panic("internal for in loop error!!!");
                 }
-                it = static_cast<Number *>(iter);
+                it = static_cast<NumberVal *>(iter);
                 it->set_val(it->value() + 1);
             }
 
@@ -958,6 +958,34 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             }
             break;
         }
+        case OpCode::op_exp_assign:
+        {
+            Value *rhs = state->pop();
+            Value *lhs = state->pop();
+            // 更改左边的值
+            if (rhs->get_type() == ValueType::t_number && lhs->get_type() == ValueType::t_number) {
+                NumberVal *num1 = static_cast<NumberVal *>(rhs);
+                NumberVal *num2 = static_cast<NumberVal *>(lhs);
+                num2->set_val(num1->value());
+            }
+            else if (rhs->get_type() == ValueType::t_number && lhs->get_type() == ValueType::t_number)
+            {
+                BooleanVal *b1 = static_cast<BooleanVal *>(rhs);
+                BooleanVal *b2 = static_cast<BooleanVal *>(lhs);
+                b2->set(b1->value());
+            }
+            else if (rhs->get_type() == ValueType::t_byte && lhs->get_type() == ValueType::t_byte)
+            {
+                ByteVal *b1 = static_cast<ByteVal *>(rhs);
+                ByteVal *b2 = static_cast<ByteVal *>(lhs);
+                b2->_val = b1->_val;
+            }
+            else lhs = rhs;
+            
+            // 其他类型只是指针赋值，这意味着左边的被赋值后可以修改右边的内容
+            check_variable_liveness(rhs);
+            break;
+        }
 
         default:
             panic("unsupport operation !!!");
@@ -972,10 +1000,10 @@ static int print(State* st)
     switch (val->get_type())
     {
     case ValueType::t_string:
-        cout << *static_cast<String *>(val)->value() << endl;
+        cout << *static_cast<StringVal *>(val)->value() << endl;
         break;
     case ValueType::t_number:
-        cout << static_cast<Number *>(val)->value() << endl;
+        cout << static_cast<NumberVal *>(val)->value() << endl;
         break;
     case ValueType::t_boolean:
         break;
@@ -999,7 +1027,7 @@ static int print(State* st)
 
 static int require(State* st)
 {
-    String *path = dynamic_cast<String*>(st->pop());
+    StringVal *path = dynamic_cast<StringVal*>(st->pop());
     if (!path) {
         panic("no correct key found!");
     }
@@ -1013,7 +1041,7 @@ static int require(State* st)
 
 void VM::load_lib(TableVal *tb)
 {
-    String *key = new String;
+    StringVal *key = new StringVal;
     key->set_val("print");
     FunctionVal *p = new FunctionVal;
     p->nreturn = 0;
@@ -1022,7 +1050,7 @@ void VM::load_lib(TableVal *tb)
     p->cfun = print;
     tb->set(key, p);
 
-    String *req = new String;
+    StringVal *req = new StringVal;
     req->set_val("require");
     FunctionVal *r = new FunctionVal;
     r->nreturn = 0;

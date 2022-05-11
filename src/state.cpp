@@ -75,22 +75,24 @@ void State::pushc(int i)
         cout << "null val: " << __LINE__ << endl;
         exit(0);
     }
-    //cout << "const data: " << (static_cast<Number *>(val))->value() << endl;
-    if (val->get_type() == ValueType::t_number)
-        push(val->copy());
-    else 
-        push(val);
-
+    push(val->copy());
 }
 
 void State::pushl(int i)
 {
-    push(cur->get_localvar(i));
+    Value *val = cur->get_localvar(i);
+    if (is_basic_type(val))
+        push(val->copy());
+    else 
+        push(val);
 }
 
 void State::pushu(int i)
 {
-    push(getu(i));
+    Value *val = getu(i);
+    if (val->get_type() == ValueType::t_function) 
+        push(val->copy());
+    else push(val);
 }
 
 Value * State::getc(int i)
@@ -169,7 +171,7 @@ bool State::tryClearOpenedFuns(FunctionVal *fun)
 {
     bool hasUse = false;
     for (auto &it : *fun->chunk->local_variables) {
-        if (it->ref_count > 1) {
+        if (it && it->ref_count > 1) {
             hasUse = true;
             break;
         }
@@ -321,14 +323,14 @@ void State::load(const char *file_name)
         Value *val = NULL;
         in.read(&type, sizeof(char));
         if (type == 0) {
-            Number *num = new Number;
+            NumberVal *num = new NumberVal;
             double value = 0;
             in.read((char *)&value, sizeof(double));
             num->set_val(value);
             val = num;
         }
         else {
-            String *str = new String;
+            StringVal *str = new StringVal;
             val = str;
             int len = 0;
             in.read((char *)&len, sizeof(int));

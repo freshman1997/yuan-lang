@@ -298,6 +298,12 @@ static void visit_assign(AssignmentExpression *assign, FuncInfo *info, CodeWrite
         }
     }
     visit_operation_exp(assign->assign, info, writer);
+    if (!assign->id){
+        // 左边是一个表达式
+        writer.add(OpCode::op_exp_assign, 0);
+        return;
+    }
+    
     IdExpression *name = assign->id;
     char *id = name->name;
     int len = name->name_len;
@@ -336,18 +342,19 @@ static void visit_assign(AssignmentExpression *assign, FuncInfo *info, CodeWrite
             if (p.first == info->in_stack) {
                 writer.add(OpCode::op_storel, p.second);
             }
-            
-            // upvalue
-            UpValueDesc *up = new UpValueDesc;
-            up->name = id;
-            up->name_len = len;
-            up->index = info->nupval;
-            up->stack_index = p.second;
-            up->stack_lv = p.first;
-            up->index = info->nupval;
-            info->upvalue->upvalues->push_back(up);
-            writer.add(OpCode::op_storeu, info->upvalue->upvalues->size() - 1);
-            info->nupval++;
+            else {
+                // upvalue
+                UpValueDesc *up = new UpValueDesc;
+                up->name = id;
+                up->name_len = len;
+                up->index = info->nupval;
+                up->stack_index = p.second;
+                up->stack_lv = p.first;
+                up->index = info->nupval;
+                info->upvalue->upvalues->push_back(up);
+                writer.add(OpCode::op_storeu, info->nupval);
+                info->nupval++;
+            }
         }
         else {
             FuncInfoItem item;
@@ -389,9 +396,6 @@ static void visit_if(IfExpression *ifExp, FuncInfo *info, CodeWriter &writer)
         ++i;
     }
     // 修正跳转的位置
-    if (next == -1) {
-        writer.set(last, OpCode::op_jump, writer.get_pc() - 1);
-    }
     if (last != -1) {
         writer.set(last, OpCode::op_jump, writer.get_pc() - 1);
     }
@@ -614,9 +618,9 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
         info->nupval++;
 
         // TODO 后面想想怎么优化，如何不用每次都赋值一次
-        writer.add(OpCode::op_pushu, p.second);
-        writer.add(OpCode::op_storeu, p.second);
-        writer.add(OpCode::op_call_upv, p.second);
+        writer.add(OpCode::op_pushu, up->index);
+        writer.add(OpCode::op_storeu, up->index);
+        writer.add(OpCode::op_call_upv, up->index);
     }
 }
 
@@ -640,7 +644,6 @@ static void visit_function_decl(Function *fun, FuncInfo *info, CodeWriter &write
     newFun->items = new vector<FuncInfoItem *>;
     newFun->in_stack = info->in_stack + 1;
     newFun->pre = info;
-    newFun->fun = fun;
     newFun->is_local = fun->is_local;
 
     if (fun->is_local) {
