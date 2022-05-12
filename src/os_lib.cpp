@@ -252,10 +252,8 @@ static int readline(State *st)
     if (fds.count((int)_fd->value())) {
         fstream *fs = fds[(int)_fd->value()];
         StringVal *str = new StringVal;
-        if (!getline(*fs, *str->value())) {
-            panic("read a line fail!");
-        }
-        st->push(str);
+        if (!getline(*fs, *str->value())) st->push(new NilVal);
+        else st->push(str);
     }
     else {
         st->push(new NilVal);

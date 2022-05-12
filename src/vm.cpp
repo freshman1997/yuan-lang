@@ -644,15 +644,13 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             if (cond->get_type() == ValueType::t_number) {
                 if (static_cast<NumberVal *>(cond)->value())
                     ++i;   // to jump op
-                
-                check_variable_liveness(cond);
-                break;
             }
-            if (cond->get_type() != ValueType::t_boolean) {
-                panic("no BooleanVal variable found");
+            else if (cond->get_type() == ValueType::t_boolean) {
+                if (static_cast<BooleanVal *>(cond)->value()) 
+                    ++i;   // to jump op 
             }
-            if (static_cast<BooleanVal *>(cond)->value()) {
-                ++i;   // to jump op 
+            else if (cond->get_type() != ValueType::t_null) {
+                ++i;
             }
             check_variable_liveness(cond);
             break;
@@ -1099,7 +1097,7 @@ static int require(State* st)
     if (!path) {
         panic("no correct key found!");
     }
-    string filepath = "D:/code/test/cpp/yuan-lang/" + *path->value() + ".y";
+    string filepath = "D:/code/src/vs/yuan-lang/" + *path->value() + ".y";
     bool ret = st->require(filepath.c_str(), NULL);
     if (!ret) {
         panic("require module fail");

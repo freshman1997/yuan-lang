@@ -9,22 +9,13 @@ if (!fd) {
 }
 
 line = os.readline(fd)
-if (!line) {
-    print("read file fail!")
-}
-else {
+while (line)
+{
     print(line)
+    line = os.readline(fd)
 }
 
 os.close(fd)
-
-
-
-
-
-
-
-
 
 
 local fn quicksort(arr, l, r) {
