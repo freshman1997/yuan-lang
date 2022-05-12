@@ -378,7 +378,7 @@ void State::load(const char *file_name)
 static TableVal * init_env(VM *vm)
 {
     static TableVal *tb = new TableVal;
-    vm->load_lib(tb);
+    if (tb->size() == 0) vm->load_lib(tb);
     return tb;
 }
 

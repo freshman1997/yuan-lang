@@ -5,6 +5,8 @@
 #include "types.h"
 #include "yuan.h"
 
+#include "os_lib.h"
+
 /*
     每个作用域都需要包含一个表，用来记录变量，这样子就不用记录变量的名字了，运行再根据取得的值计算
 */
@@ -17,9 +19,9 @@
 
 static State *state = NULL;
 
-static void panic(const char *reason) 
+void panic(const char *reason) 
 {
-    cout << "vm was crashed by: " << reason << endl;
+    cout << "vm was crashed by: " << reason << endl << "\t\tin " << *state->get_cur()->get_file_name() << endl;
     exit(0);
 }
 
@@ -423,14 +425,6 @@ static void compair(OpCode op)
     check_variable_liveness(rhs);
 }
 
-static void string_concat()
-{
-    Value *val1 = state->pop();
-    Value *val2 = state->pop();
-    // 右边的链接到左边
-
-}
-
 static void packVarargs(State *st, FunctionVal *fun)
 {
     int nparam = fun->nparam;
@@ -633,7 +627,6 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 panic("envirenment param only support string key!!");
             }
             StringVal *key = dynamic_cast<StringVal *>(val);
-            cout << "key: " << *key->value() << endl;
             if (!key) {
                 panic("internal fatal error");
             }
@@ -714,8 +707,9 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             break;
         }
 
-        case OpCode::op_index:
+        case OpCode::op_getfield:
         {
+            if (param < 0) break;
             Value *key = state->pop();
             Value *val = state->pop();
             if (val->get_type() == ValueType::t_string) {
@@ -823,7 +817,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 if (!key) 
                     panic("unexpected!!!");
                 Value *v = find_env_param(key, state->get_cur());
-                if (!v) {
+                if (!v || v->get_type() != ValueType::t_function) {
                     panic("not found function!!!");
                 }
                 FunctionVal *cfun = static_cast<FunctionVal *>(v);
@@ -873,8 +867,30 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 }
                 state->push(arr);
             }
-            do_call(val);
-            state->pop();   // 把栈里面的函数出栈
+            if (!fun->isC) {
+                do_call(val);
+                state->pop();   // 把栈里面的函数出栈
+            }
+            else {
+                fun->ncalls++;
+                if (fun->ncalls >= MAX_RECURSE_NUM) {
+                    panic("stack overflow");
+                }
+                fun->cfun(state);  // call c function
+                fun->ncalls--;
+                // 有返回值？
+                int nret = fun->nreturn;
+                vector<Value *> rets;
+                rets.resize(nret);
+                while (nret--)
+                {
+                    rets[nret] = state->pop();
+                }
+                state->pop();   // 把栈里面的函数出栈
+                for (auto &it : rets) {
+                    state->push(it);
+                }
+            }
             break;
         }
 
@@ -958,32 +974,63 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             }
             break;
         }
-        case OpCode::op_exp_assign:
+        case OpCode::op_setfield:
         {
-            Value *rhs = state->pop();
-            Value *lhs = state->pop();
-            // 更改左边的值
-            if (rhs->get_type() == ValueType::t_number && lhs->get_type() == ValueType::t_number) {
-                NumberVal *num1 = static_cast<NumberVal *>(rhs);
-                NumberVal *num2 = static_cast<NumberVal *>(lhs);
-                num2->set_val(num1->value());
+            Value *val = state->pop();
+            Value *key = state->pop();
+            Value *con = state->pop();
+            if (!(con->get_type() == ValueType::t_array || con->get_type() == ValueType::t_table || con->get_type() == ValueType::t_string)) {
+                panic("can not set container field because it is not a caontainer!");
             }
-            else if (rhs->get_type() == ValueType::t_number && lhs->get_type() == ValueType::t_number)
-            {
-                BooleanVal *b1 = static_cast<BooleanVal *>(rhs);
-                BooleanVal *b2 = static_cast<BooleanVal *>(lhs);
-                b2->set(b1->value());
+
+            if (con->get_type() == ValueType::t_array) {
+                if (key->get_type() != ValueType::t_number) {
+                    panic("only integer value can index array!");
+                }
+                ArrayVal *arr = static_cast<ArrayVal*>(con);
+                NumberVal *num = static_cast<NumberVal *>(key);
+                int v1 = (int)num->value();
+                int v2 = (int)ceil(num->value());
+                if (v1 != v2) {
+                    panic("only interger can index array variable!");
+                }
+                if (v1 < 0 || v1 >= arr->size()) {
+                    panic("indexing out of array!");
+                }
+                val->ref_count++;
+                arr->set(v1, val);
             }
-            else if (rhs->get_type() == ValueType::t_byte && lhs->get_type() == ValueType::t_byte)
-            {
-                ByteVal *b1 = static_cast<ByteVal *>(rhs);
-                ByteVal *b2 = static_cast<ByteVal *>(lhs);
-                b2->_val = b1->_val;
+            else if (con->get_type() == ValueType::t_table) {
+                if (!(key->get_type() == ValueType::t_number || key->get_type() == ValueType::t_string)) {
+                    panic("only integer and string value can index table!");
+                }
+                TableVal *tb = static_cast<TableVal *>(con);
+                val->ref_count++;
+                key->ref_count++;
+                tb->set(key, val);
             }
-            else lhs = rhs;
-            
+            else {
+                if (key->get_type() != ValueType::t_number) {
+                    panic("only integer value can index string!");
+                }
+                if (val->get_type() != ValueType::t_byte) {
+                    panic("string value only accept byte data");
+                }
+                StringVal *str = static_cast<StringVal *>(con);
+                NumberVal *num = static_cast<NumberVal *>(key);
+                int v1 = (int)num->value();
+                int v2 = (int)ceil(num->value());
+                if (v1 != v2) {
+                    panic("only interger can index string variable!");
+                }
+                if (v1 < 0 || v1 >= str->size()) {
+                    panic("indexing out of string!");
+                }
+                str->set(v1, val);
+            }
+
             // 其他类型只是指针赋值，这意味着左边的被赋值后可以修改右边的内容
-            check_variable_liveness(rhs);
+            //check_variable_liveness(key);
             break;
         }
 
@@ -1006,17 +1053,38 @@ static int print(State* st)
         cout << static_cast<NumberVal *>(val)->value() << endl;
         break;
     case ValueType::t_boolean:
+    {
+        BooleanVal *b = static_cast<BooleanVal *>(val);
+        cout << (b->value() ? "true" : "false") << endl;
         break;
+    }
     case ValueType::t_null:
+        cout << "nil" << endl;
         break;
     case ValueType::t_array:
+    {
+        ArrayVal *arr = static_cast<ArrayVal *>(val);
+        cout << "array@" << arr << endl;
         break;
+    }
     case ValueType::t_table:
+    {
+        TableVal *tb = static_cast<TableVal *>(val);
+        cout << "table@" << tb << endl;
         break;
+    }
     case ValueType::t_function:
+    {
+        FunctionVal *func = static_cast<FunctionVal *>(val);
+        cout << "function@" << func << endl;
         break;
+    }
     case ValueType::t_byte:
+    {
+        ByteVal *b = static_cast<ByteVal *>(val);
+        cout << b->_val << endl;
         break;
+    }
     default:
         panic("unexpected!");
         break;
@@ -1058,6 +1126,8 @@ void VM::load_lib(TableVal *tb)
     r->isC = true;
     r->cfun = require;
     tb->set(req, r);
+
+    load_os_lib(tb);
 }
 
 void VM::execute(const std::vector<int> &pcs, State *_state, int argc, char **argv)

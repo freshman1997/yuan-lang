@@ -112,6 +112,7 @@ public:
     Value * get(int i);
     void set(int i, Value *val);
     void push(char c);
+    int size();
 
 private:
     string _val;
@@ -187,8 +188,8 @@ struct FunctionChunk
     unordered_map<string, int> *global_var_names_map = NULL;          // 全局对象名称对应的位置
     unordered_map<string, int> *local_var_names_map = NULL;           // 局部对象名称对应的位置
 
-    // 如果 require 了其他文件，则其他文件的 全局变量和常量都可以访问
-
+    // 如果 require 了其他文件，则其他文件的 全局变量可以访问
+    
 };
 
 class State;

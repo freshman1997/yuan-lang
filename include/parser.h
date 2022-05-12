@@ -6,21 +6,8 @@
 #include "lex.h"
 
 struct Chunck;
-// 一次只处理一个文件，遇到依赖其他文件的符号，则暂停去编译它在返回继续
+// 一次只处理一个文件
 unordered_map<string, Chunck *> * parse(unordered_map<string, TokenReader *> &files);
-
-
-/*
-    目前剩余：
-        str[2:], str[:-1], str[2:3] 字符串截取，str .. str1 字符串拼接
-        str[1], tb["name"], 下标读取
-        tb = {100: "aaa"} 表的构造
-        逻辑运算符
-        item:add  这种函数声明 module
-        require 未增加
-        switch case
-        break default
-*/
 
 /*********************** 变量类型和表达式结构定义 **********************/
 
@@ -176,6 +163,7 @@ struct Table
 
 struct IndexExpression
 {
+    bool isSet = false;
     IdExpression *id = NULL;
     vector<OperationExpression *> *keys = NULL;
 };

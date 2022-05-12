@@ -75,8 +75,8 @@ enum class OpCode
     op_array_new,       // a = []
     op_array_set,       // a[1] = 100,      // 这个可以设置多个键值对，用于
 
-    op_index,           // a["name"], arr[1] a.b
-    op_exp_assign,      // 左边是一个表达式，右边赋值给左边，引用（其实是指针）
+    op_getfield,        // a["name"], arr[1] a.b
+    op_setfield,        // 左边是一个表达式，右边赋值给左边，引用（其实是指针）
 
     op_load_bool,
     op_load_nil,

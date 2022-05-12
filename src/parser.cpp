@@ -348,6 +348,10 @@ static void parse_index(TokenReader *reader, IndexExpression *index)
 		index->keys->push_back(oper);
 		if (reader->peek().type != TokenType::sym || !(*reader->peek().from == '[' || *reader->peek().from == '(')) break;
 	}
+
+	if (reader->peek().type == TokenType::sym && *reader->peek().from == '=') {
+		index->isSet = true;
+	}
 }
 
 static Function * parse_function_expression(TokenReader *reader, bool hasName);
@@ -555,8 +559,8 @@ static Operation * parse_primary(TokenReader *reader)
 				node->op->table_oper = tb;
 			}
 			// 让上层处理
-			else if (!(*(reader->peek().from) != ']' || *(reader->peek().from) != '}' || *(reader->peek().from) != ')')) {
-				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
+			else if (*(reader->peek().from) == ']' || *(reader->peek().from)== '}' || *(reader->peek().from) == ')') {
+				return node;
 			}
 			else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 		}
@@ -758,7 +762,16 @@ static void parse_if_statement(TokenReader *reader, IfExpression *cond, int star
 		}
 		build_if_body(if_statement, reader, breakable);
 		if (reader->peek().type == TokenType::keyword && str_equal(reader->peek().from, "else", 4)) {
-			parse_if_statement(reader, cond, 1, breakable);
+			reader->consume();
+			if (reader->peek().type == TokenType::keyword && str_equal(reader->peek().from, "if", 2)) {
+				reader->unread();
+				parse_if_statement(reader, cond, 1, breakable);
+			}
+			else {
+				reader->unread();
+				parse_if_statement(reader, cond, 2, breakable);
+			}
+			
 		}
 	}
 	else if (start == 1) { // else if
@@ -1157,11 +1170,7 @@ static ReturnExpression *parse_return_statement(TokenReader *reader)
 	}
 	reader->consume();
 	ReturnExpression *retExp = new ReturnExpression;
-	OperationExpression *oper = parse_operator(reader);
-	if (!oper) {
-		error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
-	}
-	retExp->statement = oper;
+	retExp->statement = parse_operator(reader);
 	return retExp;
 }
 

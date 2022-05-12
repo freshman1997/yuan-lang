@@ -163,6 +163,11 @@ void StringVal::push(char c)
     _val.push_back(c);
 }
 
+int StringVal::size()
+{
+    return this->_val.size();
+}
+
 Value * StringVal::copy()
 {
     StringVal *s = new StringVal;
@@ -188,10 +193,11 @@ void ArrayVal::remove(int i)
     if (members.size() <= i) return;
     this->members.erase(members.begin() + i);
 }
+
 bool ArrayVal::set(int i, Value *val) 
 {
-    if (members.size() <= i) return false;
-    delete members[i];
+    if (i < 0 || members.size() <= i) return false;
+    if (members[i] && members[i]->ref_count <= 0) delete members[i];
     members[i] = val;
     return true;
 }
@@ -249,8 +255,10 @@ bool TableVal::set(Value *key, Value *value)
     int hash = key->hash();
     if ((key->get_type() == ValueType::t_number || key->get_type() == ValueType::t_string)) {
         if (values->count(hash)) {
+            --(*values)[hash].second->ref_count;
             if ((*values)[hash].second->ref_count <= 0)
                 delete (*values)[hash].second;
+            --(*values)[hash].first->ref_count;
             if ((*values)[hash].first->ref_count <= 0)
                 delete (*values)[hash].first;
         }
@@ -453,7 +461,7 @@ Value * FunctionVal::copy()
     FunctionVal *val = new FunctionVal;
     *val->chunk = *this->chunk;
     val->ncalls = this->ncalls;
-    val->chunk->local_variables = new vector<Value *>(this->chunk->local_variables->size(), NULL);
+    val->chunk->local_variables = new vector<Value *>;
     for (auto &it : *this->chunk->local_variables) {
         if (it){
             if ((it->get_type() == ValueType::t_boolean || it->get_type() == ValueType::t_null || it->get_type() == ValueType::t_number 
@@ -463,7 +471,9 @@ Value * FunctionVal::copy()
             else {
                 val->chunk->local_variables->push_back(it);
             }
+            val->chunk->local_variables->back()->ref_count++;
         }
+        else val->chunk->local_variables->push_back(NULL);
     }
     val->isMain = this->isMain;
     val->pre = this->pre;

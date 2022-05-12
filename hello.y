@@ -1,30 +1,62 @@
-local fn quicksort(arr1, l, r) {
+
+// 测试文件操作
+
+fd = os.open("d:/1.txt", os.input)
+print("fd: " + fd)
+if (!fd) {
+    print("no such file or directory!")
+    return
+}
+
+line = os.readline(fd)
+if (!line) {
+    print("read file fail!")
+}
+else {
+    print(line)
+}
+
+os.close(fd)
+
+
+
+
+
+
+
+
+
+
+local fn quicksort(arr, l, r) {
     if (l < r) {
-        local key = arr1[(l + r) / 2]
+        local key = arr[(l + r) / 2]
         i = l, j = r
         while (i <= j) {
-            while (arr1[i] < key) {
+            
+            while (arr[i] < key) {
                 i++
             }
             
-            while (arr1[j] > key) {
+            while (arr[j] > key) {
                 j--
             }
-
             if (i <= j) {
                 // 这里左边要是表达式才能正确修改数组的值，否则只是拷贝，不会被修改
-                local t = arr1[i]
-                arr1[i] = arr1[j]
-                arr1[j] = t
+                local t = arr[i]
+                arr[i] = arr[j]
+                arr[j] = t
                 i++
                 j--
             }
         }
+
+
         if (l < j) {
-            quicksort(arr1, l, j)
+            quicksort(arr, l, j)
         }
+
         if (r > j) {
-            quicksort(arr1, i, r)
+            quicksort(arr, i, r)
         }
     }
 }
@@ -53,6 +85,7 @@ local fn fib(n) {
     }
     return fib(n - 1) + fib(n - 2)
 }
+print(fib)
 
 print("fib result: " + fib(5))
 

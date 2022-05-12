@@ -121,7 +121,7 @@ static char * read_all_the_file(const char *filename, TokenReader &reader)
 static bool is_keyword(const Token& tok) {
 	static const char* kw[] = {
 	  "return", "if", "else", "for", "while", "do", "fn", "local", "false", "true", 
-	  "break", "continue", "require", "in", "nil", "self"
+	  "break", "continue", "require", "in", "nil"
 	};
 
 	static unordered_set<string> s;

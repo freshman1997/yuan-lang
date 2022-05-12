@@ -37,4 +37,6 @@ void error_tok(const Token &tok, const char *filename, char * content, char *fmt
 void to_cwd(const char *exe);
 string getcwd();
 
+void parse_args();
+
 #endif

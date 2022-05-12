@@ -13,7 +13,7 @@
 
 #define MAX_RECURSE_NUM     200                   // 最大递归次数
 
-
+void panic(const char *reason);
 
 void compile(const char *file);
 

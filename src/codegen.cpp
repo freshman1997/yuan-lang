@@ -300,7 +300,7 @@ static void visit_assign(AssignmentExpression *assign, FuncInfo *info, CodeWrite
     visit_operation_exp(assign->assign, info, writer);
     if (!assign->id){
         // 左边是一个表达式
-        writer.add(OpCode::op_exp_assign, 0);
+        writer.add(OpCode::op_setfield, 0);
         return;
     }
     
@@ -556,7 +556,7 @@ static void visit_do_while(DoWhileExpression *doWhileExp, FuncInfo *info, CodeWr
 static void visit_return(ReturnExpression *retExp, FuncInfo *info, CodeWriter &writer)
 {
     // a = ss() {return 100}
-    visit_operation_exp(retExp->statement, info, writer);
+    if (retExp->statement) visit_operation_exp(retExp->statement, info, writer);
     info->nreturn = retExp->statement ? 1 : 0;
     writer.add(OpCode::op_return, 0);
 }
@@ -789,22 +789,29 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
         delete name;
     }
 
+    // 如果是设置值，最后一个不是index
+    // a.b.c() = 10 call 不算
+    int i = index->keys->size() - 1;
     for (auto &it : *index->keys) {
         if (it->left->type != OpType::call) {
             visit_operation_exp(it, info, writer);
-            writer.add(OpCode::op_index, 0);
+            if (index->isSet && i == 0)
+                writer.add(OpCode::op_getfield, -1); // 延后处理
+            else 
+                writer.add(OpCode::op_getfield, 0);
         }
         else {
             fromIndex = it->left->op->call_oper->parameters->size();
             if (it->left->op->call_oper->function_name) {
                 writer.add(OpCode::op_pushc, add_global_const(0, it->left->op->call_oper->function_name->name, it->left->op->call_oper->function_name->name_len, VariableType::t_string));
-                writer.add(OpCode::op_index, 0);
+                writer.add(OpCode::op_getfield, 0);
                 delete it->left->op->call_oper->function_name;
                 it->left->op->call_oper->function_name = NULL;
             }
             visit_operation_exp(it, info, writer);
         }
         delete it;
+        --i;
     }
     delete index->keys;
 }
