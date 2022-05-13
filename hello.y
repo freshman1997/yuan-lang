@@ -17,7 +17,7 @@ fd = os.open("d:/1.txt", os.input)
 print("fd: " + fd)
 if (!fd) {
     print("no such file or directory!")
-    return
+    return nil
 }
 
 line = os.readline(fd)
@@ -101,7 +101,7 @@ fn test_args(...) {
 }
 test_args(1, 2, 3)
 
-local mtb = require("module", "hello args in module")
+local mtb = require("module", "hello args in module", "sdasdasdasdasdasdasdasfsdfasdasdasd", start)
 
 mtb.say_hello()
 mtb.say_hello_world()

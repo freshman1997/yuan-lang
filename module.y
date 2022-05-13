@@ -11,6 +11,6 @@ local fn tb:say_hello_world()
     print("hello world in module.y")
 }
 
-print(gArgs[0])
+print(gArgs[2])
 
 return tb

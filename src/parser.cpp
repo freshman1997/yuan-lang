@@ -572,7 +572,7 @@ static Operation * parse_primary(TokenReader *reader)
 		else if (reader->peek().type == TokenType::keyword) {
 			if (str_equal(reader->peek().from, "require", 7)) {
 				CallExpression *call = parse_function_call(reader);
-				if (!call || call->parameters->size() > 2 || call->parameters->front()->type != OpType::str) {
+				if (!call) {
 					error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 				}
 				node = new Operation;
