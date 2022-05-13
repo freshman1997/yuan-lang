@@ -336,7 +336,6 @@ FunctionVal::~FunctionVal()
         if (chunk->global_var_names_map) delete chunk->global_var_names_map;
         if (chunk->local_var_names_map) delete chunk->local_var_names_map;
     }
-    
     delete chunk->local_variables;
     if (this->upvOwner) {
         if (this->chunk->_name) delete this->chunk->_name;

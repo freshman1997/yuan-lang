@@ -88,7 +88,7 @@ fn test_args(...) {
 }
 test_args(1, 2, 3)
 
-local mtb = require("module")
+local mtb = require("module", "hello args in module")
 
 mtb.say_hello()
 mtb.say_hello_world()

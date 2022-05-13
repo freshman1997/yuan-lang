@@ -9,6 +9,7 @@
 
 class Value;
 class FunctionVal;
+class ArrayVal;
 
 class State
 {
@@ -44,8 +45,8 @@ public:
     bool tryClearOpenedFuns(FunctionVal *fun);
 
     
-    FunctionVal * run(const char *, TableVal *args);
-    bool require(const char *file, TableVal *args);
+    FunctionVal * run(const char *, ArrayVal *args);
+    bool require(const char *file, ArrayVal *args);
 
 private:
     void load(const char *start_file_name);

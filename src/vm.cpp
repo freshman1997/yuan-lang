@@ -425,23 +425,25 @@ static void compair(OpCode op)
     check_variable_liveness(rhs);
 }
 
-static void packVarargs(State *st, FunctionVal *fun)
+static void packVarargs(State *st, FunctionVal *fun, ArrayVal *args)
 {
     int nparam = fun->nparam;
     int stSz = st->get_stack_size();
     int paramStart = st->param_start;
     int amount = stSz - nparam - paramStart + 1;
+    if (args) amount--;
     if (amount < 0) {
         panic("vm internal error!!!");  // should not happen
     }
-    if (fun->nreturn) fun->param_stack++; 
-    ArrayVal *arr = new ArrayVal;
+    if (fun->nreturn && !args) fun->param_stack++; 
+    ArrayVal *arr = args;
+    if (!args) arr = new ArrayVal;
     vector<Value *> *members = arr->member();
     members->resize(amount);
     while (amount--) {
         members->at(amount) = state->pop();
     }
-    state->push(arr);
+    if (!args) state->push(arr);
     st->param_start = 0;
 }
 /*
@@ -496,7 +498,7 @@ static void do_call(Value *val)
         panic("stack overflow");
     }
     if (fun->chunk->is_varags) {
-        packVarargs(state, fun);
+        packVarargs(state, fun, NULL);
     }
     // 执行完，栈中应该有对应的返回值
     do_execute(*file_main_fun->chunk->fun_body_ops, fun->from_pc, fun->to_pc);
@@ -826,8 +828,9 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 if (cfun->ncalls >= MAX_RECURSE_NUM) {
                     panic("stack overflow");
                 }
+                state->set_cur(cfun);
                 cfun->cfun(state);  // call c function
-                cfun->ncalls--;
+                state->end_call();
             }
             else {
                 Value *val = state->getu(param + 1);
@@ -874,8 +877,9 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 if (fun->ncalls >= MAX_RECURSE_NUM) {
                     panic("stack overflow");
                 }
+                state->set_cur(fun);
                 fun->cfun(state);  // call c function
-                fun->ncalls--;
+                state->end_call();
                 // 有返回值？
                 int nret = fun->nreturn;
                 vector<Value *> rets;
@@ -1093,12 +1097,15 @@ static int print(State* st)
 
 static int require(State* st)
 {
+    ArrayVal *args = new ArrayVal;
+    packVarargs(state, state->get_cur(), args);
     StringVal *path = dynamic_cast<StringVal*>(st->pop());
     if (!path) {
         panic("no correct key found!");
     }
-    string filepath = "D:/code/src/vs/yuan-lang/" + *path->value() + ".y";
-    bool ret = st->require(filepath.c_str(), NULL);
+    string filepath = "D:/code/test/cpp/yuan-lang/" + *path->value() + ".y";
+    
+    bool ret = st->require(filepath.c_str(), args);
     if (!ret) {
         panic("require module fail");
     }

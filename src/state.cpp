@@ -191,6 +191,13 @@ bool State::tryClearOpenedFuns(FunctionVal *fun)
 
 void State::end_call()
 {
+    if (cur->isC) {
+        cur->ncalls--;
+        calls->pop_back();
+        if (!calls->empty()) cur = calls->back();
+        return;
+    }
+
     clearTempData();
     if (!tryClearOpenedFuns(cur)) openedFuns->push_back(cur);
     
@@ -301,10 +308,18 @@ static void read_function(FunctionVal *funChunk, ifstream &in)
     }
 }
 
+static bool get_target_bin_file_name(const char* origin, string &target);
+
 void State::load(const char *file_name)
 {
+    string targetFile;
+    if (!get_target_bin_file_name(file_name, targetFile)) 
+    {
+        exit(0);
+    }
+
     ifstream in;
-    in.open(file_name, ios_base::binary);
+    in.open(targetFile.c_str(), ios_base::binary);
     if (!in.good()) {
         cout << "no such file or directory: " << file_name << endl;
         exit(0);
@@ -344,11 +359,12 @@ void State::load(const char *file_name)
 
     int gVars = 0;
     in.read((char *)&gVars, sizeof(int));
+    ++gVars;
     mainChunk->global_vars = new vector<Value *>(gVars, NULL);
     mainChunk->global_vars->reserve(gVars);
     mainChunk->global_var_names_map = new unordered_map<string, int>;
     string t;
-    for (int i = 0; i < gVars; i++) {
+    for (int i = 0; i < gVars - 1; i++) {
         int len = 0;
         in.read((char *)&len, sizeof(int));
         for (int j = 0; j < len; j++) {
@@ -398,30 +414,32 @@ static bool get_target_bin_file_name(const char* origin, string &target)
     return true;
 }
 
-bool State::require(const char *file, TableVal *args)
+bool State::require(const char *file, ArrayVal *args)
 {
-    // 先不考虑容错，require 失败直接 crash 
-    compile(file);
-    string targetFile;
-    if (!get_target_bin_file_name(file, targetFile)) return false;
+    if (!this->files->count(file)) {
+        // 先不考虑容错，require 失败直接 crash 
+        string targetFile;
+        if (!get_target_bin_file_name(file, targetFile)) return false;
+        compile(file);
+    }
     FunctionVal *fileChunk = run(file, args);
-    // 这里执行完，返回到初始进入的地方    
     return true;
 }
 
-FunctionVal * State::run(const char *entryFile, TableVal *args)
+FunctionVal * State::run(const char *entryFile, ArrayVal *args)
 {
-    string targetFile;
-    if (!get_target_bin_file_name(entryFile, targetFile)) return NULL;
-    FunctionVal *entry = get_by_file_name(targetFile.c_str());
+    FunctionVal *entry = get_by_file_name(entryFile);
     if (!entry) {
         cout << "entry not found !!" << endl;
         return NULL;
     }
 
     // 入参？
+    if (entry->chunk->global_vars->at(0)) {
+        delete entry->chunk->global_vars->at(0);
+    }
 
-    entry->chunk->local_variables->at(0) = args;
+    entry->chunk->global_vars->at(0) = args;
     entry->chunk->upvals->at(0) = new UpValue;
     entry->chunk->upvals->at(0)->val = init_env(this->get_vm());
     entry->ncalls++;

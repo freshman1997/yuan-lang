@@ -87,7 +87,7 @@ static void init()
     global_vars.clear();
     global_const.clear();
     global_const_index = 0;
-    global_var_index = 0;
+    global_var_index = 1;
 }
 
 static bool is_same_id(char *s1, int len1, char *s2, int len2)
@@ -758,12 +758,15 @@ static void visit_index(IndexExpression *index, FuncInfo *info, CodeWriter &writ
         char *id = name->name;
         int len = name->name_len;
         if (str_equal(id, "args", len)) {
-            if (info->isVarargs || str_equal(info->func_name, "main", 4)) {
+            if (info->isVarargs) {
                 writer.add(OpCode::op_pushl, info->nparam - 1);
             }
             else {
                 syntax_error("only varargs function can use 'args' parameter!!!");
             }
+        }
+        else if (str_equal(id, "gArgs", len)) {
+            writer.add(OpCode::op_pushg, 0);
         }
         else {
             int gVarid = is_global_var(id, len);
@@ -888,12 +891,18 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
         char *id = opera->op->id_oper->name;
         int len = opera->op->id_oper->name_len;
         if (str_equal(id, "args", len)) {
-            if (info->isVarargs || str_equal(info->func_name, "main", 4)) {
+            if (info->isVarargs) {
                 writer.add(OpCode::op_pushl, info->nparam - 1);
             }
             else {
                 syntax_error("only varargs function can use 'args' parameter!!!");
             }
+            delete opera->op->id_oper;
+            return;
+        }
+
+        if (str_equal(id, "gArgs", len)) {
+            writer.add(OpCode::op_pushg, 0);
             delete opera->op->id_oper;
             return;
         }
@@ -1115,6 +1124,7 @@ static void write_to_bin_file(CodeWriter &writer, FuncInfo *info)
         delete it.second->v;
         delete it.second;
     }
+    --global_var_index;
     out.write((char *)&global_var_index, sizeof(int));
     for (auto &it : global_vars) {
         out.write((char *)&it.second.name_len, sizeof(int));
