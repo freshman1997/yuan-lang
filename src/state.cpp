@@ -177,12 +177,6 @@ bool State::tryClearOpenedFuns(FunctionVal *fun)
         }
     }
     if (!hasUse) {
-        for (auto &it : *fun->chunk->local_variables) {
-            if (it) {
-                it->ref_count--;
-                if (it->ref_count <= 0) delete it;
-            }
-        }
         if (fun->ref_count <= 0) delete fun;
         return true;
     }
@@ -428,6 +422,7 @@ bool State::require(const char *file, ArrayVal *args)
 
 FunctionVal * State::run(const char *entryFile, ArrayVal *args)
 {
+    bool isEntry = files->empty();
     FunctionVal *entry = get_by_file_name(entryFile);
     if (!entry) {
         cout << "entry not found !!" << endl;
@@ -439,6 +434,8 @@ FunctionVal * State::run(const char *entryFile, ArrayVal *args)
         delete entry->chunk->global_vars->at(0);
     }
 
+    entry->isEntry = isEntry;
+    args->ref_count++;
     entry->chunk->global_vars->at(0) = args;
     entry->chunk->upvals->at(0) = new UpValue;
     entry->chunk->upvals->at(0)->val = init_env(this->get_vm());

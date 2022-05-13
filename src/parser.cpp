@@ -97,6 +97,7 @@ static int get_operator_type(TokenReader *reader)
 }
 
 static Operation * parse_primary(TokenReader *reader);
+static bool isIndex = false;
 
 /*
 ** subexpr -> (simpleexp | unop subexpr) { binop subexpr }
@@ -133,6 +134,7 @@ static OperationExpression * subexpr(TokenReader *reader, unsigned int limit) {
 				child1 = new OperationExpression;
 				child1->left = oper;
 				child1->op_type = OperatorType::op_none;
+				if (isIndex) return child1;
 			}
 			if (isIden) {
 				uop = getunopr(get_operator_type(reader));
@@ -327,7 +329,8 @@ static void parse_index(TokenReader *reader, IndexExpression *index)
 		if (reader->peek().type == TokenType::sym && *reader->peek().from == '[') {
 			reader->consume();
 			oper = parse_operator(reader);
-			if (reader->peek().type != TokenType::sym || *reader->peek().from != ']') {
+			// a.b.c 
+			if (*reader->peek().from != ']') {
 				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
 			reader->consume();
@@ -442,7 +445,7 @@ static Operation * parse_primary(TokenReader *reader)
 					index->keys = new vector<OperationExpression *>;
 					reader->consume();
 
-					// aa.bb.cc  aa.bb[cc].dd
+					// aa.bb.cc  aa.bb[cc].dd, aa.bb()
 					bool startSubstr = false;
 					while (reader->peek().type != TokenType::eof) {
 						if (reader->peek().type == TokenType::sym && *reader->peek().from == '.') reader->consume();
@@ -450,7 +453,9 @@ static Operation * parse_primary(TokenReader *reader)
 						if (reader->peek().type != TokenType::iden) {
 							error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 						}
+						isIndex = true;	// 这里是左结合，只要一个
 						OperationExpression *oper = parse_operator(reader);
+						isIndex = false;
 						// 由生成代码那边确定逻辑是否正确
 						index->keys->push_back(oper);
 					}
@@ -604,6 +609,7 @@ static OperationExpression * parse_operator(TokenReader *reader)
 	OperationExpression *node = NULL;
 	OperatorType op = OperatorType::op_none;
 	OperationExpression *child1 = subexpr(reader, 0);
+	if (isIndex) return child1;
 	while (child1) {
 		// 到这里应该是操作符
 		OperatorType op = getbinopr(get_operator_type(reader));

@@ -30,7 +30,7 @@ static bool is_basic_type(Value *val)
     return val->get_type() == ValueType::t_boolean || val->get_type() == ValueType::t_null || val->get_type() == ValueType::t_number;
 }
 
-static void check_variable_liveness(Value *val)
+void check_variable_liveness(Value *val)
 {
     if (val && val->ref_count <= 0) delete val;
 }
@@ -681,7 +681,6 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 panic("array init fail");
             }
             arr->add_item(item);
-            item->ref_count++;
             state->push(arr);
             break;
         }
@@ -1107,7 +1106,7 @@ static int require(State* st)
     
     bool ret = st->require(filepath.c_str(), args);
     if (!ret) {
-        panic("require module fail");
+        panic("require module fail, please check the path is correct or not");
     }
     return 1;
 }

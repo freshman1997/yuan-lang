@@ -1,5 +1,17 @@
 
+
+
+
 // 测试文件操作
+start = os.now()
+ls = os.listfile("D:/job/logic/module/activity", false, nil, true)
+
+for (i = 0; i < #ls; ++i) {
+    print(ls[i])
+}
+
+end = os.now()
+print("spend time: " + (end - start))
 
 fd = os.open("d:/1.txt", os.input)
 print("fd: " + fd)
@@ -85,6 +97,7 @@ fn test_args(...) {
     for (i = 0; i < #args; ++i) {
         print("args: " + args[i])
     }
+    print(gArgs)
 }
 test_args(1, 2, 3)
 

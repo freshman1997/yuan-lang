@@ -9,6 +9,7 @@
 
 using namespace std;
 
+// --entry hello.y --args "1, 2, 3, [12, 3, 4], {1212}, \"hello\", false, nil" 
 int main(int argc, char **argv)
 {
     to_cwd(argv[0]);
@@ -19,8 +20,8 @@ int main(int argc, char **argv)
     start = clock();
     State *st = new State(100);
     VM *vm = st->get_vm();
-    st->run("D:/code/test/cpp/yuan-lang/hello.y", NULL);
+    st->run("D:/code/test/cpp/yuan-lang/hello.y", parse_args(argc, argv));
     end = clock();
-    cout << "spent time: " << (end - start) / CLOCKS_PER_SEC << endl;
+    cout << "spent time: " << (end - start) << endl;
     return 0;
 }

@@ -5,6 +5,7 @@
 
 #include <cstring>
 #include <cstdlib>
+#include <vector>
 
 #include <string>
 #include <iostream>
@@ -37,6 +38,12 @@ void error_tok(const Token &tok, const char *filename, char * content, char *fmt
 void to_cwd(const char *exe);
 string getcwd();
 
-void parse_args();
+vector<string> * get_dir_files(const char *dir, bool r, bool f);
+
+vector<string> * get_dir_files(const char *dir, const char *ext, bool r, bool f);
+
+
+class ArrayVal;
+ArrayVal * parse_args(int argc, char **argv);
 
 #endif

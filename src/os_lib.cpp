@@ -1,10 +1,11 @@
 #include <fstream>
+#include <ctime>
 
 #include "os_lib.h"
 #include "state.h"
 #include "types.h"
 #include "yuan.h"
-
+#include "utils.h"
 
 
 /**************** IO *****************/
@@ -78,6 +79,8 @@ static int open_file(State *st)
             ret->set_val(rfd);
         }
     }
+    check_variable_liveness(val1);
+    check_variable_liveness(val2);
     st->push(ret);
     return 1;
 }
@@ -141,6 +144,10 @@ static int seek_file(State *st)
     else {
         ret->set_val(-1);
     }
+    check_variable_liveness(op);
+    check_variable_liveness(diff);
+    check_variable_liveness(file);
+    check_variable_liveness(m);
     st->push(ret);
     return 1;
 }
@@ -227,6 +234,9 @@ static void write_file(State *st)
         }
         wrote->set_val(i);
     }
+    check_variable_liveness(val1);
+    check_variable_liveness(val2);
+    check_variable_liveness(val3);
     st->push(wrote);
 }   
 
@@ -282,13 +292,38 @@ static int move_file(State *st)
     return 1;
 }
 
-static int list_file(State *st)
+// listfile(dir, recursive, optionExt)
+static int list_files(State *st)
 {
-    return 1;
-}
-
-static int list_file_recursive(State *st)
-{
+    int nparam = st->get_stack_size() - st->param_start - 1; // 第一个是当前函数的
+    ArrayVal *ret = new ArrayVal;
+    if (nparam == 4) { 
+        Value *val1 = st->pop();
+        Value *val2 = st->pop();
+        Value *val3 = st->pop();
+        Value *val4 = st->pop();
+        BooleanVal *full = dynamic_cast<BooleanVal *>(val1);
+        StringVal *_ext = dynamic_cast<StringVal *>(val2);
+        BooleanVal *r = dynamic_cast<BooleanVal *>(val3);
+        StringVal *dir = dynamic_cast<StringVal *>(val4);
+        if (dir && r) {
+            const char *ext = _ext ? _ext->value()->c_str() : NULL;
+            vector<string> *files = get_dir_files(dir->value()->c_str(), ext, r->value(), full ? full->value() : false);
+            // 算了，拷贝一次吧
+            for (auto &it : *files) {
+                StringVal *item = new StringVal;
+                *item->value() = it;
+                ret->add_item(item);
+            }
+            delete files;
+        }
+        else panic("invalid parameter amount to call");
+        check_variable_liveness(val1);
+        check_variable_liveness(val2);
+        check_variable_liveness(val3);
+        check_variable_liveness(val4);
+    }
+    st->push(ret);
     return 1;
 }
 
@@ -296,7 +331,30 @@ static int rm_file(State *st)
 {
     return 1;
 }
+/*********** random ***************/
+// random(limit)
+static int random(State *st)
+{
+    unsigned int now = time(NULL);
+    srand(now);
+    Value *val = st->pop();
+    NumberVal *limit = dynamic_cast<NumberVal *>(val);
+    NumberVal *ret = new NumberVal;
+    if (limit) ret->set_val(rand() % (int)limit->value());
+    else ret->set_val(-1);
+    st->push(ret);
+    return 1;
+}
 
+/************ time ***************/
+static int get_now_time(State *st)
+{
+    NumberVal *ret = new NumberVal;
+    unsigned int now = time(NULL);
+    ret->set_val(now);
+    st->push(ret);
+    return 1;
+}
 
 /*********** Timer ***************/
 
@@ -348,6 +406,33 @@ void load_os_lib(TableVal *tb)
     _rl->isC = true;
     _rl->cfun = readline;
     ostb->set(rl, _rl);
+
+    StringVal *lf = new StringVal;
+    lf->set_val("listfile");
+    FunctionVal *_lf = new FunctionVal;
+    _lf->nreturn = 1;
+    _lf->nparam = 4;
+    _lf->isC = true;
+    _lf->cfun = list_files;
+    ostb->set(lf, _lf);
+
+    StringVal *rand = new StringVal;
+    rand->set_val("random");
+    FunctionVal *_rand = new FunctionVal;
+    _rand->nreturn = 1;
+    _rand->nparam = 1;
+    _rand->isC = true;
+    _rand->cfun = random;
+    ostb->set(rand, _rand);
+
+    StringVal *now = new StringVal;
+    now->set_val("now");
+    FunctionVal *_now = new FunctionVal;
+    _now->nreturn = 1;
+    _now->nparam = 0;
+    _now->isC = true;
+    _now->cfun = get_now_time;
+    ostb->set(now, _now);
 
     tb->set(os, ostb);
 }

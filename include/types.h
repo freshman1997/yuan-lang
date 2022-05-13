@@ -240,6 +240,8 @@ public:
 
     bool isC = false;
     C_Function cfun = NULL;
+
+    bool isEntry = false;
     
 private:
     vector<FunctionVal *> *subFuncs = NULL;                  // 子函数

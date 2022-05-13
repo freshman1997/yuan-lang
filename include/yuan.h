@@ -15,6 +15,9 @@
 
 void panic(const char *reason);
 
+class Value;
+void check_variable_liveness(Value *val);
+
 void compile(const char *file);
 
 int compile_dir(const char *dir);

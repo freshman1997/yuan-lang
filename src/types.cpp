@@ -181,7 +181,11 @@ std::string ArrayVal::name() const { return _name;}
 std::size_t ArrayVal::hash() const {return 0;}
 vector<Value *> * ArrayVal::member(){return &this->members;}
 Value * ArrayVal::get(int i){return this->members[i];}
-void ArrayVal::add_item(Value *val){this->members.push_back(val);}
+void ArrayVal::add_item(Value *val)
+{
+    val->ref_count++;
+    this->members.push_back(val);
+}
 
 ArrayVal * ArrayVal::operator +(const ArrayVal *rhs)
 {
@@ -331,28 +335,44 @@ FunctionVal::~FunctionVal()
         delete chunk->const_datas;
         delete chunk->global_vars;
         delete chunk->fun_body_ops;
-        delete chunk->upvals->at(0);
+        if (this->isEntry) {
+            delete chunk->upvals->at(0)->val;
+            delete chunk->upvals->at(0);
+        }
         
         if (chunk->global_var_names_map) delete chunk->global_var_names_map;
         if (chunk->local_var_names_map) delete chunk->local_var_names_map;
     }
-    delete chunk->local_variables;
-    if (this->upvOwner) {
-        if (this->chunk->_name) delete this->chunk->_name;
-        int i = 0;
-        for (auto &it : *chunk->upvals) {
-            if (i != 0 && it) {
-                if (it->val) delete it->val;
-                delete it;
+    if (chunk) {
+        if (chunk->local_variables) {
+            for (auto &it : *chunk->local_variables) {
+                if (it) {
+                    it->ref_count--;
+                    if (it->ref_count <= 0) delete it;
+                }
             }
-            i++;
+            delete chunk->local_variables;
         }
-        delete chunk->upvals;
+        if (this->upvOwner) {
+            if (this->chunk->_name) delete this->chunk->_name;
+            int i = 0;
+            for (auto &it : *chunk->upvals) {
+                if (i != 0 && it) {
+                    if (it->val) delete it->val;
+                    delete it;
+                }
+                i++;
+            }
+            delete chunk->upvals;
+        }
+        if (this->subFuncs) {
+            for (auto &it : *this->subFuncs) {  
+                if (it) delete it;
+            }
+            delete this->subFuncs;
+        }
+        delete chunk;
     }
-    for (auto &it : *this->subFuncs) {  
-        if (it) delete it;
-    }
-    delete chunk;
 }
 
 

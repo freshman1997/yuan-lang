@@ -1,5 +1,10 @@
 #include "utils.h"
 #include "lex.h"
+#include "types.h"
+
+#ifdef _WINDOWS
+#include "Windows.h"
+#endif
 
 #include <cstdarg>
 
@@ -52,3 +57,76 @@ string getcwd()
 {
     return _cwd;
 }
+
+static void find(const char* lpPath, std::vector<string> &fileList, const char *ext, bool r, bool full) 
+{ 
+    char szFind[MAX_PATH]; 
+    WIN32_FIND_DATA FindFileData; 
+
+    strcpy(szFind,lpPath); 
+    strcat(szFind,"\\*.*"); 
+    
+    HANDLE hFind=::FindFirstFile(szFind,&FindFileData); 
+    if(INVALID_HANDLE_VALUE == hFind)  return; 
+    
+    while(true) 
+    { 
+        if(FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) 
+        { 
+            if(FindFileData.cFileName[0] != '.') 
+            { 
+                if (r) {
+                    char szFile[MAX_PATH]; 
+                    strcpy(szFile, lpPath); 
+                    strcat(szFile, "\\"); 
+                    strcat(szFile, (char* )(FindFileData.cFileName)); 
+                    find(szFile, fileList, ext, r, full); 
+                }
+            } 
+        } 
+        else
+        { 
+            if (full) {
+                fileList.push_back(lpPath);
+                fileList.back().append("\\").append(FindFileData.cFileName); 
+            }
+            else fileList.push_back(FindFileData.cFileName); 
+            if (ext) {
+                int i = strlen(ext) - 1, j = fileList.back().size() - 1, sz = i + 1;
+                if (i >= j) fileList.pop_back();
+                else {
+                    while (i) {
+                        if (ext[i] != fileList.back()[j]) break;
+                        --i;
+                        --j;
+                    }
+                    if (i != 0) fileList.pop_back();
+                }
+            }
+        } 
+        if (!FindNextFile(hFind, &FindFileData))  break; 
+    } 
+    FindClose(hFind); 
+} 
+
+vector<string> * get_dir_files(const char *dir, bool r, bool full)
+{
+    vector<string> *ret = new vector<string>;
+    find(dir, *ret, NULL, r, full);
+    return ret;
+}
+
+vector<string> * get_dir_files(const char *dir, const char *ext, bool r, bool full)
+{
+    vector<string> *ret = new vector<string>;
+    find(dir, *ret, ext, r, full);
+    return ret;
+}
+
+
+ArrayVal * parse_args(int argc, char **argv)
+{
+    get_dir_files(getcwd().c_str(), false, false);
+    return new ArrayVal;
+}
+
