@@ -1,5 +1,6 @@
 #include <fstream>
 #include <ctime>
+#include <thread>
 
 #include "os_lib.h"
 #include "state.h"
@@ -24,7 +25,7 @@ static int fd = 1;
 static unordered_map<int, fstream *> fds;
 static vector<int> freeFd;
 
-static ios_base::_Openmode get_mod(int v)
+static char get_mod(int v)
 {
     switch (v)
     {
@@ -37,7 +38,7 @@ static ios_base::_Openmode get_mod(int v)
     default:
         break;
     }
-    return ios_base::_Openmode::_Openmask;
+    return -1;
 }
 
 // 返回 fd
@@ -56,9 +57,9 @@ static int open_file(State *st)
     NumberVal *mod = dynamic_cast<NumberVal *>(val1);
     StringVal *path = dynamic_cast<StringVal *>(val2);
     
-    ios_base::_Openmode _mod = get_mod((int)mod->value());
+    char _mod = get_mod((int)mod->value());
     NumberVal *ret = new NumberVal;
-    if (_mod == ios_base::_Openmask) {
+    if (_mod < 0) {
         ret->set_val(0);
     }
     else {
@@ -357,6 +358,17 @@ static int get_now_time(State *st)
 }
 
 /*********** Timer ***************/
+static int sleep(State *st)
+{
+    Value *val = st->pop();
+    NumberVal *num = dynamic_cast<NumberVal *>(val);
+    if (!num) {
+        panic("invalid parameter to call sleep");
+    }
+    std::chrono::duration<double, std::milli> elapsed(num->value());
+    this_thread::sleep_for(elapsed);
+    return 1;
+}
 
 
 void load_os_lib(TableVal *tb)
@@ -433,6 +445,15 @@ void load_os_lib(TableVal *tb)
     _now->isC = true;
     _now->cfun = get_now_time;
     ostb->set(now, _now);
+
+    StringVal *sl = new StringVal;
+    sl->set_val("sleep");
+    FunctionVal *_sl = new FunctionVal;
+    _sl->nreturn = 0;
+    _sl->nparam = 1;
+    _sl->isC = true;
+    _sl->cfun = sleep;
+    ostb->set(sl, _sl);
 
     tb->set(os, ostb);
 }

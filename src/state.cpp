@@ -208,8 +208,8 @@ void State::end_call()
     if (calls->empty()) {
         delete openedFuns;
         delete calls;
-        delete vm;
         delete stack;
+        delete vm;
         delete cur;
     }
 }

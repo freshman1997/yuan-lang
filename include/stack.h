@@ -10,6 +10,7 @@ class VmStack
 {
 public:
     VmStack(size_t initSize);
+    ~VmStack();
     void push(Value *val);
     Value * pop();
     Value * get(int i);

@@ -414,8 +414,9 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
                 visit_operation_exp(it, info, writer);
             }
         }
+        delete forExp->first_statement;
         int cond = -1;
-        if (forExp->second_statement) {
+        if (forExp->second_statement->op_type != OperatorType::op_none) {
             cond = writer.get_pc();
             needPush = 1;
             visit_operation_exp(forExp->second_statement, info, writer);
@@ -425,10 +426,11 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
             breaks[stack_lv].push_back(writer.get_pc() - 1);
         }
         else {
-            cond = writer.get_pc();
             writer.add(OpCode::op_load_bool, 1);
+            cond = writer.get_pc();
             writer.add(OpCode::op_test, 0);
         }
+        delete forExp->second_statement;
         // body
         visit_statement(forExp->body, info, writer);
         if (forExp->third_statement) {
@@ -436,6 +438,7 @@ static void visit_for(ForExpression *forExp, FuncInfo *info, CodeWriter &writer)
                 visit_operation_exp(it, info, writer);
             }
         }
+        delete forExp->third_statement;
         writer.add(OpCode::op_jump, cond - 1); // jump back
         for (auto &it : continues[stack_lv]) {
             writer.set(it, OpCode::op_jump, cond - 1);

@@ -1102,7 +1102,7 @@ static int require(State* st)
     if (!path) {
         panic("no correct key found!");
     }
-    string filepath = "D:/code/test/cpp/yuan-lang/" + *path->value() + ".y";
+    string filepath = "D:/code/src/vs/yuan-lang/" + *path->value() + ".y";
     
     bool ret = st->require(filepath.c_str(), args);
     if (!ret) {

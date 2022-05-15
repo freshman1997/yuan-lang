@@ -31,3 +31,12 @@ int VmStack::get_size()
 {
     return this->_stack.size();
 }
+
+VmStack::~VmStack()
+{
+    for (auto &it : _stack) {
+        if (it) {
+            delete it;
+        }
+    }
+}

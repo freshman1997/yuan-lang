@@ -1,10 +1,31 @@
 
+fn hello1()
+{
+    i = 0
+    for (;;) {
+        print("hello" + i)
+        os.sleep(1000)
+        break
+        ++i
+    }
+    return "hello"
+}
+
+hello1()
+
+testh = 100 + 10
+print("testh: " + testh)
 
 
+while (true){
+    hello1()
+}
+
+a = hello1() + 12
 
 // 测试文件操作
 start = os.now()
-ls = os.listfile("D:/job/logic/module/activity", false, nil, true)
+ls = os.listfile("E:/download", true, nil, true)
 
 for (i = 0; i < #ls; ++i) {
     print(ls[i])
