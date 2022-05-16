@@ -35,15 +35,14 @@ inline void error(const char *msg, const char *s)
 struct Token;
 void error_tok(const Token &tok, const char *filename, char * content, char *fmt, ...);
 
+bool is_valid_path(const char *path);
+bool is_file(const char *path);
+
 void to_cwd(const char *exe);
 string getcwd();
 
 vector<string> * get_dir_files(const char *dir, bool r, bool f);
 
 vector<string> * get_dir_files(const char *dir, const char *ext, bool r, bool f);
-
-
-class ArrayVal;
-ArrayVal * parse_args(int argc, char **argv);
 
 #endif

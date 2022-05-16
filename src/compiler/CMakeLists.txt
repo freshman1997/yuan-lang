@@ -1,0 +1,14 @@
+
+include_directories(${PROJECT_SOURCE_DIR}/include/)
+
+#查找当前目录下的所有源文件，并将名称保存到 DIR_SRCS 变量
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} DIR_SRCS)
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
+
+add_library(libyuanc STATIC ${DIR_SRCS})
+
+add_executable(yuanc ${DIR_SRCS} ../common/utils.cpp)

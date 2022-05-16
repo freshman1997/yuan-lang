@@ -11,6 +11,7 @@ static bool is_basic_type(Value *val)
 
 Value * State::pop()
 {
+    if (cur->param_stack - cur->nparam == get_stack_size()) return new NilVal;
     return this->stack->pop();
 }
 
@@ -183,7 +184,7 @@ bool State::tryClearOpenedFuns(FunctionVal *fun)
     return false;
 }
 
-void State::end_call()
+void State::end_call(bool clearRet)
 {
     if (cur->isC) {
         cur->ncalls--;
@@ -192,7 +193,7 @@ void State::end_call()
         return;
     }
 
-    clearTempData();
+    clearTempData(clearRet);
     if (!tryClearOpenedFuns(cur)) openedFuns->push_back(cur);
     
     if (!this->calls->empty()){
@@ -224,16 +225,26 @@ int State::cur_calls()
     return calls->size();
 }
 
-void State::clearTempData()
+void State::clearTempData(bool clear)
 {
     Value *ret = NULL;
-    if (cur->nreturn) ret = pop();
+    if (cur->nreturn) {
+        // 检查函数开始时的栈的位置，如果没有返回推入一个nil
+        if (this->get_stack_size() == cur->param_stack) {
+            if (!clear) ret = new NilVal;
+        }
+        else ret = pop();
+        if (clear) { 
+            check_variable_liveness(ret);
+            ret = NULL;
+        }
+    }
     int start = cur->param_stack;
     int end = stack->get_size();
     if (start != end) { // 仍然有未出栈的
         for (int i = start; i < end; ++i) {
             Value *val = pop();
-            if (val->ref_count <= 0) delete val;
+            if (val->ref_count <= 0) check_variable_liveness(val);
         }
     }
     if (ret) push(ret);
@@ -414,7 +425,6 @@ bool State::require(const char *file, ArrayVal *args)
         // 先不考虑容错，require 失败直接 crash 
         string targetFile;
         if (!get_target_bin_file_name(file, targetFile)) return false;
-        compile(file);
     }
     FunctionVal *fileChunk = run(file, args);
     return true;
@@ -442,7 +452,7 @@ FunctionVal * State::run(const char *entryFile, ArrayVal *args)
     entry->ncalls++;
     set_cur(entry);
     vm->execute(*entry->get_pcs(), this, 0, NULL);
-    end_call();
+    end_call(isEntry);
     entry->ncalls--;
     return entry;
 }

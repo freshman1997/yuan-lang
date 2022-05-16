@@ -7,6 +7,7 @@
 
 #include "os_lib.h"
 
+
 /*
     每个作用域都需要包含一个表，用来记录变量，这样子就不用记录变量的名字了，运行再根据取得的值计算
 */
@@ -437,7 +438,11 @@ static void packVarargs(State *st, FunctionVal *fun, ArrayVal *args)
     }
     if (fun->nreturn && !args) fun->param_stack++; 
     ArrayVal *arr = args;
-    if (!args) arr = new ArrayVal;
+    if (!args) {
+        arr = new ArrayVal;
+        fun->param_stack = st->get_stack_size();
+        fun->nparam = fun->param_stack;
+    }
     vector<Value *> *members = arr->member();
     members->resize(amount);
     while (amount--) {
@@ -494,6 +499,7 @@ static void do_call(Value *val)
     }
     fun->param_stack = state->get_stack_size() - fun->nparam;
     fun->ncalls++;
+    bool clearRet = state->doClear;
     if (fun->ncalls >= MAX_RECURSE_NUM) {
         panic("stack overflow");
     }
@@ -503,7 +509,7 @@ static void do_call(Value *val)
     // 执行完，栈中应该有对应的返回值
     do_execute(*file_main_fun->chunk->fun_body_ops, fun->from_pc, fun->to_pc);
     fun->ncalls--;
-    state->end_call();
+    state->end_call(clearRet);
 }
 
 static void do_execute(const std::vector<int> &pcs, int from, int to)
@@ -789,6 +795,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
         }
         case OpCode::op_param_start: 
         {
+            state->doClear = param ? true : false;
             state->param_start = state->get_stack_size();
             break;
         }
@@ -829,7 +836,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 }
                 state->set_cur(cfun);
                 cfun->cfun(state);  // call c function
-                state->end_call();
+                state->end_call(false);
             }
             else {
                 Value *val = state->getu(param + 1);
@@ -878,7 +885,7 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 }
                 state->set_cur(fun);
                 fun->cfun(state);  // call c function
-                state->end_call();
+                state->end_call(false);
                 // 有返回值？
                 int nret = fun->nreturn;
                 vector<Value *> rets;
@@ -1006,8 +1013,6 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                     panic("only integer and string value can index table!");
                 }
                 TableVal *tb = static_cast<TableVal *>(con);
-                val->ref_count++;
-                key->ref_count++;
                 tb->set(key, val);
             }
             else {
@@ -1102,7 +1107,7 @@ static int require(State* st)
     if (!path) {
         panic("no correct key found!");
     }
-    string filepath = "D:/code/src/vs/yuan-lang/" + *path->value() + ".y";
+    string filepath = "D:/code/test/cpp/yuan-lang/" + *path->value() + ".y";
     
     bool ret = st->require(filepath.c_str(), args);
     if (!ret) {

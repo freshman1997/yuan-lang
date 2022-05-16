@@ -1,3 +1,14 @@
+start = os.now()
+fn test_args(...) {
+    print("size: " + #args)
+    for (i = 0; i < #args; ++i) {
+        print("args:..." + args[i])
+    }
+    print(gArgs)
+}
+test_args(1, 2, 3)
+
+
 
 fn hello1()
 {
@@ -11,28 +22,24 @@ fn hello1()
     return "hello"
 }
 
-hello1()
-
-testh = 100 + 10
-print("testh: " + testh)
-
-
-while (true){
-    hello1()
+local fn hello2()
+{
+    print("hello2")
 }
+
+hello1()
 
 a = hello1() + 12
 
 // 测试文件操作
-start = os.now()
+
 ls = os.listfile("E:/download", true, nil, true)
 
 for (i = 0; i < #ls; ++i) {
     print(ls[i])
 }
 
-end = os.now()
-print("spend time: " + (end - start))
+
 
 fd = os.open("d:/1.txt", os.input)
 print("fd: " + fd)
@@ -113,14 +120,7 @@ print(fib)
 
 print("fib result: " + fib(5))
 
-fn test_args(...) {
-    print("size: " + #args)
-    for (i = 0; i < #args; ++i) {
-        print("args: " + args[i])
-    }
-    print(gArgs)
-}
-test_args(1, 2, 3)
+
 
 local mtb = require("module", "hello args in module", "sdasdasdasdasdasdasdasfsdfasdasdasd", start)
 
@@ -225,7 +225,8 @@ for (i in arr) {
 // do_file 执行文件
 // local aa = require("文件", ..., args);   aa.doas() doas 会去 aa 变量里面找key
 
-
+end = os.now()
+print("spend time: " + start + ", " + end)
 
 return tb
 

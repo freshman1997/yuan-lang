@@ -15,6 +15,7 @@ class State
 {
 public:
     int param_start = 0;
+    bool doClear = false;
 
     Value * pop();
     void push(Value *val);
@@ -37,11 +38,11 @@ public:
     FunctionVal * get_by_file_name(const char *);
     FunctionVal * get_cur();
     void set_cur(FunctionVal *fun);
-    void end_call();
+    void end_call(bool cl);
     
     int get_stack_size();
     int cur_calls();
-    void clearTempData();
+    void clearTempData(bool cl);
     bool tryClearOpenedFuns(FunctionVal *fun);
 
     

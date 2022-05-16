@@ -565,9 +565,11 @@ static void visit_return(ReturnExpression *retExp, FuncInfo *info, CodeWriter &w
 }
 
 static int fromIndex = 0;
+static bool clearRet = false;
 static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
 {
     if (!call->function_name) {
+        writer.add(OpCode::op_param_start, 0);
         for (auto &it : *call->parameters) {
             visit_operation(it, info, writer);
         }
@@ -587,7 +589,9 @@ static void visit_call(CallExpression *call, FuncInfo *info, CodeWriter &writer)
             syntax_error("funtion parameter amount not matched!");
         }
     }
-    writer.add(OpCode::op_param_start, 0);
+    writer.add(OpCode::op_param_start, clearRet ? 1 : 0);
+    clearRet = false;
+
     for (auto &it : *call->parameters) {
         visit_operation(it, info, writer);
     }
@@ -852,6 +856,7 @@ static void visit_statement(vector<BodyStatment *> *statements, FuncInfo *info, 
             delete it1->body->return_exp;
             break;
         case ExpressionType::call_statement:
+            clearRet = true;
             visit_call(it1->body->call_exp, info, writer);
             delete it1->body->call_exp;
             break;
@@ -1031,6 +1036,7 @@ static void visit_operation(Operation *opera, FuncInfo *info, CodeWriter &writer
     }
     case OpType::call:
     {
+        clearRet = false;
         visit_call(opera->op->call_oper, info, writer);
         delete opera->op->call_oper;
         break;

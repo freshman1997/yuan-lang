@@ -40,6 +40,17 @@ void error_tok(const Token &tok, const char *filename, char * content, char *fmt
     exit(1);
 }
 
+bool is_valid_path(const char *path)
+{
+    
+    return false;
+}
+
+bool is_file(const char *path)
+{
+    return false;
+}
+
 static string _cwd;
 
 void to_cwd(const char *exe)
@@ -63,7 +74,7 @@ static void find(const char* lpPath, std::vector<string> &fileList, const char *
     char szFind[MAX_PATH]; 
     WIN32_FIND_DATA FindFileData; 
 
-    strcpy(szFind,lpPath); 
+    strcpy(szFind, lpPath); 
     strcat(szFind,"\\*.*"); 
     
     HANDLE hFind=::FindFirstFile(szFind,&FindFileData); 
@@ -121,12 +132,5 @@ vector<string> * get_dir_files(const char *dir, const char *ext, bool r, bool fu
     vector<string> *ret = new vector<string>;
     find(dir, *ret, ext, r, full);
     return ret;
-}
-
-
-ArrayVal * parse_args(int argc, char **argv)
-{
-    get_dir_files(getcwd().c_str(), false, false);
-    return new ArrayVal;
 }
 
