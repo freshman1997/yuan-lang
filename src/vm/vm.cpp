@@ -4,6 +4,7 @@
 #include "state.h"
 #include "types.h"
 #include "yuan.h"
+#include "utils.h"
 
 #include "os_lib.h"
 
@@ -1107,7 +1108,7 @@ static int require(State* st)
     if (!path) {
         panic("no correct key found!");
     }
-    string filepath = "D:/code/test/cpp/yuan-lang/" + *path->value() + ".y";
+    string filepath = getcwd() + "/" + *path->value() + ".y";
     
     bool ret = st->require(filepath.c_str(), args);
     if (!ret) {
