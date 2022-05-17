@@ -1097,24 +1097,48 @@ static void write_function(ofstream &out, FuncInfo *info)
     }
 }
 
-static void write_to_bin_file(CodeWriter &writer, FuncInfo *info)
+static void write_to_bin_file(CodeWriter &writer, FuncInfo *info, bool isDir)
 {
-    int i = strlen(writer.get_file_name()) - 1;
     string binFileName;
-    while (i >= 0) {
-        if (writer.get_file_name()[i] != '.')
-            --i;
-        else {
-            int j = i;
-            i = 0;
-            while (i < j) {
-                binFileName.push_back(writer.get_file_name()[i]);
-                ++i;
+    if (!isDir) {
+        int i = strlen(writer.get_file_name()) - 1;
+        while (i >= 0) {
+            if (writer.get_file_name()[i] != '.')
+                --i;
+            else {
+                int j = i;
+                i = 0;
+                while (i < j) {
+                    binFileName.push_back(writer.get_file_name()[i]);
+                    ++i;
+                }
+                break;
             }
-            break;
         }
+        binFileName.append(".b");
     }
-    binFileName.append(".b");
+    else {
+        string name = writer.get_file_name(), oName = writer.get_file_name();
+        size_t idx = name.find_last_of('/');
+        if (idx == string::npos) idx = name.find_last_of('\\');
+        else {
+            size_t idx1 =  name.find_last_of('\\');
+            idx = idx1 > idx ? idx1 : idx;
+        }
+        string dir = oName.erase(idx);
+        // target/xxx
+        // a/b/c/1.y => target/a/b/c/1.b
+        int prefixIdx = get_prefix_index(getcwd().c_str(), dir.c_str());
+        if (prefixIdx == 0) {
+            syntax_error("unexpected!!!");
+        }
+        dir = getcwd() + dir.substr(prefixIdx, dir.size());
+        m_mkdirs(dir.c_str());
+        name = name.substr(prefixIdx + 1, name.size());
+        name = name.erase(name.find_first_of('.'));
+        name.append(".b");
+        binFileName = dir + "/" + name;
+    }
     ofstream out;
     out.open(binFileName.c_str(), ios_base::binary);
     if (!out.good()) {
@@ -1150,7 +1174,7 @@ static void write_to_bin_file(CodeWriter &writer, FuncInfo *info)
     out.close();
 }
 
-void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
+void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer, bool isDir)
 {
     for(auto &it : *chunks) {
         init();
@@ -1166,7 +1190,7 @@ void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer)
         writer.set_file_name(it.first.c_str());
         visit_statement(it.second->statements, fileFuncInfo, writer);
         fileFuncInfo->to_pc = writer.get_pc();
-        write_to_bin_file(writer, fileFuncInfo);
+        write_to_bin_file(writer, fileFuncInfo, isDir);
         delete[] it.second->reader->get_content();
         delete it.second;
     }

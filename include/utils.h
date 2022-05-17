@@ -18,8 +18,17 @@ inline bool str_equal(const char *s1, const char *s2, int n)
     int len2 = strlen(s2);
     if (len2 != n) return false;
     while(*(s1++) == *(s2++)) --n;
-    return n == 0;
+    return n <= 0;
 }
+
+inline bool str_equal1(char *s1, const char *s2, int n)
+{
+    int len2 = strlen(s2);
+    if (len2 != n) return false;
+    while(*(s1++) == *(s2++)) --n;
+    return n <= 0;
+}
+
 
 inline bool startswith(char* p, const char* q)
 {
@@ -35,10 +44,14 @@ inline void error(const char *msg, const char *s)
 struct Token;
 void error_tok(const Token &tok, const char *filename, char * content, char *fmt, ...);
 
+bool m_mkdir(const char* dir);
+bool m_mkdirs(const char* dir);
 bool is_valid_path(const char *path);
 bool is_file(const char *path);
+int get_prefix_index(const char *s1, const char *s2);
 
 void to_cwd(const char *exe);
+void setcwd(const string& str);
 string getcwd();
 
 vector<string> * get_dir_files(const char *dir, bool r, bool f);

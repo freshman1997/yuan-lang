@@ -13,7 +13,8 @@ void compile(const char *file)
     files[file] = &reader;
     unordered_map<string, Chunck *> *chunks = parse(files);
     CodeWriter writer;
-    visit(chunks, writer);
+    visit(chunks, writer, false);
+    delete chunks;
 }
 
 int compile_dir(const char *dir)
@@ -32,7 +33,7 @@ int compile_dir(const char *dir)
     }
     unordered_map<string, Chunck *> *chunks = parse(tokenFiles);
     CodeWriter writer;
-    visit(chunks, writer);
+    visit(chunks, writer, true);
     int sz = chunks->size();
     delete chunks;
     return sz;

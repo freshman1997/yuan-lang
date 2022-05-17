@@ -4,6 +4,6 @@
 #include "parser.h"
 #include "code_writer.h"
 
-void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer);
+void visit(unordered_map<string, Chunck *> *chunks, CodeWriter &writer, bool isDir);
 
 #endif

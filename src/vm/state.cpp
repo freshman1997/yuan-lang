@@ -448,7 +448,7 @@ FunctionVal * State::run(const char *entryFile, ArrayVal *args)
     args->ref_count++;
     entry->chunk->global_vars->at(0) = args;
     entry->chunk->upvals->at(0) = new UpValue;
-    entry->chunk->upvals->at(0)->val = init_env(this->get_vm());
+    entry->chunk->upvals->at(0)->val = init_env(this->vm);
     entry->ncalls++;
     set_cur(entry);
     vm->execute(*entry->get_pcs(), this, 0, NULL);

@@ -6,6 +6,9 @@
 #include "Windows.h"
 #endif
 
+#include <direct.h>
+#include <io.h>
+#include <fstream>
 #include <cstdarg>
 
 static void verror_at(const char *filename, char *input, int line_no, char *loc, char *fmt, va_list ap) {
@@ -40,15 +43,72 @@ void error_tok(const Token &tok, const char *filename, char * content, char *fmt
     exit(1);
 }
 
+bool m_mkdir(const char *dir) 
+{
+    return _mkdir(dir) == 0;
+}
+
+static string get_path_dir(string path)
+{
+    size_t idx = path.find_last_of('\\');
+    if (idx == string::npos) idx = path.find_last_of('/');
+    if (idx != string::npos) {
+        path.erase(idx);
+        return path;
+    }
+    return "";
+}
+
+bool m_mkdirs(const char *dir)
+{
+    if (_access(dir, 00) == 0) return false;
+    string path = dir;
+    vector<string> dirs;
+    dirs.push_back(path);
+    while (true) {
+        path = get_path_dir(path);
+        if (path.empty() || _access(path.c_str(), 00) == 0) break;
+        dirs.push_back(path);
+    }
+    for (auto it = dirs.rbegin(); it != dirs.rend(); ++it) {
+        _mkdir(it->c_str());
+    }
+    return true;
+}
+
 bool is_valid_path(const char *path)
 {
-    
-    return false;
+    return _access(path, 00) == 0;
 }
 
 bool is_file(const char *path)
 {
+    if (_access(path, 00) == 0) {
+        WIN32_FIND_DATAA FindFileData;
+        FindFirstFileA(path, &FindFileData);
+        if (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+
+    cout << "utils unexpected!" << endl;
+    exit(0);
     return false;
+}
+
+int get_prefix_index(const char *s1, const char *s2)
+{
+    int i = 0;
+    while (s1[i] != '\0' && s2[i] != '\0') {
+        if (s1[i] != s2[i]) break;
+        i++;
+    }
+    return i;
 }
 
 static string _cwd;
@@ -62,6 +122,11 @@ void to_cwd(const char *exe)
     for (int i = 0; i < len; i++) {
         _cwd.push_back(exe[i]);
     }
+}
+
+void setcwd(const string &str)
+{
+    _cwd = str;
 }
 
 string getcwd()
