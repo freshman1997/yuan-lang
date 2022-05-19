@@ -15,6 +15,7 @@ public:
     Value * pop();
     Value * get(int i);
     int get_size();
+    void rm(int i);
 
 private:
     vector<Value *> _stack;

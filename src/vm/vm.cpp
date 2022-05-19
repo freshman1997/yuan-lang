@@ -7,7 +7,7 @@
 #include "utils.h"
 
 #include "os_lib.h"
-
+#include "array_lib.h"
 
 /*
     每个作用域都需要包含一个表，用来记录变量，这样子就不用记录变量的名字了，运行再根据取得的值计算
@@ -887,18 +887,14 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 state->set_cur(fun);
                 fun->cfun(state);  // call c function
                 state->end_call(false);
+
                 // 有返回值？
-                int nret = fun->nreturn;
-                vector<Value *> rets;
-                rets.resize(nret);
-                while (nret--)
-                {
-                    rets[nret] = state->pop();
+                if (fun->nreturn) {
+                    Value *ret = state->pop();
+                    state->pop();
+                    state->push(ret);
                 }
-                state->pop();   // 把栈里面的函数出栈
-                for (auto &it : rets) {
-                    state->push(it);
-                }
+                else state->pop();
             }
             break;
         }
@@ -1138,6 +1134,7 @@ void VM::load_lib(TableVal *tb)
     tb->set(req, r);
 
     load_os_lib(tb);
+    load_array_lib(tb);
 }
 
 void VM::execute(const std::vector<int> &pcs, State *_state, int argc, char **argv)

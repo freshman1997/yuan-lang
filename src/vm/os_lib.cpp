@@ -1,4 +1,4 @@
-#include <fstream>
+﻿#include <fstream>
 #include <ctime>
 #include <thread>
 
@@ -336,8 +336,6 @@ static int rm_file(State *st)
 // random(limit)
 static int random(State *st)
 {
-    unsigned int now = time(NULL);
-    srand(now);
     Value *val = st->pop();
     NumberVal *limit = dynamic_cast<NumberVal *>(val);
     NumberVal *ret = new NumberVal;
@@ -373,6 +371,8 @@ static int sleep(State *st)
 
 void load_os_lib(TableVal *tb)
 {
+    srand((unsigned int)time(NULL));
+
     StringVal *os = new StringVal;
     os->set_val("os");
     TableVal *ostb = new TableVal;

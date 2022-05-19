@@ -92,9 +92,19 @@ local fn quicksort(arr, l, r) {
     }
 }
 
-local arr1 = [3, 1, 4, 2, 6, 5]
-
+local arr1 = []
+len = 1000
+array.grow(arr1, len)
+/*
+for (i = 0; i < len; ++i) {
+    arr1[i] = os.random(len) + 1
+}
+*/
+start = os.now()
 quicksort(arr1, 0, #arr1 - 1)
+end = os.now()
+
+print("spend time: " + (end - start))
 
 str = "["
 for (i = 0; i < #arr1; ++i) {

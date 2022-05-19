@@ -142,14 +142,14 @@ static ArrayVal * parse_args(int argc, char** argv)
 // --entry hello.y --args "1, 2, 3, \"hello\", false, nil" 
 int main(int argc, char **argv)
 {
-    char* cwd = getcwd(NULL, 0);
+    char* cwd = _getcwd(NULL, 0);
     if (!cwd) {
         cout << "unexpected!" << endl;
         return 1;
     }
     string _cwd = cwd;
     setcwd(_cwd);
-    State *st = new State(100);
+    State *st = new State(10000);
     VM *vm = st->get_vm();
     st->run(entry_file.c_str(), parse_args(argc, argv));
     return 0;

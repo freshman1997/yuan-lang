@@ -32,6 +32,12 @@ int VmStack::get_size()
     return this->_stack.size();
 }
 
+void VmStack::rm(int i)
+{
+    _stack.erase(_stack.begin() + i);
+}
+
+
 VmStack::~VmStack()
 {
     for (auto &it : _stack) {

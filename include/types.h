@@ -24,25 +24,12 @@ enum class ValueType
 class Value
 {
 public:
-    ValueType type;
     virtual ValueType get_type() const = 0;
 	virtual std::string name() const = 0;
     virtual std::size_t hash() const = 0;
     virtual Value * copy() = 0;
     virtual ~Value() {}
     int ref_count = 0;
-
-	/*struct ValueHasher : public std::unary_function<Value *, std::size_t>  {
-		std::size_t operator() (const Value *value) const  {
-			return value->hash();
-		}
-	};
-
-	struct ValueEqualer : public std::binary_function<Value *, Value *, bool>  {
-		bool operator() (const Value *left, const Value *right) const  {
-			return left == right;
-		}
-	};*/
 };
 
 static bool is_value_equal(const Value *lhs, const Value *rhs);
@@ -84,7 +71,7 @@ public:
     void set_val(double val);
 
 private:
-    double _val;
+    double _val = 0;
     string _name;
 };
 

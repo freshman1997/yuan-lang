@@ -195,7 +195,10 @@ ArrayVal * ArrayVal::operator +(const ArrayVal *rhs)
 void ArrayVal::remove(int i)
 {
     if (members.size() <= i) return;
+    Value *val = members.at(i);
     this->members.erase(members.begin() + i);
+    val->ref_count--;
+    if (val->ref_count <= 0) delete val;
 }
 
 bool ArrayVal::set(int i, Value *val) 

@@ -221,7 +221,7 @@ static vector<Operation *> * parse_parameter(TokenReader *reader, char close, bo
 {
 	vector<Operation *> *parameters = new vector<Operation *>;
 	while (reader->peek().type != TokenType::eof) {
-		if (reader->peek().type == TokenType::sym && *reader->peek().from == ')') break;  // no parameter
+		if (reader->peek().type == TokenType::sym && *reader->peek().from == close) break;  // no parameter
  		OperationExpression *oper = parse_operator(reader);
 		if (!isArr) {
 			if (reader->peek().type != TokenType::sym || !oper)

@@ -140,7 +140,6 @@ Value * State::get(int pos)
     return stack->get(pos);
 }
 
-
 Value * State::get_subfun(int i)
 {
     if (!cur->chunk->upvals->at(0)) cur->chunk->upvals->at(0) = cur->pre->chunk->upvals->at(0);

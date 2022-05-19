@@ -5,7 +5,7 @@
 
 int main(int argc, char **argv) 
 {
-    char* cwd = getcwd(NULL, 0);
+    char* cwd = _getcwd(NULL, 0);
     if (!cwd) {
         cout << "unexpected!" << endl;
         return 1;
