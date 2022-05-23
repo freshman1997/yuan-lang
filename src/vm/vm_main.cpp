@@ -151,7 +151,10 @@ int main(int argc, char **argv)
     setcwd(_cwd);
     State *st = new State(10000);
     VM *vm = st->get_vm();
-    st->run(entry_file.c_str(), parse_args(argc, argv));
+    ArrayVal *_args = parse_args(argc, argv);
+    entry_file = _cwd + "/" + "hello.b";
+    cout << entry_file << endl;
+    st->run(entry_file.c_str(), _args);
     return 0;
 }
 

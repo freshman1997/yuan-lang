@@ -478,6 +478,12 @@ vector<FunctionVal *> * FunctionVal::get_subfuns()
     return this->subFuncs;
 }
 
+void FunctionVal::set_pre(FunctionVal *val)
+{
+    this->pre = val;
+}
+
+
 Value * FunctionVal::copy()
 {
     FunctionVal *val = new FunctionVal;
@@ -508,7 +514,7 @@ Value * FunctionVal::copy()
     val->set_file_name(this->get_file_name()->c_str());
     vector<FunctionVal *> *subfuns = new vector<FunctionVal *>;
     for (auto &it : *this->subFuncs) {
-        subfuns->push_back(static_cast<FunctionVal *>(it->copy()));
+        subfuns->push_back(static_cast<FunctionVal *>(it));
     }
     val->set_subfuns(subfuns);
     return val;

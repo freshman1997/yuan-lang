@@ -191,6 +191,7 @@ public:
 	virtual std::string name() const;
     virtual std::size_t hash() const;
     virtual Value * copy();
+    void set_pre(FunctionVal *val);
     bool isClosure() const;
     void set_name(const string &name);
     UpValue *get_upvalue(int i);

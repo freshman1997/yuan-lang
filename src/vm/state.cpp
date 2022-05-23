@@ -145,6 +145,7 @@ Value * State::get_subfun(int i)
     if (!cur->chunk->upvals->at(0)) cur->chunk->upvals->at(0) = cur->pre->chunk->upvals->at(0);
     FunctionVal *subfun = dynamic_cast<FunctionVal *>(cur->get_subfun(i)->copy());
     if (!subfun->chunk->upvals->at(0)) subfun->chunk->upvals->at(0) = subfun->pre->chunk->upvals->at(0);
+    subfun->set_pre(cur);
     return subfun;
 }
 
@@ -171,7 +172,7 @@ bool State::tryClearOpenedFuns(FunctionVal *fun)
 {
     bool hasUse = false;
     for (auto &it : *fun->chunk->local_variables) {
-        if (it && it->ref_count > 1) {
+        if (it && it->ref_count > 1 && it->get_type() == ValueType::t_function) {
             hasUse = true;
             break;
         }
