@@ -877,7 +877,6 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
             }
             if (!fun->isC) {
                 do_call(val);
-                state->pop();   // 把栈里面的函数出栈
             }
             else {
                 fun->ncalls++;
@@ -887,15 +886,14 @@ static void do_execute(const std::vector<int> &pcs, int from, int to)
                 state->set_cur(fun);
                 fun->cfun(state);  // call c function
                 state->end_call(false);
-
-                // 有返回值？
-                if (fun->nreturn) {
-                    Value *ret = state->pop();
-                    state->pop();
-                    state->push(ret);
-                }
-                else state->pop();
             }
+            // 有返回值？
+            if (fun->nreturn) {
+                Value *ret = state->pop();
+                state->pop();
+                state->push(ret);
+            }
+            else state->pop();
             break;
         }
 

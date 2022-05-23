@@ -689,10 +689,18 @@ static AssignmentExpression * parse_assignment(TokenReader *reader)
 	if (reader->peek().type == TokenType::sym && str_equal(reader->peek().from, "=", 1)) {
 		reader->consume();
 		const Token &val = reader->peek();
-		if ( (val.type == TokenType::keyword && str_equal(val.from, "require", 7) || str_equal(val.from, "false", 5) || str_equal(val.from, "true", 4) || str_equal(val.from, "nil", 3)) || val.type == TokenType::iden || val.type == TokenType::num || val.type == TokenType::str || val.type == TokenType::sym) {
+		if ( (val.type == TokenType::keyword && (str_equal(val.from, "fn", 2) || str_equal(val.from, "require", 7) || str_equal(val.from, "false", 5) || str_equal(val.from, "true", 4) || str_equal(val.from, "nil", 3))) || val.type == TokenType::iden || val.type == TokenType::num || val.type == TokenType::str || val.type == TokenType::sym) {
 			OperationExpression *oper = parse_operator(reader);
 			if (!oper) {
-				error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
+				if (reader->peek().type == TokenType::keyword && reader->peek().len == 2 && str_equal(reader->peek().from, "fn", 2)) {
+					oper = new OperationExpression;
+					oper->op_type = OperatorType::op_none;
+					oper->left = new Operation;
+					oper->left->op = new Operation::oper;
+					oper->left->type = OpType::function_declear;
+					oper->left->op->fun_oper = parse_function_expression(reader, false);
+				}
+				else error_tok(reader->peek(), reader->get_file_name(), reader->get_content(), "%s on line: %d", "invalid statement", __LINE__);
 			}
 			as->assign = oper;
 		}
