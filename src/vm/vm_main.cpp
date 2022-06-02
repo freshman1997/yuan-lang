@@ -152,8 +152,7 @@ int main(int argc, char **argv)
     State *st = new State(10000);
     VM *vm = st->get_vm();
     ArrayVal *_args = parse_args(argc, argv);
-    entry_file = _cwd + "/" + "hello.b";
-    cout << entry_file << endl;
+    entry_file = _cwd + "/" + entry_file;
     st->run(entry_file.c_str(), _args);
     return 0;
 }

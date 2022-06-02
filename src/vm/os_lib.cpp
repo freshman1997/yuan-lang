@@ -64,7 +64,7 @@ static int open_file(State *st)
     }
     else {
         fstream *fs = new fstream;
-        fs->open(path->value()->c_str(), _mod);
+        fs->open(path->value()->c_str(), (std::ios_base::openmode)_mod);
         if (fs->fail()) ret->set_val(0);
         else {
             int rfd = 0;

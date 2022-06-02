@@ -1,4 +1,5 @@
 ﻿#include <fstream>
+#include <cstring>
 
 #include "state.h"
 #include "types.h"

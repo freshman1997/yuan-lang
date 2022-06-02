@@ -2,14 +2,11 @@
 #include "lex.h"
 #include "types.h"
 
-#ifdef _WINDOWS
-#include "Windows.h"
-#endif
-
 #include <direct.h>
 #include <io.h>
 #include <fstream>
 #include <cstdarg>
+#include <Windows.h>
 
 static void verror_at(const char *filename, char *input, int line_no, char *loc, char *fmt, va_list ap) {
     // Find a line containing `loc`.

@@ -1,4 +1,6 @@
 ﻿
+#include <cmath>
+
 #include "vm.h"
 #include "stack.h"
 #include "state.h"
@@ -116,6 +118,8 @@ static void operate(int type, int op, int unaryPush) // type 用于区分是一�
         if (isnum(val1, val2)) {
             NumberVal *num1 = dynamic_cast<NumberVal *>(val1);
             NumberVal *num2 = dynamic_cast<NumberVal *>(val2);
+            cout << "op1: " << num1->value() << ", op2: " << num2->value() << ", op: " << op << endl;
+
             switch (op)
             {
             case 0: { 

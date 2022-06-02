@@ -272,6 +272,7 @@ static void visit_operation_exp(OperationExpression *operExp, FuncInfo *info, Co
         visit_operation(operExp->left, info, writer);
         visit_operation(operExp->right, info, writer);
         writer.add((OpCode)operExp->op_type, 0);
+        cout << "opcode: " << (int)operExp->op_type << endl;
         needPush = 0;
         break;
     }
