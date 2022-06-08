@@ -637,7 +637,7 @@ static OperationExpression * parse_operator(TokenReader *reader)
 			}
 		}
 		else {
-			if (child1){
+			if (child1 && !node){
 				node = child1;
 			}
 			break; // 只有一个
