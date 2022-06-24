@@ -1,0 +1,482 @@
+
+
+compilationUnit
+    : importDeclaration | typeDeclaration* EOF;
+
+importDeclaration
+    : IMPORT '{' qualifiedName ( ',' qualifiedName)* FROM STRING_LITERAL '}'
+
+typeDeclaration
+    : classOrInterfaceModifier*
+      (classDeclaration | enumDeclaration | interfaceDeclaration)
+    | ';'
+    ;
+
+modifier
+    : classOrInterfaceModifier
+    | NATIVE
+    ;
+
+classOrInterfaceModifier
+    : EXPORT
+    | STATIC
+    | ABSTRACT
+    | FINAL    // FINAL for class only -- does not apply to interfaces
+    ;
+
+classDeclaration
+    : CLASS qualifiedName
+      (EXTENDS qualifiedName)?
+      (IMPLEMENTS qualifiedName ( ',' qualifiedName)* )?
+      classBody
+    ;
+
+enumDeclaration
+    : ENUM identifier '{' enumConstants? '}'
+    ; 
+
+enumConstants
+    : qualifiedName (',' qualifiedName)*
+    ;
+
+interfaceDeclaration
+    : INTERFACE qualifiedName (EXTENDS typeList)? interfaceBody
+    ;
+
+typeList
+    : qualifiedName (',' qualifiedName)*
+
+classBody
+    : '{' classBodyDeclaration* '}'
+    ;
+
+interfaceBody
+    : '{' interfaceBodyDeclaration* '}'
+    ;
+
+classBodyDeclaration
+    : ';'
+    | STATIC? block
+    | modifier* memberDeclaration
+    ;
+
+interfaceBodyDeclaration
+    : modifier* interfaceMemberDeclaration
+    | ';'
+    ;
+
+classBody
+    : '{' classBodyDeclaration* '}'
+    ;
+
+interfaceBody
+    : '{' interfaceBodyDeclaration* '}'
+    ;
+
+classBodyDeclaration
+    : ';'
+    | STATIC? block
+    | modifier* memberDeclaration
+    ;
+
+memberDeclaration
+    : methodDeclaration
+    | fieldDeclaration
+    | constructorDeclaration
+    ;
+
+methodDeclaration
+    : typeTypeOrVoid identifier formalParameters ('[' ']')*
+      (THROWS qualifiedNameList)?
+      methodBody
+    ;
+
+methodBody
+    : block
+    | ';'
+    ;
+
+typeTypeOrVoid
+    : typeType
+    | VOID
+    ;
+
+constructorDeclaration
+    : identifier formalParameters (THROWS qualifiedNameList)? constructorBody=block
+    ;
+
+fieldDeclaration
+    : typeType variableDeclarators ';'
+    ;
+
+interfaceBodyDeclaration
+    : modifier* interfaceMemberDeclaration
+    | ';'
+    ;
+
+interfaceMemberDeclaration
+    : constDeclaration
+    | interfaceMethodDeclaration
+    | genericInterfaceMethodDeclaration
+    | interfaceDeclaration
+    | annotationTypeDeclaration
+    | classDeclaration
+    | enumDeclaration
+    ;
+
+constDeclaration
+    : typeType constantDeclarator (',' constantDeclarator)* ';'
+    ;
+
+constantDeclarator
+    : identifier ('[' ']')* '=' variableInitializer
+    ;
+
+// Early versions of Java allows brackets after the method name, eg.
+// public int[] return2DArray() [] { ... }
+// is the same as
+// public int[][] return2DArray() { ... }
+interfaceMethodDeclaration
+    : interfaceMethodModifier* interfaceCommonBodyDeclaration
+    ;
+
+interfaceMethodModifier
+    : PUBLIC
+    | ABSTRACT
+    | STATIC
+    ;
+
+variableDeclarators
+    : variableDeclarator (',' variableDeclarator)*
+    ;
+
+variableDeclarator
+    : variableDeclaratorId ('=' variableInitializer)?
+    ;
+
+variableDeclaratorId
+    : identifier ('[' ']')*
+    ;
+
+variableInitializer
+    : arrayInitializer
+    | expression
+    ;
+
+arrayInitializer
+    : '{' (variableInitializer (',' variableInitializer)* (',')? )? '}'
+    ;
+
+classOrInterfaceType
+    : identifier typeArguments? ('.' identifier typeArguments?)*
+    ;
+
+typeArgument
+    : typeType
+    | annotation* '?' ((EXTENDS | SUPER) typeType)?
+    ;
+
+qualifiedNameList
+    : qualifiedName (',' qualifiedName)*
+    ;
+
+formalParameters
+    : '(' ( receiverParameter?
+          | receiverParameter (',' formalParameterList)?
+          | formalParameterList?
+          ) ')'
+    ;
+
+receiverParameter
+    : typeType (identifier '.')* THIS
+    ;
+
+formalParameterList
+    : formalParameter (',' formalParameter)* (',' lastFormalParameter)?
+    | lastFormalParameter
+    ;
+
+formalParameter
+    : variableModifier* typeType variableDeclaratorId
+    ;
+
+lastFormalParameter
+    : variableModifier* typeType annotation* '...' variableDeclaratorId
+    ;
+
+// local variable type inference
+lambdaLVTIList
+    : lambdaLVTIParameter (',' lambdaLVTIParameter)*
+    ;
+
+lambdaLVTIParameter
+    : variableModifier* VAR identifier
+    ;
+
+qualifiedName
+    : identifier ('.' identifier)*
+    ;
+
+literal
+    : integerLiteral
+    | floatLiteral
+    | CHAR_LITERAL
+    | STRING_LITERAL
+    | BOOL_LITERAL
+    | NULL_LITERAL
+    ;
+
+integerLiteral
+    : DECIMAL_LITERAL
+    | HEX_LITERAL
+    | OCT_LITERAL
+    | BINARY_LITERAL
+    ;
+
+floatLiteral
+    : FLOAT_LITERAL
+    | HEX_FLOAT_LITERAL
+    ;
+
+// ANNOTATIONS
+altAnnotationQualifiedName
+    : (identifier DOT)* '@' identifier
+    ;
+
+annotation
+    : ('@' qualifiedName | altAnnotationQualifiedName) ('(' ( elementValuePairs | elementValue )? ')')?
+    ;
+
+elementValuePairs
+    : elementValuePair (',' elementValuePair)*
+    ;
+
+elementValuePair
+    : identifier '=' elementValue
+    ;
+
+elementValue
+    : expression
+    | annotation
+    | elementValueArrayInitializer
+    ;
+
+elementValueArrayInitializer
+    : '{' (elementValue (',' elementValue)*)? (',')? '}'
+    ;
+
+block
+    : '{' blockStatement* '}'
+    ;
+
+blockStatement
+    : localVariableDeclaration ';'
+    | statement
+    | localTypeDeclaration
+    ;
+
+localVariableDeclaration
+    : variableModifier* (typeType variableDeclarators | VAR identifier '=' expression)
+    ;
+
+identifier
+    : IDENTIFIER
+    | EXPORTS
+    ;
+
+localTypeDeclaration
+    : classOrInterfaceModifier*
+      (classDeclaration | interfaceDeclaration | recordDeclaration)
+    | ';'
+    ;
+
+statement
+    : blockLabel=block
+    | ASSERT expression (':' expression)? ';'
+    | IF parExpression statement (ELSE statement)?
+    | FOR '(' forControl ')' statement
+    | WHILE parExpression statement
+    | DO statement WHILE parExpression ';'
+    | TRY block (catchClause+ finallyBlock? | finallyBlock)
+    | TRY resourceSpecification block catchClause* finallyBlock?
+    | SWITCH parExpression '{' switchBlockStatementGroup* switchLabel* '}'
+    | SYNCHRONIZED parExpression block
+    | RETURN expression? ';'
+    | THROW expression ';'
+    | BREAK identifier? ';'
+    | CONTINUE identifier? ';'
+    | SEMI
+    | statementExpression=expression ';'
+    | identifierLabel=identifier ':' statement
+    ;
+
+catchClause
+    : CATCH '(' variableModifier* catchType identifier ')' block
+    ;
+
+catchType
+    : qualifiedName ('|' qualifiedName)*
+    ;
+
+finallyBlock
+    : FINALLY block
+    ;
+
+resourceSpecification
+    : '(' resources ';'? ')'
+    ;
+
+resources
+    : resource (';' resource)*
+    ;
+
+resource
+    : variableModifier* ( classOrInterfaceType variableDeclaratorId | VAR identifier ) '=' expression
+    | identifier
+    ;
+
+/** Matches cases then statements, both of which are mandatory.
+ *  To handle empty cases at the end, we add switchLabel* to statement.
+ */
+switchBlockStatementGroup
+    : switchLabel+ blockStatement+
+    ;
+
+switchLabel
+    : CASE (constantExpression=expression | enumConstantName=IDENTIFIER | typeType varName=identifier) ':'
+    | DEFAULT ':'
+    ;
+
+forControl
+    : enhancedForControl
+    | forInit? ';' expression? ';' forUpdate=expressionList?
+    ;
+
+forInit
+    : localVariableDeclaration
+    | expressionList
+    ;
+
+enhancedForControl
+    : variableModifier* (typeType | VAR) variableDeclaratorId ':' expression
+    ;
+
+// EXPRESSIONS
+
+parExpression
+    : '(' expression ')'
+    ;
+
+expressionList
+    : expression (',' expression)*
+    ;
+
+methodCall
+    : identifier '(' expressionList? ')'
+    | THIS '(' expressionList? ')'
+    | SUPER '(' expressionList? ')'
+    ;
+
+expression
+    : primary
+    | expression bop='.'
+      (
+         identifier
+       | methodCall
+       | THIS
+       | NEW nonWildcardTypeArguments? innerCreator
+       | SUPER superSuffix
+       | explicitGenericInvocation
+      )
+    | expression '[' expression ']'
+    | methodCall
+    | NEW creator
+    | '(' annotation* typeType ('&' typeType)* ')' expression
+    | expression postfix=('++' | '--')
+    | prefix=('+'|'-'|'++'|'--') expression
+    | prefix=('~'|'!') expression
+    | expression bop=('*'|'/'|'%') expression
+    | expression bop=('+'|'-') expression
+    | expression ('<' '<' | '>' '>' '>' | '>' '>') expression
+    | expression bop=('<=' | '>=' | '>' | '<') expression
+    | expression bop=INSTANCEOF (typeType | pattern)
+    | expression bop=('==' | '!=') expression
+    | expression bop='&' expression
+    | expression bop='^' expression
+    | expression bop='|' expression
+    | expression bop='&&' expression
+    | expression bop='||' expression
+    | <assoc=right> expression bop='?' expression ':' expression
+    | <assoc=right> expression
+      bop=('=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '^=' | '>>=' | '>>>=' | '<<=' | '%=')
+      expression
+    ;
+
+primary
+    : '(' expression ')'
+    | THIS
+    | SUPER
+    | literal
+    | identifier
+    | typeTypeOrVoid '.' CLASS
+    | nonWildcardTypeArguments (explicitGenericInvocationSuffix | THIS arguments)
+    ;
+
+classType
+    : (classOrInterfaceType '.')? annotation* identifier typeArguments?
+    ;
+
+creator
+    : nonWildcardTypeArguments createdName classCreatorRest
+    | createdName (arrayCreatorRest | classCreatorRest)
+    ;
+
+createdName
+    : identifier typeArgumentsOrDiamond? ('.' identifier typeArgumentsOrDiamond?)*
+    | primitiveType
+    ;
+
+classCreatorRest
+    : arguments classBody?
+    ;
+
+typeList
+    : typeType (',' typeType)*
+    ;
+
+typeType
+    : annotation* (classOrInterfaceType | primitiveType) (annotation* '[' ']')*
+    ;
+
+primitiveType
+    : BOOL
+    | CHAR
+    | INT8
+    | UINT8
+    | INT16
+    | UINT16
+    | INT32
+    | UINT32
+    | INT64
+    | UINT64
+    | FLOAT32
+    | FLOAT64
+    ;
+
+typeArguments
+    : '<' typeArgument (',' typeArgument)* '>'
+    ;
+
+superSuffix
+    : arguments
+    | '.' typeArguments? identifier arguments?
+    ;
+
+explicitGenericInvocationSuffix
+    : SUPER superSuffix
+    | identifier arguments
+    ;
+
+arguments
+    : '(' expressionList? ')'
+    ;

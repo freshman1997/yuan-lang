@@ -27,9 +27,52 @@ Note:
 			}
 
 关键字：
-	export, import, from, this, super, int8, uint8, int16, uint16, int32, uint32, int64, uint64, float32, float64, string, bool, void, if, else, for, do, while, switch, case, default, 
+	import, from, this, super, int8, uint8, int16, uint16, int32, uint32, int64, uint64, float32, float64, string, bool, void, if, else, for, do, while, switch, case, default, 
 	break, continue, return, private, protected, public, static, class, interface, extends, fn, goto, native, enum, new
 
+操作符：
+	+, -, *, /, %, ., ?, :, &, |, ^, ~, &&, ||, !, +=, -=, /=, *=, %=, ~=, ^=, &=, |=, >=, <=, >>, <<, >>=, <<=
+
+示例：
+
+	export class Token
+	{
+		public Token(int32 a, int32 b) {
+
+		}
+
+		protected uint32 get_check_sum(uint8[] arr)
+		{
+			return 111;
+		}
+
+		private static int32 to_number()
+		{
+			return hash ^ 0xfffe | 10000;
+		}
+
+		public void say()
+		{
+
+		}
+	}
+
+	export class Test
+	{
+		public static void main(string[] args)
+		{
+			Token t = new Token(1, 2);
+			t.say();
+			Console.println("hello world!!!");
+		}
+	}
 
 
+expr: literal | binOp | uOp
+
+stmt: assignStmt | funcCall | funcDecl | varDecl | classDecl | dotExpr | expr
+
+assignStmt: iden '=' ( assignStmt | funcCall | dotExpr | iden | literal | expr )
+
+https://github.com/antlr/grammars-v4.git
 
